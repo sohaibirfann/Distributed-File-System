@@ -37,31 +37,31 @@
       "hash": "78378ae9c66dc614ed97e40f711f6e31cacdb516ea07808c0a9d674714b11313",
       "users": [
         "user5",
-        "user1"
+        "user6"
       ]
     },
     {
       "chunkId": 5,
       "hash": "e82af62f0fc739e4f3ab295141ce7787e08a2185e0d6eff8f63badad753a95fc",
       "users": [
-        "user1",
-        "user2"
+        "user6",
+        "user1"
       ]
     },
     {
       "chunkId": 6,
       "hash": "74708d49dc92944b72a7fd8d8ee5433938701eeb91a670bd0c7ecdd4d1ff9b9b",
       "users": [
-        "user2",
-        "user3"
+        "user1",
+        "user2"
       ]
     },
     {
       "chunkId": 7,
       "hash": "d6c407b9c99555f33bb3ef550b89eaa06aa7fcde1336713ac6b279c48a83c00c",
       "users": [
-        "user3",
-        "user4"
+        "user2",
+        "user3"
       ]
     }
   ],
