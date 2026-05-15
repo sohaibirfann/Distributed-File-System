@@ -6,17 +6,17 @@ const path = require("path");
 const COORD_PORT = 6000;
 const CHUNK_SIZE = 4 * 1024;
 const METADATA_FILE = path.join(__dirname, "metadata.json");
-const USERS_FOLDER = path.join(__dirname, "users");
+// const USERS_FOLDER = path.join(__dirname, "users");
 
-// Get user folders
-const USERS = fs
-  .readdirSync(USERS_FOLDER)
-  .filter((file) => fs.statSync(path.join(USERS_FOLDER, file)).isDirectory());
+// // Get user folders
+// const USERS = fs
+//   .readdirSync(USERS_FOLDER)
+//   .filter((file) => fs.statSync(path.join(USERS_FOLDER, file)).isDirectory());
 
-// Ensure users folder exists
-if (!fs.existsSync(USERS_FOLDER)) {
-  fs.mkdirSync(USERS_FOLDER);
-}
+// // Ensure users folder exists
+// if (!fs.existsSync(USERS_FOLDER)) {
+//   fs.mkdirSync(USERS_FOLDER);
+// }
 
 // Load metadata
 let metadata = {};
@@ -93,6 +93,7 @@ if (process.argv[2] === "upload") {
       user4: "http://localhost:7004",
       user5: "http://localhost:7005",
     };
+    const USERS = Object.keys(NODE_MAP);
 
     for (const chunk of fileChunks) {
       const first = USERS[chunk.chunkId % USERS.length];
