@@ -4,8 +4,9 @@ const fs = require("fs");
 
 const SHARED_FOLDER = path.join(__dirname, "../shared");
 
+// ensure folder exists
 if (!fs.existsSync(SHARED_FOLDER)) {
-  fs.mkdirSync(SHARED_FOLDER);
+  fs.mkdirSync(SHARED_FOLDER, { recursive: true });
 }
 
 const storage = multer.diskStorage({

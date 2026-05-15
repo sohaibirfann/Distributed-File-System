@@ -80,6 +80,9 @@ const getFiles = (req, res) => {
 
       if (fs.existsSync(filePath)) {
         size = fs.statSync(filePath).size;
+      } else {
+        // fallback estimate from chunks
+        size = metadata[filename].length * 4096;
       }
 
       return {

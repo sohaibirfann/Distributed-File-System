@@ -1,0 +1,119 @@
+fication
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Vestibulum feugiat, sapien nec egestas suscipit, lorem
+ligula tristique lacus, non facilisis purus magna sed
+erat. Integer nec augue ac lorem pellentesque
+condimentum. Donec vehicula tortor vel posuere
+consequat. Suspendisse potenti. Curabitur luctus,
+ligula at bibendum cursus, erat libero luctus justo,
+sed ultrices justo felis sit amet ligula.
+
+Distributed systems divide files into chunks and
+replicate those chunks across multiple storage nodes.
+This ensures redundancy, availability, and fault
+tolerance. If one node becomes unavailable, the
+system can retrieve chunks from another replica node.
+
+Chunking improves scalability because large files are
+broken into smaller manageable units. Replication
+ensures reliability and recovery in case of node
+failure.
+
+AES-256 encryption protects data confidentiality.
+SHA-256 hashing verifies chunk integrity before
+merging the original file again.
+
+This project demonstrates:
+- File chunking
+- Chunk distribution
+- Replication
+- Fault tolerance
+- File merging
+- Distributed storage
+- Metadata management
+- Encryption
+- Integrity verification
+Distributed File Storage System Testing
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Vestibulum feugiat, sapien nec egestas suscipit, lorem
+ligula tristique lacus, non facilisis purus magna sed
+erat. Integer nec augue ac lorem pellentesque
+condimentum. Donec vehicula tortor vel posuere
+consequat. Suspendisse potenti. Curabitur luctus,
+ligula at bibendum cursus, erat libero luctus justo,
+sed ultrices justo felis sit amet ligula.
+
+Distributed systems divide files into chunks and
+replicate those chunks across multiple storage nodes.
+This ensures redundancy, availability, and fault
+tolerance. If one node becomes unavailable, the
+system can retrieve chunks from another replica node.
+
+Chunking improves scalability because large files are
+broken into smaller manageable units. Replication
+ensures reliability and recovery in case of node
+failure.
+
+AES-256 encryption protects data confidentiality.
+SHA-256 hashing verifies chunk integrity before
+merging the original file again.
+
+This project demonstrates:
+- File chunking
+- Chunk distribution
+- Replication
+- Fault tolerance
+- File merging
+- Distributed storage
+- Metadata management
+- Encryption
+- Integrity verification
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Vestibulum feugiat, sapien nec egestas suscipit, lorem
+ligula tristique lacus, non facilisis purus magna sed
+erat. Integer nec augue ac lorem pellentesque
+condimentum. Donec vehicula tortor vel posuere
+consequat. Suspendisse potenti. Curabitur luctus,
+ligula at bibendum cursus, erat libero luctus justo,
+sed ultrices justo felis sit amet ligula.
+
+Distributed systems divide files into chunks and
+replicate those chunks across multiple storage nodes.
+This ensures redundancy, availability, and fault
+tolerance. If one node becomes unavailable, the
+system can retrieve chunks from another replica node.
+
+Chunking improves scalability because large files are
+broken into smaller manageable units. Replication
+ensures reliability and recovery in case of node
+failure.
+
+AES-256 encryption protects data confidentiality.
+SHA-256 hashing verifies chunk integrity before
+merging the original file again.
+
+This project demonstrates:
+- File chunking
+- Chunk distribution
+- Replication
+- Fault tolerance
+- File merging
+- Distributed storage
+- Metadata management
+- Encryption
+- Integrity verification
+Distributed File Storage System Testing
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Vestibulum feugiat, sapien nec egestas suscipit, lorem
+ligula tristique lacus, non facilisis purus magna sed
+erat. Integer nec augue ac lorem pellentesque
+condimentum. Donec vehicula tortor vel posuere
+consequat. Suspendisse potenti. Curabitur luctus,
+ligula at bibendum cursus, erat libero luctus justo,
+sed ultrices justo felis sit amet ligula.
+
+Distributed systems divide files int

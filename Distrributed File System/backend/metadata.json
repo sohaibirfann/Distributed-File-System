@@ -64,5 +64,257 @@
         "user3"
       ]
     }
+  ],
+  "finance.txt": [
+    {
+      "chunkId": 0,
+      "hash": "42840bee25c302e11c3b9a081f697b68e387f25058251a9b4d2ec8138486782e",
+      "users": [
+        "user1",
+        "user2"
+      ]
+    },
+    {
+      "chunkId": 1,
+      "hash": "2686b1d4874ffbb300a9e152d030b1f5cace449a6462c015f2154ad50c0ed086",
+      "users": [
+        "user2",
+        "user3"
+      ]
+    },
+    {
+      "chunkId": 2,
+      "hash": "d040466c500234a4a5f2719959f23f5614284d2f5c9912cf08e1c1fb5a4486c6",
+      "users": [
+        "user3",
+        "user1"
+      ]
+    },
+    {
+      "chunkId": 3,
+      "hash": "6d4386b60f687cbd78107d59b386a8944aa7a984347b397ebd67f9947677eeff",
+      "users": [
+        "user1",
+        "user2"
+      ]
+    },
+    {
+      "chunkId": 4,
+      "hash": "48596325eb206972857f2014396557443bef23148bd84dcd92a31532e9b784ca",
+      "users": [
+        "user2",
+        "user3"
+      ]
+    },
+    {
+      "chunkId": 5,
+      "hash": "c5cbce7941efee139b7e16aa77c3a2b5fae50749c484988fa63d23a9611a286b",
+      "users": [
+        "user3",
+        "user1"
+      ]
+    },
+    {
+      "chunkId": 6,
+      "hash": "99ec863462161c75f3dea16e5f83d6182f8fe9aeef6e8fc78e5eb81f9b274acf",
+      "users": [
+        "user1",
+        "user2"
+      ]
+    }
+  ],
+  "mediumfile.txt": [
+    {
+      "chunkId": 0,
+      "hash": "b1b65d874cfaa93b9d65828c4113fa94d118a8fb227e0f1f8bfe9d47539da404",
+      "users": [
+        "user1",
+        "user2"
+      ]
+    },
+    {
+      "chunkId": 1,
+      "hash": "11c64ca0f71afbca2ea3ccf7ee675cd5f77c4cb57192e1fca892bed5683060b2",
+      "users": [
+        "user2",
+        "user3"
+      ]
+    },
+    {
+      "chunkId": 2,
+      "hash": "bb29b088f3c89f21021065995c39d69db4819dbc0d386e3431c49ba1ba73b176",
+      "users": [
+        "user3",
+        "user1"
+      ]
+    },
+    {
+      "chunkId": 3,
+      "hash": "4e043b3b086d7b6e15bd807456cfbeb5d8e5b5e9a11fca701e90542713f0c89f",
+      "users": [
+        "user1",
+        "user2"
+      ]
+    },
+    {
+      "chunkId": 4,
+      "hash": "b98098698c222758c1af22b390bd0e22b8771a693e6d1a1096461d44cb4919d7",
+      "users": [
+        "user2",
+        "user3"
+      ]
+    },
+    {
+      "chunkId": 5,
+      "hash": "fed61790ac1358dd5a466ed16edf45d2fa43ad1cf0c8fe07eede36bdf1cf45a4",
+      "users": [
+        "user3",
+        "user1"
+      ]
+    },
+    {
+      "chunkId": 6,
+      "hash": "22d9110b84bde105147d75e20ee7d736ed70d002c891dea06aabff2c98cdca47",
+      "users": [
+        "user1",
+        "user2"
+      ]
+    },
+    {
+      "chunkId": 7,
+      "hash": "71e6bb424e108b9194d2b453edbf457834c72199181b176b05d0e0cd8ea0f30e",
+      "users": [
+        "user2",
+        "user3"
+      ]
+    },
+    {
+      "chunkId": 8,
+      "hash": "fa06dc66890a25f46923932cf2a94772b0abd550faca6ea126347ed55da750e1",
+      "users": [
+        "user3",
+        "user1"
+      ]
+    },
+    {
+      "chunkId": 9,
+      "hash": "055d00f2481a477d6732b3d1ff4b84cd9a2292f02d3b538d4da6285ec5a0be7f",
+      "users": [
+        "user1",
+        "user2"
+      ]
+    },
+    {
+      "chunkId": 10,
+      "hash": "791a72a1d9bcf856bb2ab1a8f9ec39a9b95ab23bce13666c807d2f1c62009581",
+      "users": [
+        "user2",
+        "user3"
+      ]
+    },
+    {
+      "chunkId": 11,
+      "hash": "a2b93f45c90808571e3c2cd69982dab03546c48c4698ddf9d6e5dd45072533d8",
+      "users": [
+        "user3",
+        "user1"
+      ]
+    },
+    {
+      "chunkId": 12,
+      "hash": "40bf27b9d901a095da46df333a8400a2c6fd71e18cc7922e4d8c2636b1f1c7ed",
+      "users": [
+        "user1",
+        "user2"
+      ]
+    },
+    {
+      "chunkId": 13,
+      "hash": "20b8704ca9c13b4eb8ed68154e1035dd44319304e675335b3e3c51fab5215789",
+      "users": [
+        "user2",
+        "user3"
+      ]
+    },
+    {
+      "chunkId": 14,
+      "hash": "fb4201b34a604b2bd0051aa10702cabb47af7117dafe5f151fc24826962e0527",
+      "users": [
+        "user3",
+        "user1"
+      ]
+    },
+    {
+      "chunkId": 15,
+      "hash": "f0a63f946e42264e4bbc4514f89f2f02df4fb8506607a27eafa942062446c09d",
+      "users": [
+        "user1",
+        "user2"
+      ]
+    },
+    {
+      "chunkId": 16,
+      "hash": "b053bd4c5dd067ffa43892bb2f8c2bcf68c11cc1d766842b3538e521d570de7c",
+      "users": [
+        "user2",
+        "user3"
+      ]
+    },
+    {
+      "chunkId": 17,
+      "hash": "fdf1723d3954aa34c7a300b4a131b4d75a3b293abaf0959fcc2ebed1b5b9700d",
+      "users": [
+        "user3",
+        "user1"
+      ]
+    },
+    {
+      "chunkId": 18,
+      "hash": "42177a29e9ac59662f44edb629c93f6b1f104afa06e06bdf2fd12f394d4145e4",
+      "users": [
+        "user1",
+        "user2"
+      ]
+    },
+    {
+      "chunkId": 19,
+      "hash": "6fe123236f383142fddf42eabba3e612af8a8a98c15126d37e2140086663877e",
+      "users": [
+        "user2",
+        "user3"
+      ]
+    },
+    {
+      "chunkId": 20,
+      "hash": "10160665c800ebaea92582924f040eac3f1a861f73f7621755634c0447cd1de6",
+      "users": [
+        "user3",
+        "user1"
+      ]
+    },
+    {
+      "chunkId": 21,
+      "hash": "ae4e7c6de2a2f276b6ed1725faa3c205b4903538b0f9c4c9787a91f959fb70a0",
+      "users": [
+        "user1",
+        "user2"
+      ]
+    },
+    {
+      "chunkId": 22,
+      "hash": "3985f0f493b842027da1c5f195fdbb77ab30f4a2b5561d0a8958a622f14a2892",
+      "users": [
+        "user2",
+        "user3"
+      ]
+    },
+    {
+      "chunkId": 23,
+      "hash": "584081b46a6e5fd02bf6a2c7056b7da76f3255c052ed94e3f4860f04a29f6c01",
+      "users": [
+        "user3",
+        "user1"
+      ]
+    }
   ]
 }
