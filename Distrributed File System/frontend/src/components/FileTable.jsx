@@ -3,6 +3,8 @@ import toast from "react-hot-toast";
 import { FileText } from "lucide-react";
 
 export default function FileTable({ refresh, isAdmin = false }) {
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState(null);
   const [previewContent, setPreviewContent] = useState("");
   const [previewFile, setPreviewFile] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -92,7 +94,7 @@ export default function FileTable({ refresh, isAdmin = false }) {
 
   async function handleDelete(filename) {
     try {
-      if (!confirm(`Delete ${filename}?`)) return;
+      // if (!confirm(`Delete ${filename}?`)) return;
 
       await fetch(`http://localhost:5000/api/files/delete/${filename}`, {
         method: "DELETE",
@@ -430,14 +432,17 @@ export default function FileTable({ refresh, isAdmin = false }) {
 
                       {isAdmin && (
                         <button
-                          onClick={() => handleDelete(file.filename)}
+                          onClick={() => {
+                            setFileToDelete(file.filename);
+                            setShowDeleteModal(true);
+                          }}
                           className="
-    px-4 py-2
-    text-red-400 text-sm
-    bg-red-500/20
-    rounded-xl
-    hover:bg-red-500/30 transition
-  "
+                            px-4 py-2
+                            text-red-400 text-sm
+                            bg-red-500/20
+                            rounded-xl
+                            hover:bg-red-500/30 transition
+                          "
                         >
                           Delete
                         </button>
@@ -503,6 +508,37 @@ export default function FileTable({ refresh, isAdmin = false }) {
               "
             >
               {previewContent}
+            </div>
+          </div>
+        </div>
+      )}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-slate-900 p-6 rounded-2xl w-[90%] max-w-md">
+            <h2 className="text-lg font-semibold mb-3">Delete File</h2>
+
+            <p className="text-slate-400 mb-6">
+              Are you sure you want to delete{" "}
+              <span className="text-white font-semibold">{fileToDelete}</span>?
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 bg-slate-700 rounded-xl hover:bg-slate-600"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => {
+                  handleDelete(fileToDelete);
+                  setShowDeleteModal(false);
+                }}
+                className="px-4 py-2 bg-red-600 rounded-xl hover:bg-red-500"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
