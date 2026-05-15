@@ -9,7 +9,19 @@ const healthRoutes = require("./routes/healthRoutes");
 
 const app = express();
 
+/*
+|--------------------------------------------------------------------------
+| HTTP Server
+|--------------------------------------------------------------------------
+*/
+
 const server = http.createServer(app);
+
+/*
+|--------------------------------------------------------------------------
+| Socket.IO
+|--------------------------------------------------------------------------
+*/
 
 const io = new Server(server, {
   cors: {
@@ -20,11 +32,27 @@ const io = new Server(server, {
 
 app.set("io", io);
 
+/*
+|--------------------------------------------------------------------------
+| Middleware
+|--------------------------------------------------------------------------
+*/
+
 app.use(cors());
 
 app.use(express.json());
 
-app.use(express.urlencoded({ extended: true }));
+app.use(
+  express.urlencoded({
+    extended: true,
+  })
+);
+
+/*
+|--------------------------------------------------------------------------
+| Routes
+|--------------------------------------------------------------------------
+*/
 
 app.use("/api", fileRoutes);
 
@@ -32,11 +60,25 @@ app.use("/api", nodeRoutes);
 
 app.use("/api", healthRoutes);
 
-app.get("/", (req, res) => {
+/*
+|--------------------------------------------------------------------------
+| Root
+|--------------------------------------------------------------------------
+*/
+
+app.get("/", (_, res) => {
   res.json({
-    message: "Distributed File System API Running",
+    success: true,
+    message:
+      "Distributed File System API Running",
   });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Socket Events
+|--------------------------------------------------------------------------
+*/
 
 io.on("connection", (socket) => {
   console.log(
@@ -57,12 +99,18 @@ io.on("connection", (socket) => {
   });
 });
 
-const PORT = 5000;
+/*
+|--------------------------------------------------------------------------
+| Server Start
+|--------------------------------------------------------------------------
+*/
+
+const PORT =
+  process.env.PORT || 5000;
 
 server.listen(PORT, () => {
   console.log(
-    "Backend running on port",
-    PORT
+    `Backend running on port ${PORT}`
   );
 });
 
