@@ -72,6 +72,24 @@ app.get("/stats", (req, res) => {
   });
 });
 
+app.post("/delete-chunk", (req, res) => {
+  try {
+    const { filename, chunkId } = req.body;
+
+    const filePath = path.join(STORAGE, `${filename}_chunk_${chunkId}`);
+
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      console.log(`Deleted chunk ${chunkId} of ${filename} from ${USER}`);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`${USER} node running on port ${PORT}`);
 });

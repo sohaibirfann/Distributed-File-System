@@ -90,6 +90,24 @@ export default function FileTable({ refresh, isAdmin = false }) {
     }
   }
 
+  async function handleDelete(filename) {
+    try {
+      if (!confirm(`Delete ${filename}?`)) return;
+
+      await fetch(`http://localhost:5000/api/files/delete/${filename}`, {
+        method: "DELETE",
+      });
+
+      toast.success("File deleted");
+
+      // refresh table
+      fetchFiles();
+    } catch (err) {
+      console.error(err);
+      toast.error("Delete failed");
+    }
+  }
+
   const filteredFiles = files.filter((file) =>
     file.filename.toLowerCase().includes(search.toLowerCase()),
   );
@@ -412,13 +430,14 @@ export default function FileTable({ refresh, isAdmin = false }) {
 
                       {isAdmin && (
                         <button
+                          onClick={() => handleDelete(file.filename)}
                           className="
-                            px-4 py-2
-                            text-red-400 text-sm
-                            bg-red-500/20
-                            rounded-xl
-                            hover:bg-red-500/30 transition
-                          "
+    px-4 py-2
+    text-red-400 text-sm
+    bg-red-500/20
+    rounded-xl
+    hover:bg-red-500/30 transition
+  "
                         >
                           Delete
                         </button>

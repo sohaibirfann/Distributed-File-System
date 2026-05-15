@@ -232,9 +232,66 @@ const downloadFile = async (req, res) => {
   }
 };
 
+const deleteFile = async (req, res) => {
+  try {
+    const filename = req.params.filename;
+
+    const metadataPath = path.join(__dirname, "../metadata.json");
+
+    if (!fs.existsSync(metadataPath)) {
+      return res.status(404).json({ message: "Metadata not found" });
+    }
+
+    let metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+
+    const fileChunks = metadata[filename];
+
+    if (!fileChunks) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    const NODE_MAP = {
+      user1: "http://localhost:7001",
+      user2: "http://localhost:7002",
+      user3: "http://localhost:7003",
+    };
+
+    // delete chunks from all nodes
+    for (const chunk of fileChunks) {
+      for (const user of chunk.users) {
+        try {
+          await fetch(`${NODE_MAP[user]}/delete-chunk`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              filename,
+              chunkId: chunk.chunkId,
+            }),
+          });
+        } catch (err) {
+          console.log(`Failed to delete chunk ${chunk.chunkId} from ${user}`);
+        }
+      }
+    }
+
+    // remove from metadata
+    delete metadata[filename];
+
+    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Delete failed" });
+  }
+};
+
 module.exports = {
   uploadFile,
   getFiles,
   mergeFileController,
   downloadFile,
+  deleteFile,
 };

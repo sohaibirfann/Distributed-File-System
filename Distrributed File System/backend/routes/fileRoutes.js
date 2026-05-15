@@ -9,6 +9,7 @@ const {
   getFiles,
   mergeFileController,
   downloadFile,
+  deleteFile,
 } = require("../controllers/fileController");
 
 /*
@@ -70,5 +71,8 @@ router.get(
   },
   downloadFile
 );
+
+// delete files
+router.delete("/delete/:filename", deleteFile);
 
 module.exports = router;
