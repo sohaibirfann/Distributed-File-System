@@ -1,0 +1,4 @@
+1 - User uploads file -> divide into chunks at that moment
+2 - After chunking check whether files are distributed. (implement by simulating multiple users) -> divide chunks among users
+3 - UI to retrieve file. -> input file name -> retrieve file (merging the chunks in the backend for that file)
+4 - The moment when searching for a file check if the file is present - by the filename. -> implement show button 

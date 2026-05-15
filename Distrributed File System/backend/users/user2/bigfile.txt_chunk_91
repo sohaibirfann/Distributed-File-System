@@ -1,0 +1,4 @@
+ those chunks across multiple storage nodes.
+This ensures redundancy, availability, and fault
+tolerance. If one node becomes unavailable, the
+system can retrieve chunks from another replica node.
