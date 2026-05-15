@@ -3,6 +3,9 @@ import toast from "react-hot-toast";
 import { FileText } from "lucide-react";
 
 export default function FileTable({ refresh, isAdmin = false }) {
+  const [previewContent, setPreviewContent] = useState("");
+  const [previewFile, setPreviewFile] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
   const [files, setFiles] = useState([]);
   const [search, setSearch] = useState("");
 
@@ -12,9 +15,7 @@ export default function FileTable({ refresh, isAdmin = false }) {
 
   async function fetchFiles() {
     try {
-      const response = await fetch(
-        "http://localhost:5000/api/files"
-      );
+      const response = await fetch("http://localhost:5000/api/files");
 
       const data = await response.json();
 
@@ -32,16 +33,11 @@ export default function FileTable({ refresh, isAdmin = false }) {
         id: "download",
       });
 
-      await fetch(
-        `http://localhost:5000/api/merge/${filename}`,
-        {
-          method: "POST",
-        }
-      );
+      await fetch(`http://localhost:5000/api/merge/${filename}`, {
+        method: "POST",
+      });
 
-      window.open(
-        `http://localhost:5000/api/download/${filename}`
-      );
+      window.open(`http://localhost:5000/api/download/${filename}`);
 
       toast.success("Download started", {
         id: "download",
@@ -55,68 +51,104 @@ export default function FileTable({ refresh, isAdmin = false }) {
     }
   }
 
+  async function handlePreview(filename) {
+    try {
+      toast.loading("Loading preview...", { id: "preview" });
+
+      // merge first
+      await fetch(`http://localhost:5000/api/merge/${filename}`, {
+        method: "POST",
+      });
+
+      // fetch file content
+      const response = await fetch(
+        `http://localhost:5000/api/download/${filename}`,
+      );
+
+      const text = await response.text();
+
+      setPreviewContent(text);
+      setPreviewFile(filename);
+      setShowPreview(true);
+
+      toast.success("Preview loaded", { id: "preview" });
+    } catch (error) {
+      console.error(error);
+      toast.error("Preview failed", { id: "preview" });
+    }
+  }
+
   const filteredFiles = files.filter((file) =>
-    file.filename
-      .toLowerCase()
-      .includes(search.toLowerCase())
+    file.filename.toLowerCase().includes(search.toLowerCase()),
   );
 
   function getFileType(filename) {
-    return (
-      filename.split(".").pop()?.toUpperCase() ||
-      "FILE"
-    );
+    return filename.split(".").pop()?.toUpperCase() || "FILE";
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 md:p-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+    <div
+      className="
+        p-4
+        bg-slate-900
+        border border-slate-800 rounded-3xl
+        md:p-6
+      "
+    >
+      <div
+        className="
+          flex flex-col
+          mb-6
+          gap-4
+          md:flex-row md:items-center md:justify-between
+        "
+      >
         <div>
-          <h2 className="text-2xl font-semibold">
+          <h2
+            className="
+              text-2xl font-semibold
+            "
+          >
             Shared Files
           </h2>
 
-          <p className="text-slate-400 mt-1 text-sm">
+          <p
+            className="
+              mt-1
+              text-slate-400 text-sm
+            "
+          >
             Distributed and replicated files
           </p>
         </div>
 
-        <div className="relative w-full md:w-80">
+        <div
+          className="
+            w-full
+            relative
+            md:w-80
+          "
+        >
           <input
             type="text"
             placeholder="Search files..."
             value={search}
-            onChange={(e) =>
-              setSearch(e.target.value)
-            }
+            onChange={(e) => setSearch(e.target.value)}
             className="
               w-full
+              px-4 py-3 pr-12
               bg-slate-800
-              border border-slate-700
-              rounded-2xl
-              px-4
-              py-3
-              pr-12
-              outline-none
-              focus:border-blue-500
-              transition
+              border border-slate-700 rounded-2xl
+              outline-none focus:border-blue-500 transition
             "
           />
 
           {search && (
             <button
-              onClick={() =>
-                setSearch("")
-              }
+              onClick={() => setSearch("")}
               className="
-                absolute
-                right-4
-                top-1/2
-                -translate-y-1/2
-                text-slate-400
-                hover:text-white
-                transition
-                text-xl
+                text-slate-400 text-xl
+                absolute right-4 top-1/2 -translate-y-1/2 hover:text-white transition
               "
             >
               ×
@@ -125,15 +157,40 @@ export default function FileTable({ refresh, isAdmin = false }) {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[700px]">
+      <div
+        className="
+          overflow-x-auto
+        "
+      >
+        <table
+          className="
+            w-full min-w-[700px]
+          "
+        >
           <thead>
-            <tr className="border-b border-slate-800 text-slate-400">
-              <th className="text-left py-4">
+            <tr
+              className="
+                text-slate-400
+                border-b border-slate-800
+              "
+            >
+              <th
+                className="
+                  py-4
+                  text-left
+                "
+              >
                 File
               </th>
 
-              <th className="hidden md:table-cell text-left py-4">
+              <th
+                className="
+                  hidden
+                  py-4
+                  text-left
+                  md:table-cell
+                "
+              >
                 Type
               </th>
 
@@ -141,15 +198,32 @@ export default function FileTable({ refresh, isAdmin = false }) {
                 Chunks
               </th> */}
 
-              <th className="text-left py-4">
+              <th
+                className="
+                  py-4
+                  text-left
+                "
+              >
                 Size
               </th>
 
-              <th className="hidden lg:table-cell text-left py-4">
+              <th
+                className="
+                  hidden
+                  py-4
+                  text-left
+                  lg:table-cell
+                "
+              >
                 Status
               </th>
 
-              <th className="text-left py-4">
+              <th
+                className="
+                  py-4
+                  text-left
+                "
+              >
                 Actions
               </th>
             </tr>
@@ -161,9 +235,8 @@ export default function FileTable({ refresh, isAdmin = false }) {
                 <td
                   colSpan="6"
                   className="
-                    text-center
                     py-12
-                    text-slate-500
+                    text-center text-slate-500
                   "
                 >
                   No files found
@@ -174,40 +247,51 @@ export default function FileTable({ refresh, isAdmin = false }) {
                 <tr
                   key={index}
                   className="
-                    border-b
-                    border-slate-800
-                    hover:bg-slate-800/30
-                    transition
+                    border-b border-slate-800
+                    hover:bg-slate-800/30 transition
                   "
                 >
                   {/* FILE NAME */}
-                  <td className="py-5">
-                    <div className="flex items-center gap-3 min-w-[220px]">
-                      <div className="
-                        w-10
-                        h-10
-                        rounded-xl
-                        bg-slate-800
-                        border border-slate-700
+                  <td
+                    className="
+                      py-5
+                    "
+                  >
+                    <div
+                      className="
                         flex
-                        items-center
-                        justify-center
-                        shrink-0
-                      ">
+                        min-w-[220px]
+                        items-center gap-3
+                      "
+                    >
+                      <div
+                        className="
+                          flex
+                          w-10 h-10
+                          bg-slate-800
+                          rounded-xl border border-slate-700
+                          items-center justify-center shrink-0
+                        "
+                      >
                         <FileText
                           size={18}
-                          className="text-blue-400"
+                          className="
+                            text-blue-400
+                          "
                         />
                       </div>
 
-                      <div className="min-w-0">
-                        <p className="
-                          font-semibold
-                          text-white
-                          tracking-wide
-                          text-[15px]
-                          truncate
-                        ">
+                      <div
+                        className="
+                          min-w-0
+                        "
+                      >
+                        <p
+                          className="
+                            font-semibold text-white tracking-wide text-[15px]
+                            truncate
+                          "
+                        >
                           {file.filename}
                         </p>
                       </div>
@@ -215,103 +299,114 @@ export default function FileTable({ refresh, isAdmin = false }) {
                   </td>
 
                   {/* FILE TYPE */}
-                  <td className="hidden md:table-cell">
-                    <span className="
-                      bg-purple-500/10
-                      text-purple-400
-                      border border-purple-500/20
-                      px-3
-                      py-1
-                      rounded-xl
-                      text-sm
-                    ">
-                      {getFileType(
-                        file.filename
-                      )}
+                  <td
+                    className="
+                      hidden
+                      md:table-cell
+                    "
+                  >
+                    <span
+                      className="
+                        px-3 py-1
+                        text-purple-400 text-sm
+                        bg-purple-500/10
+                        border border-purple-500/20 rounded-xl
+                      "
+                    >
+                      {getFileType(file.filename)}
                     </span>
                   </td>
 
                   {/* CHUNKS */}
                   <td>
-                    <span className="
-                      bg-blue-500/10
-                      text-blue-400
-                      px-3
-                      py-1
-                      rounded-xl
-                      text-sm
-                      whitespace-nowrap
-                    ">
+                    <span
+                      className="
+                        px-3 py-1
+                        text-blue-400 text-sm whitespace-nowrap
+                        bg-blue-500/10
+                        rounded-xl
+                      "
+                    >
                       {file.chunks} Chunks
                     </span>
                   </td>
 
                   {/* SIZE */}
                   <td>
-                    <span className="
-                      bg-orange-500/10
-                      text-orange-400
-                      border border-orange-500/20
-                      px-3
-                      py-1
-                      rounded-xl
-                      text-sm
-                      whitespace-nowrap
-                    ">
-                      {(file.size / 1024).toFixed(
-                        2
-                      )}{" "}
-                      KB
+                    <span
+                      className="
+                        px-3 py-1
+                        text-orange-400 text-sm whitespace-nowrap
+                        bg-orange-500/10
+                        border border-orange-500/20 rounded-xl
+                      "
+                    >
+                      {(file.size / 1024).toFixed(2)} KB
                     </span>
                   </td>
 
                   {/* STATUS */}
-                  <td className="hidden lg:table-cell">
-                    <span className="
-                      bg-emerald-500/20
-                      text-emerald-400
-                      px-3
-                      py-1
-                      rounded-xl
-                      text-sm
-                      whitespace-nowrap
-                    ">
+                  <td
+                    className="
+                      hidden
+                      lg:table-cell
+                    "
+                  >
+                    <span
+                      className="
+                        px-3 py-1
+                        text-emerald-400 text-sm whitespace-nowrap
+                        bg-emerald-500/20
+                        rounded-xl
+                      "
+                    >
                       Distributed
                     </span>
                   </td>
 
                   {/* ACTIONS */}
                   <td>
-                    <div className="flex items-center gap-2">
+                    <div
+                      className="
+                        flex
+                        items-center gap-2
+                      "
+                    >
                       <button
                         onClick={() => handleDownload(file.filename)}
                         className="
-        bg-emerald-600
-        hover:bg-emerald-500
-        px-3
-        md:px-5
-        py-2
-        rounded-xl
-        transition
-        text-sm
-        font-medium
-      "
+                          px-3 py-2
+                          text-sm font-medium
+                          bg-emerald-600
+                          rounded-xl
+                          hover:bg-emerald-500 transition
+                          md:px-5
+                        "
                       >
                         Download
+                      </button>
+                      <button
+                        onClick={() => handlePreview(file.filename)}
+                        className="
+                          px-4 py-2
+                          text-blue-400 text-sm
+                          bg-blue-500/20
+                          rounded-xl
+                          hover:bg-blue-500/30 transition
+                        "
+                      >
+                        Preview
                       </button>
 
                       {isAdmin && (
                         <button
                           className="
-          bg-red-500/20
-          hover:bg-red-500/30
-          text-red-400
-          px-4
-          py-2
-          rounded-xl
-          transition
-          text-sm
-        "
+                            px-4 py-2
+                            text-red-400 text-sm
+                            bg-red-500/20
+                            rounded-xl
+                            hover:bg-red-500/30 transition
+                          "
                         >
                           Delete
                         </button>
@@ -324,6 +419,63 @@ export default function FileTable({ refresh, isAdmin = false }) {
           </tbody>
         </table>
       </div>
+      {showPreview && (
+        <div
+          className="
+            flex z-50
+            bg-black/70
+            fixed inset-0 items-center justify-center
+          "
+        >
+          <div
+            className="
+              overflow-hidden flex flex-col
+              w-[90%] max-w-3xl max-h-[80vh]
+              p-6
+              bg-slate-900
+              rounded-2xl
+            "
+          >
+            <div
+              className="
+                flex
+                mb-4
+                justify-between items-center
+              "
+            >
+              <h2
+                className="
+                  text-lg font-semibold
+                "
+              >
+                {previewFile}
+              </h2>
+
+              <button
+                onClick={() => setShowPreview(false)}
+                className="
+                  text-slate-400 text-xl
+                  hover:text-white
+                "
+              >
+                ×
+              </button>
+            </div>
+
+            <div
+              className="
+                overflow-y-auto
+                p-4
+                text-sm whitespace-pre-wrap
+                bg-slate-800
+                rounded-xl
+              "
+            >
+              {previewContent}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
