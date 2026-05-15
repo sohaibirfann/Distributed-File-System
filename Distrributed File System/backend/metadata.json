@@ -21,30 +21,30 @@
       "hash": "8b6f6613b51e5e9ef46510bd29f90d3ef606e7d53aad06760020c704a0c41c9f",
       "users": [
         "user3",
-        "user4"
+        "user1"
       ]
     },
     {
       "chunkId": 3,
       "hash": "9da278a708ecfc450ca254399c8b7e66ac145b0490afe9d8d904ceb76ad08024",
       "users": [
-        "user4",
-        "user5"
+        "user1",
+        "user2"
       ]
     },
     {
       "chunkId": 4,
       "hash": "78378ae9c66dc614ed97e40f711f6e31cacdb516ea07808c0a9d674714b11313",
       "users": [
-        "user5",
-        "user6"
+        "user2",
+        "user3"
       ]
     },
     {
       "chunkId": 5,
       "hash": "e82af62f0fc739e4f3ab295141ce7787e08a2185e0d6eff8f63badad753a95fc",
       "users": [
-        "user6",
+        "user3",
         "user1"
       ]
     },

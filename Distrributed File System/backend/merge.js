@@ -1,25 +1,53 @@
 const fs = require("fs");
 const path = require("path");
 
-const USERS_FOLDER = path.join(__dirname, "users");
 const OUTPUT_FOLDER = path.join(__dirname, "merged");
 const METADATA_FILE = path.join(__dirname, "metadata.json");
 
+// Ensure output folder exists
 if (!fs.existsSync(OUTPUT_FOLDER)) {
   fs.mkdirSync(OUTPUT_FOLDER);
 }
 
-function mergeFile(filename) {
+// Map users → node URLs
+const NODE_MAP = {
+  user1: "http://localhost:7001",
+  user2: "http://localhost:7002",
+  user3: "http://localhost:7003",
+};
+
+// Fetch chunk from node
+async function fetchChunk(user, filename, chunkId) {
+  const nodeUrl = NODE_MAP[user];
+
+  const res = await fetch(
+    `${nodeUrl}/get-chunk?filename=${filename}&chunkId=${chunkId}`,
+  );
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch chunk ${chunkId} from ${user}`);
+  }
+
+  const data = await res.json();
+
+  return Buffer.from(data.data, "base64");
+}
+
+// Main merge function
+async function mergeFile(filename) {
   if (!fs.existsSync(METADATA_FILE)) {
     console.log("metadata.json not found");
     return;
   }
 
-  const metadata = JSON.parse(
-    fs.readFileSync(METADATA_FILE, "utf8")
-  );
+  const metadata = JSON.parse(fs.readFileSync(METADATA_FILE, "utf8"));
 
-  const chunks = metadata[filename];
+  console.log("Requested filename:", filename);
+  console.log("Available files:", Object.keys(metadata));
+
+  const key = Object.keys(metadata).find((k) => k.trim() === filename.trim());
+
+  const chunks = metadata[key];
 
   if (!Array.isArray(chunks)) {
     console.log("No chunk metadata found");
@@ -31,27 +59,26 @@ function mergeFile(filename) {
   const mergedParts = [];
 
   for (const chunk of chunks) {
-    let found = false;
+    let chunkBuffer = null;
 
     for (const user of chunk.users) {
-      const chunkPath = path.join(
-        USERS_FOLDER,
-        user,
-        `${filename}_chunk_${chunk.chunkId}`
-      );
+      try {
+        chunkBuffer = await fetchChunk(user, filename, chunk.chunkId);
 
-      if (fs.existsSync(chunkPath)) {
-        mergedParts.push(fs.readFileSync(chunkPath));
-        console.log("Chunk", chunk.chunkId, "loaded from", user);
-        found = true;
+        console.log("Chunk", chunk.chunkId, "fetched from", user);
+
         break;
+      } catch (err) {
+        console.log(`Failed from ${user}, trying next...`);
       }
     }
 
-    if (!found) {
-      console.log("Chunk", chunk.chunkId, "missing");
+    if (!chunkBuffer) {
+      console.log("Chunk", chunk.chunkId, "missing from all replicas");
       return;
     }
+
+    mergedParts.push(chunkBuffer);
   }
 
   const finalBuffer = Buffer.concat(mergedParts);
@@ -62,11 +89,14 @@ function mergeFile(filename) {
   console.log("Merged file saved at:", outputPath);
 }
 
-const filename = process.argv[2];
+// Entry point
+(async () => {
+  const filename = process.argv[2];
 
-if (!filename) {
-  console.log("Usage: node merge.js <filename>");
-  process.exit(1);
-}
+  if (!filename) {
+    console.log("Usage: node merge.js <filename>");
+    process.exit(1);
+  }
 
-mergeFile(filename);
+  await mergeFile(filename);
+})();
