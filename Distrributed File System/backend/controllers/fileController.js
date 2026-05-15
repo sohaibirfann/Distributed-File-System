@@ -2,20 +2,11 @@ const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
 
-const SHARED_FOLDER = path.join(
-  __dirname,
-  "../shared"
-);
+const SHARED_FOLDER = path.join(__dirname, "../shared");
 
-const MERGED_FOLDER = path.join(
-  __dirname,
-  "../merged"
-);
+const MERGED_FOLDER = path.join(__dirname, "../merged");
 
-const METADATA_FILE = path.join(
-  __dirname,
-  "../metadata.json"
-);
+const METADATA_FILE = path.join(__dirname, "../metadata.json");
 
 /*
 |--------------------------------------------------------------------------
@@ -34,10 +25,7 @@ const uploadFile = (req, res) => {
 
     const io = req.app.get("io");
 
-    io.emit(
-      "log",
-      `File uploaded: ${req.file.originalname}`
-    );
+    io.emit("log", `File uploaded: ${req.file.originalname}`);
 
     const filePath = req.file.path;
 
@@ -50,23 +38,18 @@ const uploadFile = (req, res) => {
         if (error) {
           return res.status(500).json({
             success: false,
-            message:
-              stderr || error.message,
+            message: stderr || error.message,
           });
         }
 
-        io.emit(
-          "log",
-          `Replication completed for ${req.file.originalname}`
-        );
+        io.emit("log", `Replication completed for ${req.file.originalname}`);
 
         res.json({
           success: true,
-          message:
-            "File uploaded successfully",
+          message: "File uploaded successfully",
           output: stdout,
         });
-      }
+      },
     );
   } catch (error) {
     res.status(500).json({
@@ -84,38 +67,24 @@ const uploadFile = (req, res) => {
 
 const getFiles = (req, res) => {
   try {
-    if (
-      !fs.existsSync(METADATA_FILE)
-    ) {
+    if (!fs.existsSync(METADATA_FILE)) {
       return res.json([]);
     }
 
-    const metadata = JSON.parse(
-      fs.readFileSync(
-        METADATA_FILE,
-        "utf8"
-      )
-    );
+    const metadata = JSON.parse(fs.readFileSync(METADATA_FILE, "utf8"));
 
-    const files = Object.keys(
-      metadata
-    ).map((filename) => {
-      const filePath = path.join(
-        SHARED_FOLDER,
-        filename
-      );
+    const files = Object.keys(metadata).map((filename) => {
+      const filePath = path.join(SHARED_FOLDER, filename);
 
       let size = 0;
 
       if (fs.existsSync(filePath)) {
-        size =
-          fs.statSync(filePath).size;
+        size = fs.statSync(filePath).size;
       }
 
       return {
         filename,
-        chunks:
-          metadata[filename].length,
+        chunks: metadata[filename].length,
         size,
       };
     });
@@ -137,20 +106,13 @@ const getFiles = (req, res) => {
 |--------------------------------------------------------------------------
 */
 
-const mergeFileController = (
-  req,
-  res
-) => {
+const mergeFileController = (req, res) => {
   try {
     const io = req.app.get("io");
 
-    const filename =
-      req.params.filename;
+    const filename = req.params.filename;
 
-    io.emit(
-      "log",
-      `Merge started for ${filename}`
-    );
+    io.emit("log", `Merge started for ${filename}`);
 
     exec(
       `node merge.js "${filename}"`,
@@ -161,23 +123,18 @@ const mergeFileController = (
         if (error) {
           return res.status(500).json({
             success: false,
-            message:
-              stderr || error.message,
+            message: stderr || error.message,
           });
         }
 
-        io.emit(
-          "log",
-          `Merge completed for ${filename}`
-        );
+        io.emit("log", `Merge completed for ${filename}`);
 
         res.json({
           success: true,
-          message:
-            "File merged successfully",
+          message: "File merged successfully",
           output: stdout,
         });
-      }
+      },
     );
   } catch (error) {
     res.status(500).json({
@@ -193,35 +150,84 @@ const mergeFileController = (
 |--------------------------------------------------------------------------
 */
 
-const downloadFile = (req, res) => {
+const downloadFile = async (req, res) => {
   try {
-    const io = req.app.get("io");
+    const filename = req.params.filename;
 
-    const filename =
-      req.params.filename;
+    const metadataPath = path.join(__dirname, "../metadata.json");
 
-    const filePath = path.join(
-      MERGED_FOLDER,
-      filename
-    );
-
-    if (!fs.existsSync(filePath)) {
+    if (!fs.existsSync(metadataPath)) {
       return res.status(404).json({
         success: false,
-        message: "File not found",
+        message: "Metadata not found",
       });
     }
 
-    io.emit(
-      "log",
-      `Download requested: ${filename}`
-    );
+    const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
 
-    res.download(filePath);
-  } catch (error) {
+    const key = Object.keys(metadata).find((k) => k.trim() === filename.trim());
+
+    if (!key) {
+      return res.status(404).json({
+        success: false,
+        message: "File not found in metadata",
+      });
+    }
+
+    const chunks = metadata[key];
+
+    const NODE_MAP = {
+      user1: "http://localhost:7001",
+      user2: "http://localhost:7002",
+      user3: "http://localhost:7003",
+    };
+
+    const buffers = [];
+
+    for (const chunk of chunks) {
+      let chunkBuffer = null;
+
+      for (const user of chunk.users) {
+        try {
+          const response = await fetch(
+            `${NODE_MAP[user]}/get-chunk?filename=${filename}&chunkId=${chunk.chunkId}`,
+          );
+
+          if (!response.ok) throw new Error();
+
+          const data = await response.json();
+
+          chunkBuffer = Buffer.from(data.data, "base64");
+
+          break;
+        } catch {
+          console.log(`Retrying chunk ${chunk.chunkId}`);
+        }
+      }
+
+      if (!chunkBuffer) {
+        return res.status(500).json({
+          success: false,
+          message: `Missing chunk ${chunk.chunkId}`,
+        });
+      }
+
+      buffers.push(chunkBuffer);
+    }
+
+    const finalBuffer = Buffer.concat(buffers);
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+
+    res.setHeader("Content-Type", "application/octet-stream");
+
+    return res.send(finalBuffer);
+  } catch (err) {
+    console.error(err);
+
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Download failed",
     });
   }
 };

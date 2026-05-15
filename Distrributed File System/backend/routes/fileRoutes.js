@@ -37,7 +37,7 @@ router.post(
 
 
 // get all files
-router.get("/files", getFiles);
+router.get("/", getFiles);
 
 // merge files
 router.post(

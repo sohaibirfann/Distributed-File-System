@@ -26,7 +26,7 @@ app.use(express.json());
 
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/api", fileRoutes);
+app.use("/api/files", fileRoutes);
 
 app.use("/api", nodeRoutes);
 
@@ -39,31 +39,19 @@ app.get("/", (req, res) => {
 });
 
 io.on("connection", (socket) => {
-  console.log(
-    "Frontend connected:",
-    socket.id
-  );
+  console.log("Frontend connected:", socket.id);
 
-  socket.emit(
-    "log",
-    "Connected to distributed storage server"
-  );
+  socket.emit("log", "Connected to distributed storage server");
 
   socket.on("disconnect", () => {
-    console.log(
-      "Frontend disconnected:",
-      socket.id
-    );
+    console.log("Frontend disconnected:", socket.id);
   });
 });
 
 const PORT = 5000;
 
 server.listen(PORT, () => {
-  console.log(
-    "Backend running on port",
-    PORT
-  );
+  console.log("Backend running on port", PORT);
 });
 
 module.exports = io;

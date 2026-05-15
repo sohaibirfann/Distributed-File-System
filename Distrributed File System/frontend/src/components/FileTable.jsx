@@ -33,13 +33,31 @@ export default function FileTable({ refresh, isAdmin = false }) {
         id: "download",
       });
 
-      await fetch(`http://localhost:5000/api/merge/${filename}`, {
-        method: "POST",
-      });
+      const response = await fetch(
+        `http://localhost:5000/api/files/download/${filename}`,
+      );
 
-      window.open(`http://localhost:5000/api/download/${filename}`);
+      if (!response.ok) {
+        throw new Error("Download failed");
+      }
 
-      toast.success("Download started", {
+      const blob = await response.blob();
+
+      // Create temporary link
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+
+      document.body.appendChild(a);
+      a.click();
+
+      // Cleanup
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Download complete", {
         id: "download",
       });
     } catch (error) {
@@ -55,14 +73,8 @@ export default function FileTable({ refresh, isAdmin = false }) {
     try {
       toast.loading("Loading preview...", { id: "preview" });
 
-      // merge first
-      await fetch(`http://localhost:5000/api/merge/${filename}`, {
-        method: "POST",
-      });
-
-      // fetch file content
       const response = await fetch(
-        `http://localhost:5000/api/download/${filename}`,
+        `http://localhost:5000/api/files/download/${filename}`,
       );
 
       const text = await response.text();
