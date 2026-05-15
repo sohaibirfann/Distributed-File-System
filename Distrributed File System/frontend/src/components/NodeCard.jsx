@@ -1,5 +1,5 @@
 export default function NodeCard({ user }) {
-  const previewChunks = user.chunks.slice(0, 6);
+  const isOnline = user.status === "Online";
 
   return (
     <div
@@ -15,6 +15,7 @@ export default function NodeCard({ user }) {
         hover:scale-[1.02]
       "
     >
+      {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
           <h3 className="text-xl font-semibold">
@@ -27,14 +28,27 @@ export default function NodeCard({ user }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
+          <div
+            className={`w-3 h-3 rounded-full ${
+              isOnline
+                ? "bg-emerald-400 animate-pulse"
+                : "bg-red-500"
+            }`}
+          ></div>
 
-          <span className="text-emerald-400 text-sm">
-            Online
+          <span
+            className={`text-sm ${
+              isOnline
+                ? "text-emerald-400"
+                : "text-red-400"
+            }`}
+          >
+            {isOnline ? "Online" : "Offline"}
           </span>
         </div>
       </div>
 
+      {/* Stats */}
       <div className="grid grid-cols-2 gap-4 mb-5">
         <div className="bg-slate-900 rounded-2xl p-4">
           <p className="text-slate-400 text-sm">
@@ -42,7 +56,7 @@ export default function NodeCard({ user }) {
           </p>
 
           <h2 className="text-2xl font-bold mt-2">
-            {user.chunks.length}
+            {user.chunks}
           </h2>
         </div>
 
@@ -51,36 +65,45 @@ export default function NodeCard({ user }) {
             Replication
           </p>
 
-          <h2 className="text-emerald-400 text-xl font-bold mt-2">
-            Healthy
+          <h2
+            className={`text-xl font-bold mt-2 ${
+              isOnline
+                ? "text-emerald-400"
+                : "text-red-400"
+            }`}
+          >
+            {isOnline ? "Healthy" : "Down"}
           </h2>
         </div>
       </div>
 
+      {/* Simple Chunk Preview (visual only) */}
       <div>
         <p className="text-slate-400 text-sm mb-3">
           Chunk Preview
         </p>
 
         <div className="flex flex-wrap gap-2">
-          {previewChunks.map((chunk, index) => (
-            <span
-              key={index}
-              className="
-                bg-blue-600/20
-                border border-blue-500/30
-                text-blue-300
-                px-3
-                py-1
-                rounded-lg
-                text-sm
-              "
-            >
-              #{chunk}
-            </span>
-          ))}
+          {Array.from({ length: Math.min(user.chunks, 6) }).map(
+            (_, index) => (
+              <span
+                key={index}
+                className="
+                  bg-blue-600/20
+                  border border-blue-500/30
+                  text-blue-300
+                  px-3
+                  py-1
+                  rounded-lg
+                  text-sm
+                "
+              >
+                #{index}
+              </span>
+            )
+          )}
 
-          {user.chunks.length > 6 && (
+          {user.chunks > 6 && (
             <span
               className="
                 bg-slate-700
@@ -91,7 +114,7 @@ export default function NodeCard({ user }) {
                 text-sm
               "
             >
-              +{user.chunks.length - 6} more
+              +{user.chunks - 6} more
             </span>
           )}
         </div>

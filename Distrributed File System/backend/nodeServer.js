@@ -1,9 +1,11 @@
 const express = require("express");
 const fs = require("fs");
+const cors = require("cors");
 const path = require("path");
 
 const app = express();
 
+app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
 // arguments
@@ -22,19 +24,11 @@ app.post("/store-chunk", (req, res) => {
   try {
     const { filename, chunkId, data } = req.body;
 
-    const filePath = path.join(
-      STORAGE,
-      `${filename}_chunk_${chunkId}`
-    );
+    const filePath = path.join(STORAGE, `${filename}_chunk_${chunkId}`);
 
-    fs.writeFileSync(
-      filePath,
-      Buffer.from(data, "base64")
-    );
+    fs.writeFileSync(filePath, Buffer.from(data, "base64"));
 
-    console.log(
-      `Stored chunk ${chunkId} for ${filename} in ${USER}`
-    );
+    console.log(`Stored chunk ${chunkId} for ${filename} in ${USER}`);
 
     res.json({ success: true });
   } catch (err) {
@@ -48,10 +42,7 @@ app.get("/get-chunk", (req, res) => {
   try {
     const { filename, chunkId } = req.query;
 
-    const filePath = path.join(
-      STORAGE,
-      `${filename}_chunk_${chunkId}`
-    );
+    const filePath = path.join(STORAGE, `${filename}_chunk_${chunkId}`);
 
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: "Chunk not found" });
@@ -66,6 +57,19 @@ app.get("/get-chunk", (req, res) => {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
+});
+
+app.get("/stats", (req, res) => {
+  let files = [];
+
+  if (fs.existsSync(STORAGE)) {
+    files = fs.readdirSync(STORAGE);
+  }
+
+  res.json({
+    user: USER,
+    chunks: files.length,
+  });
 });
 
 app.listen(PORT, () => {
