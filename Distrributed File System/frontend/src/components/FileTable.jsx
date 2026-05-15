@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { FileText } from "lucide-react";
 
-export default function FileTable({ refresh }) {
+export default function FileTable({ refresh, isAdmin = false }) {
   const [files, setFiles] = useState([]);
   const [search, setSearch] = useState("");
 
@@ -137,9 +137,9 @@ export default function FileTable({ refresh }) {
                 Type
               </th>
 
-              <th className="text-left py-4">
+              {/* <th className="text-left py-4">
                 Chunks
-              </th>
+              </th> */}
 
               <th className="text-left py-4">
                 Size
@@ -282,27 +282,41 @@ export default function FileTable({ refresh }) {
 
                   {/* ACTIONS */}
                   <td>
-                    <button
-                      onClick={() =>
-                        handleDownload(
-                          file.filename
-                        )
-                      }
-                      className="
-                        bg-emerald-600
-                        hover:bg-emerald-500
-                        px-3
-                        md:px-5
-                        py-2
-                        rounded-xl
-                        transition
-                        text-sm
-                        font-medium
-                        whitespace-nowrap
-                      "
-                    >
-                      Download
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleDownload(file.filename)}
+                        className="
+        bg-emerald-600
+        hover:bg-emerald-500
+        px-3
+        md:px-5
+        py-2
+        rounded-xl
+        transition
+        text-sm
+        font-medium
+      "
+                      >
+                        Download
+                      </button>
+
+                      {isAdmin && (
+                        <button
+                          className="
+          bg-red-500/20
+          hover:bg-red-500/30
+          text-red-400
+          px-4
+          py-2
+          rounded-xl
+          transition
+          text-sm
+        "
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
