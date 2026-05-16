@@ -3,6 +3,8 @@ const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
 
+let NODES = {};
+
 const fileRoutes = require("./routes/fileRoutes");
 const nodeRoutes = require("./routes/nodeRoutes");
 const healthRoutes = require("./routes/healthRoutes");
@@ -49,6 +51,23 @@ io.on("connection", (socket) => {
 });
 
 const PORT = 5000;
+
+app.post("/api/register-node", (req, res) => {
+  const { name, url } = req.body;
+
+  if (!name || !url) {
+    return res.status(400).json({ error: "name and url are required" });
+  }
+
+  NODES[name] = url;
+
+  console.log(`Node registered: ${name} → ${url}`);
+  res.json({ success: true });
+});
+
+app.get("/api/nodes", (req, res) => {
+  res.json(NODES);
+});
 
 server.listen(PORT, () => {
   console.log("Backend running on port", PORT);

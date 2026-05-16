@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
 
-const { getNodes } = require("../controllers/nodeController");
+// const { getNodes } = require("../controllers/nodeController");
 
-router.get("/nodes", getNodes);
+// router.get("/nodes", getNodes);
 
 module.exports = router;

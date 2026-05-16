@@ -316,5 +316,71 @@
         "user1"
       ]
     }
+  ],
+  "medium2.txt": [
+    {
+      "chunkId": 0,
+      "hash": "57ae8f3c2d8045d293a407b86c87d2950969ceee41a367e93bfb834709f38679",
+      "users": [
+        "user1",
+        "user2"
+      ]
+    },
+    {
+      "chunkId": 1,
+      "hash": "695914995834b9831e25384c416ada19ed9c801cb872cdf7a27d2dc33c00b87c",
+      "users": [
+        "user2",
+        "user3"
+      ]
+    },
+    {
+      "chunkId": 2,
+      "hash": "42fdd74c332e08b4778e2577cb43e14a2a672df931c4777681a684f7675c1bcc",
+      "users": [
+        "user3",
+        "user4"
+      ]
+    },
+    {
+      "chunkId": 3,
+      "hash": "598f63ae7297c36b351c0728375ebaa1ebc82018a11e17018f289e7b586ba015",
+      "users": [
+        "user4",
+        "user5"
+      ]
+    },
+    {
+      "chunkId": 4,
+      "hash": "2abbc17856e9580670414a79e4eea23a4e7416b6f0541bf8693bdf1409fd7d8d",
+      "users": [
+        "user5",
+        "user1"
+      ]
+    },
+    {
+      "chunkId": 5,
+      "hash": "4a80ac1e7166cd0b32d948c040e736a6c8930fc747de5f437a19cc09970e9e34",
+      "users": [
+        "user1",
+        "user2"
+      ]
+    },
+    {
+      "chunkId": 6,
+      "hash": "017c3288c4569f1997a5b4c9b5b9d8a12f5f6329288eec7c5ad54773009fea6d",
+      "users": [
+        "user2",
+        "user3"
+      ]
+    },
+    {
+      "chunkId": 7,
+      "hash": "fdfd39c478dd4caf64d813085f44cebe9a192fee915ef6ea7000101d55edcf8f",
+      "users": [
+        "user3",
+        "user4"
+      ]
+    }
   ]
 }
