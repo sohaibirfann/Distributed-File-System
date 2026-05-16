@@ -1,5 +1,5 @@
 export default function NodeCard({ user }) {
-  const isOnline = user.status === "Online";
+  const isOnline = user.status === "online";
 
   return (
     <div

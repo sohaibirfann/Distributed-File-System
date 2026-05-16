@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
+const axios = require("axios");
 
 let NODES = {};
 
@@ -77,10 +78,16 @@ app.get("/api/nodes", async (req, res) => {
 
         console.log("SUCCESS:", name);
 
+        const stats = await axios.get(`${url}/stats`, {
+          timeout: 5000,
+        });
+
         return {
           name,
           url,
           status: "online",
+          chunks: stats.data.chunks || 0,
+          replication: "Healthy",
         };
       } catch (err) {
         console.log("FAILED:", name, err.message);
@@ -89,6 +96,8 @@ app.get("/api/nodes", async (req, res) => {
           name,
           url,
           status: "offline",
+          chunks: 0,
+          replication: "Down",
         };
       }
     }),

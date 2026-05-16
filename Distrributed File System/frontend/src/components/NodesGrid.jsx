@@ -16,12 +16,15 @@ export default function NodesGrid({ refresh }) {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/nodes`);
 
       const data = await res.json();
+      console.log("DATA FROM API:", data);
 
       setUsers(data);
     } catch (error) {
       console.error(error);
     }
   }
+
+  console.log("API URL:", import.meta.env.VITE_API_URL);
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6">
