@@ -2,6 +2,8 @@ const express = require("express");
 const fs = require("fs");
 const cors = require("cors");
 const path = require("path");
+const axios = require("axios");
+const os = require("os");
 
 const app = express();
 
@@ -12,7 +14,20 @@ app.use(express.json({ limit: "10mb" }));
 const USER = process.argv[2] || "user1";
 const PORT = process.argv[3] || 7001;
 
+const BACKEND_URL = "http://192.168.1.231:5000"; // replace with your IP
 const STORAGE = path.join(__dirname, "node_storage", USER);
+
+function getLocalIP() {
+  const interfaces = os.networkInterfaces();
+
+  for (let name of Object.keys(interfaces)) {
+    for (let net of interfaces[name]) {
+      if (net.family === "IPv4" && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+}
 
 // create storage folder
 if (!fs.existsSync(STORAGE)) {
@@ -90,6 +105,20 @@ app.post("/delete-chunk", (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", async () => {
   console.log(`${USER} node running on port ${PORT}`);
+
+  const localIP = getLocalIP();
+  const NODE_URL = `http://${localIP}:${PORT}`;
+
+  try {
+    await axios.post(`${BACKEND_URL}/api/register-node`, {
+      name: USER,
+      url: NODE_URL,
+    });
+
+    console.log(`Registered: ${USER} → ${NODE_URL}`);
+  } catch (err) {
+    console.error("Registration failed:", err.message);
+  }
 });
