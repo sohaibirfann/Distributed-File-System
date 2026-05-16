@@ -13,7 +13,11 @@ export default function FileTable({ refresh, isAdmin = false }) {
 
   useEffect(() => {
     fetchFiles();
-  }, [refresh]);
+
+    const interval = setInterval(fetchFiles, 3000); // refresh every 3s
+
+    return () => clearInterval(interval);
+  }, []);
 
   async function fetchFiles() {
     try {
