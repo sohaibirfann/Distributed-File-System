@@ -3,6 +3,7 @@
     {
       "chunkId": 0,
       "hash": "2309990b596bb4cfdc51c14491d79b6f33b010e6b618779d4f84da14e0bd69cc",
+      "size": 4096,
       "users": [
         "user1",
         "user1"
@@ -11,6 +12,7 @@
     {
       "chunkId": 1,
       "hash": "4b441660db5db00476c2feb80bf129665e724400d6207ed4f10a3d6243962d81",
+      "size": 4096,
       "users": [
         "user1",
         "user1"
@@ -19,6 +21,7 @@
     {
       "chunkId": 2,
       "hash": "8b6f6613b51e5e9ef46510bd29f90d3ef606e7d53aad06760020c704a0c41c9f",
+      "size": 4096,
       "users": [
         "user1",
         "user1"
@@ -27,6 +30,7 @@
     {
       "chunkId": 3,
       "hash": "9da278a708ecfc450ca254399c8b7e66ac145b0490afe9d8d904ceb76ad08024",
+      "size": 4096,
       "users": [
         "user1",
         "user1"
@@ -35,6 +39,7 @@
     {
       "chunkId": 4,
       "hash": "78378ae9c66dc614ed97e40f711f6e31cacdb516ea07808c0a9d674714b11313",
+      "size": 4096,
       "users": [
         "user1",
         "user1"
@@ -43,6 +48,7 @@
     {
       "chunkId": 5,
       "hash": "e82af62f0fc739e4f3ab295141ce7787e08a2185e0d6eff8f63badad753a95fc",
+      "size": 4096,
       "users": [
         "user1",
         "user1"
@@ -51,6 +57,7 @@
     {
       "chunkId": 6,
       "hash": "74708d49dc92944b72a7fd8d8ee5433938701eeb91a670bd0c7ecdd4d1ff9b9b",
+      "size": 4096,
       "users": [
         "user1",
         "user1"
@@ -59,6 +66,7 @@
     {
       "chunkId": 7,
       "hash": "d6c407b9c99555f33bb3ef550b89eaa06aa7fcde1336713ac6b279c48a83c00c",
+      "size": 1332,
       "users": [
         "user1",
         "user1"

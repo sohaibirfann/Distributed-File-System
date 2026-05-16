@@ -96,10 +96,20 @@ const getFiles = (req, res) => {
 
     const metadata = JSON.parse(fs.readFileSync(METADATA_FILE, "utf8"));
 
-    const files = Object.keys(metadata).map((filename) => ({
-      filename,
-      chunks: metadata[filename].length,
-    }));
+    const files = Object.keys(metadata).map((filename) => {
+      const fileChunks = metadata[filename];
+
+      const totalSize = fileChunks.reduce(
+        (sum, chunk) => sum + (chunk.size || 0),
+        0,
+      );
+
+      return {
+        filename,
+        chunks: fileChunks.length,
+        size: totalSize,
+      };
+    });
 
     res.json(files);
   } catch (error) {

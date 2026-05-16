@@ -149,6 +149,7 @@ if (process.argv[2] === "upload") {
       metadata[filename].push({
         chunkId: chunk.chunkId,
         hash: chunk.hash,
+        size: chunk.size,
         users: replicaUsers,
       });
     }

@@ -354,7 +354,7 @@ export default function FileTable({ refresh, isAdmin = false }) {
                   </td>
 
                   {/* CHUNKS */}
-                  <td>
+                  {/* <td>
                     <span
                       className="
                         px-3 py-1
@@ -365,7 +365,7 @@ export default function FileTable({ refresh, isAdmin = false }) {
                     >
                       {file.chunks} Chunks
                     </span>
-                  </td>
+                  </td> */}
 
                   {/* SIZE */}
                   <td>
