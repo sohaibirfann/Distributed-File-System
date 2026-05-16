@@ -27,7 +27,16 @@ const BACKEND_URL = "http://localhost:5000";
 async function getNodes() {
   try {
     const res = await axios.get(`${BACKEND_URL}/api/nodes`);
-    return res.data;
+
+    const nodes = res.data;
+
+    const map = {};
+
+    nodes.forEach((node) => {
+      map[node.name] = node.url;
+    });
+
+    return map;
   } catch (err) {
     console.error("Failed to fetch nodes");
     return {};
@@ -103,7 +112,7 @@ if (process.argv[2] === "upload") {
     // // Node mapping
     const NODE_MAP = await getNodes();
     const USERS = Object.keys(NODE_MAP);
-    
+
     if (USERS.length === 0) {
       console.log("No nodes available");
       process.exit(1);
