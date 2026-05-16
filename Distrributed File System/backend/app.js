@@ -71,7 +71,11 @@ app.get("/api/nodes", async (req, res) => {
   const results = await Promise.all(
     nodeEntries.map(async ([name, url]) => {
       try {
-        await axios.get(`${url}/stats`, { timeout: 5000 });
+        const response = await axios.get(`${url}/stats`, {
+          timeout: 5000,
+        });
+
+        console.log("SUCCESS:", name);
 
         return {
           name,
@@ -79,6 +83,8 @@ app.get("/api/nodes", async (req, res) => {
           status: "online",
         };
       } catch (err) {
+        console.log("FAILED:", name, err.message);
+
         return {
           name,
           url,
