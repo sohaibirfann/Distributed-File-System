@@ -1,12 +1,35 @@
 const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
+const axios = require("axios");
 
 const SHARED_FOLDER = path.join(__dirname, "../shared");
-
-const MERGED_FOLDER = path.join(__dirname, "../merged");
-
 const METADATA_FILE = path.join(__dirname, "../metadata.json");
+
+/*
+|--------------------------------------------------------------------------
+| Helper: Get dynamic nodes
+|--------------------------------------------------------------------------
+*/
+
+async function getNodeMap() {
+  try {
+    const res = await axios.get("http://localhost:5000/api/nodes");
+
+    const nodes = res.data;
+
+    const map = {};
+
+    nodes.forEach((node) => {
+      map[node.name] = node.url;
+    });
+
+    return map;
+  } catch (err) {
+    console.error("Failed to fetch nodes:", err.message);
+    return {};
+  }
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -61,7 +84,7 @@ const uploadFile = (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
-| Get Files
+| Get Files (from metadata)
 |--------------------------------------------------------------------------
 */
 
@@ -73,24 +96,10 @@ const getFiles = (req, res) => {
 
     const metadata = JSON.parse(fs.readFileSync(METADATA_FILE, "utf8"));
 
-    const files = Object.keys(metadata).map((filename) => {
-      const filePath = path.join(SHARED_FOLDER, filename);
-
-      let size = 0;
-
-      if (fs.existsSync(filePath)) {
-        size = fs.statSync(filePath).size;
-      } else {
-        // fallback estimate from chunks
-        size = metadata[filename].length * 4096;
-      }
-
-      return {
-        filename,
-        chunks: metadata[filename].length,
-        size,
-      };
-    });
+    const files = Object.keys(metadata).map((filename) => ({
+      filename,
+      chunks: metadata[filename].length,
+    }));
 
     res.json(files);
   } catch (error) {
@@ -105,51 +114,7 @@ const getFiles = (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
-| Merge File
-|--------------------------------------------------------------------------
-*/
-
-const mergeFileController = (req, res) => {
-  try {
-    const io = req.app.get("io");
-
-    const filename = req.params.filename;
-
-    io.emit("log", `Merge started for ${filename}`);
-
-    exec(
-      `node merge.js "${filename}"`,
-      {
-        cwd: path.join(__dirname, ".."),
-      },
-      (error, stdout, stderr) => {
-        if (error) {
-          return res.status(500).json({
-            success: false,
-            message: stderr || error.message,
-          });
-        }
-
-        io.emit("log", `Merge completed for ${filename}`);
-
-        res.json({
-          success: true,
-          message: "File merged successfully",
-          output: stdout,
-        });
-      },
-    );
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-/*
-|--------------------------------------------------------------------------
-| Download File
+| Download File (dynamic nodes)
 |--------------------------------------------------------------------------
 */
 
@@ -157,33 +122,25 @@ const downloadFile = async (req, res) => {
   try {
     const filename = req.params.filename;
 
-    const metadataPath = path.join(__dirname, "../metadata.json");
-
-    if (!fs.existsSync(metadataPath)) {
+    if (!fs.existsSync(METADATA_FILE)) {
       return res.status(404).json({
         success: false,
         message: "Metadata not found",
       });
     }
 
-    const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+    const metadata = JSON.parse(fs.readFileSync(METADATA_FILE, "utf8"));
 
-    const key = Object.keys(metadata).find((k) => k.trim() === filename.trim());
+    const chunks = metadata[filename];
 
-    if (!key) {
+    if (!chunks) {
       return res.status(404).json({
         success: false,
-        message: "File not found in metadata",
+        message: "File not found",
       });
     }
 
-    const chunks = metadata[key];
-
-    const NODE_MAP = {
-      user1: "http://localhost:7001",
-      user2: "http://localhost:7002",
-      user3: "http://localhost:7003",
-    };
+    const NODE_MAP = await getNodeMap();
 
     const buffers = [];
 
@@ -221,7 +178,6 @@ const downloadFile = async (req, res) => {
     const finalBuffer = Buffer.concat(buffers);
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-
     res.setHeader("Content-Type", "application/octet-stream");
 
     return res.send(finalBuffer);
@@ -235,17 +191,21 @@ const downloadFile = async (req, res) => {
   }
 };
 
+/*
+|--------------------------------------------------------------------------
+| Delete File (FULL cleanup)
+|--------------------------------------------------------------------------
+*/
+
 const deleteFile = async (req, res) => {
   try {
     const filename = req.params.filename;
 
-    const metadataPath = path.join(__dirname, "../metadata.json");
-
-    if (!fs.existsSync(metadataPath)) {
+    if (!fs.existsSync(METADATA_FILE)) {
       return res.status(404).json({ message: "Metadata not found" });
     }
 
-    let metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+    let metadata = JSON.parse(fs.readFileSync(METADATA_FILE, "utf8"));
 
     const fileChunks = metadata[filename];
 
@@ -253,11 +213,7 @@ const deleteFile = async (req, res) => {
       return res.status(404).json({ message: "File not found" });
     }
 
-    const NODE_MAP = {
-      user1: "http://localhost:7001",
-      user2: "http://localhost:7002",
-      user3: "http://localhost:7003",
-    };
+    const NODE_MAP = await getNodeMap();
 
     // delete chunks from all nodes
     for (const chunk of fileChunks) {
@@ -282,7 +238,7 @@ const deleteFile = async (req, res) => {
     // remove from metadata
     delete metadata[filename];
 
-    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+    fs.writeFileSync(METADATA_FILE, JSON.stringify(metadata, null, 2));
 
     res.json({ success: true });
   } catch (err) {
@@ -294,7 +250,6 @@ const deleteFile = async (req, res) => {
 module.exports = {
   uploadFile,
   getFiles,
-  mergeFileController,
   downloadFile,
   deleteFile,
 };

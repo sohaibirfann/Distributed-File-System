@@ -7,7 +7,6 @@ const upload = require("../middleware/upload");
 const {
   uploadFile,
   getFiles,
-  mergeFileController,
   downloadFile,
   deleteFile,
 } = require("../controllers/fileController");
@@ -41,20 +40,20 @@ router.post(
 router.get("/", getFiles);
 
 // merge files
-router.post(
-  "/merge/:filename",
-  (req, res, next) => {
-    const io = req.app.get("io");
+// router.post(
+//   "/merge/:filename",
+//   (req, res, next) => {
+//     const io = req.app.get("io");
 
-    io.emit(
-      "log",
-      `Merge started for ${req.params.filename}`
-    );
+//     io.emit(
+//       "log",
+//       `Merge started for ${req.params.filename}`
+//     );
 
-    next();
-  },
-  mergeFileController
-);
+//     next();
+//   },
+//   mergeFileController
+// );
 
 // download files
 router.get(
