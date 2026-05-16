@@ -6,18 +6,18 @@ A distributed file storage system that splits files into chunks, distributes the
 
 ## Table of Contents
 
-- [Features](#-features)
-- [Architecture](#-architecture)
-- [Tech Stack](#-tech-stack)
-- [Project Structure](#-project-structure)
-- [How It Works](#-how-it-works)
-- [Setup Instructions](#-setup-instructions)
-- [Environment Setup](#-environment-setup)
-- [API Endpoints](#-api-endpoints)
-- [Key Concepts](#-key-concepts)
-- [Limitations](#-limitations)
-- [Future Improvements](#-future-improvements)
-- [Author](#-author)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [How It Works](#how-it-works)
+- [Setup Instructions](#setup-instructions)
+- [Environment Setup](#environment-setup)
+- [API Endpoints](#api-endpoints)
+- [Key Concepts](#key-concepts)
+- [Limitations](#limitations)
+- [Future Improvements](#future-improvements)
+- [Author](#author)
 
 ---
 
