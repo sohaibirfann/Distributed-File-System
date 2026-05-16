@@ -65,8 +65,30 @@ app.post("/api/register-node", (req, res) => {
   res.json({ success: true });
 });
 
-app.get("/api/nodes", (req, res) => {
-  res.json(NODES);
+app.get("/api/nodes", async (req, res) => {
+  const nodeEntries = Object.entries(NODES);
+
+  const results = await Promise.all(
+    nodeEntries.map(async ([name, url]) => {
+      try {
+        await axios.get(`${url}/stats`, { timeout: 5000 });
+
+        return {
+          name,
+          url,
+          status: "online",
+        };
+      } catch (err) {
+        return {
+          name,
+          url,
+          status: "offline",
+        };
+      }
+    }),
+  );
+
+  res.json(results);
 });
 
 server.listen(PORT, () => {

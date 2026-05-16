@@ -432,5 +432,15 @@
         "user1"
       ]
     }
+  ],
+  "1 - User uploads file - divide into.txt": [
+    {
+      "chunkId": 0,
+      "hash": "ad0b8682d03bfb08d1a5681e3be85e0fb4b107c7e9ec6de08e4ad20cb4ea9c7a",
+      "users": [
+        "user1",
+        "user1"
+      ]
+    }
   ]
 }
