@@ -382,5 +382,55 @@
         "user4"
       ]
     }
+  ],
+  "orderedtext.txt": [
+    {
+      "chunkId": 0,
+      "hash": "c682199f8525e0b904a150f8cba1c7f5ca6f964d359497994f85156ce689e656",
+      "users": [
+        "user1",
+        "user2"
+      ]
+    },
+    {
+      "chunkId": 1,
+      "hash": "1827b31baa379e463c402e20f8fd1f0ae386221a4df612afd9f245cb92ded204",
+      "users": [
+        "user2",
+        "user3"
+      ]
+    },
+    {
+      "chunkId": 2,
+      "hash": "aa961aa8726fdcef1d3819546d19e5a3c02eb2883c59528dd7001c79bc33c9ca",
+      "users": [
+        "user3",
+        "user1"
+      ]
+    },
+    {
+      "chunkId": 3,
+      "hash": "9ed758591e923f1451c9d26ac27b6ac63863ed43b287e9fc73a31e36d58a7662",
+      "users": [
+        "user1",
+        "user2"
+      ]
+    },
+    {
+      "chunkId": 4,
+      "hash": "f5c719bb1060aebd5e6a39ad44a4b6787bd84f16275d5ac2cf8a49fa571b0f5e",
+      "users": [
+        "user2",
+        "user3"
+      ]
+    },
+    {
+      "chunkId": 5,
+      "hash": "ccacf91a65cfa876a175315e43d83fde0f60cbf7a3823ba639fca02a1ec88b81",
+      "users": [
+        "user3",
+        "user1"
+      ]
+    }
   ]
 }

@@ -2,10 +2,14 @@ const net = require("net");
 const fs = require("fs");
 const crypto = require("crypto");
 const path = require("path");
+const axios = require("axios");
 
 const COORD_PORT = 6000;
 const CHUNK_SIZE = 4 * 1024;
 const METADATA_FILE = path.join(__dirname, "metadata.json");
+
+const BACKEND_URL = "http://localhost:5000";
+
 // const USERS_FOLDER = path.join(__dirname, "users");
 
 // // Get user folders
@@ -19,6 +23,17 @@ const METADATA_FILE = path.join(__dirname, "metadata.json");
 // }
 
 // Load metadata
+
+async function getNodes() {
+  try {
+    const res = await axios.get(`${BACKEND_URL}/api/nodes`);
+    return res.data;
+  } catch (err) {
+    console.error("Failed to fetch nodes");
+    return {};
+  }
+}
+
 let metadata = {};
 
 if (fs.existsSync(METADATA_FILE)) {
@@ -85,15 +100,14 @@ if (process.argv[2] === "upload") {
     console.log("File:", filename);
     console.log("Total chunks:", fileChunks.length);
 
-    // Node mapping
-    const NODE_MAP = {
-      user1: "http://localhost:7001",
-      user2: "http://localhost:7002",
-      user3: "http://localhost:7003",
-      user4: "http://localhost:7004",
-      user5: "http://localhost:7005",
-    };
+    // // Node mapping
+    const NODE_MAP = await getNodes();
     const USERS = Object.keys(NODE_MAP);
+    
+    if (USERS.length === 0) {
+      console.log("No nodes available");
+      process.exit(1);
+    }
 
     for (const chunk of fileChunks) {
       const first = USERS[chunk.chunkId % USERS.length];
