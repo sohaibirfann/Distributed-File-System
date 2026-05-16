@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { FileText } from "lucide-react";
 
+const API = import.meta.env.VITE_API_URL;
+
 export default function FileTable({ refresh, isAdmin = false }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [fileToDelete, setFileToDelete] = useState(null);
@@ -14,14 +16,14 @@ export default function FileTable({ refresh, isAdmin = false }) {
   useEffect(() => {
     fetchFiles();
 
-    const interval = setInterval(fetchFiles, 3000); // refresh every 3s
+    const interval = setInterval(fetchFiles, 2000); // refresh every 3s
 
     return () => clearInterval(interval);
   }, []);
 
   async function fetchFiles() {
     try {
-      const response = await fetch("http://localhost:5000/api/files");
+      const response = await fetch(`${API}/api/files`);
 
       const data = await response.json();
 
@@ -79,9 +81,7 @@ export default function FileTable({ refresh, isAdmin = false }) {
     try {
       toast.loading("Loading preview...", { id: "preview" });
 
-      const response = await fetch(
-        `http://localhost:5000/api/files/download/${filename}`,
-      );
+      const response = await fetch(`${API}/api/files/download/${filename}`);
 
       const text = await response.text();
 
@@ -100,7 +100,7 @@ export default function FileTable({ refresh, isAdmin = false }) {
     try {
       // if (!confirm(`Delete ${filename}?`)) return;
 
-      await fetch(`http://localhost:5000/api/files/delete/${filename}`, {
+      await fetch(`${API}/api/files/delete/${filename}`, {
         method: "DELETE",
       });
 
