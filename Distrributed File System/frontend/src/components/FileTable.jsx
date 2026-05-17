@@ -42,7 +42,7 @@ export default function FileTable({ refresh, isAdmin = false }) {
       });
 
       const response = await fetch(
-        `http://localhost:5000/api/files/download/${filename}`,
+        `${API}/api/files/download/${filename}`,
       );
 
       if (!response.ok) {
