@@ -2,13 +2,15 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { Moon, Sun, Database, ShieldCheck } from "lucide-react";
+import { useApiStatus } from "../hooks/useApiStatus";
 import FileTable from "../components/FileTable";
 
 const API = import.meta.env.VITE_API_URL;
 
 export default function User() {
   const { isDark, toggleTheme } = useTheme();
-  const navigate = useNavigate();
+  const navigate    = useNavigate();
+  const apiStatus   = useApiStatus();
   const [stats, setStats] = useState({ files: 0, usersOnline: 0 });
 
   useEffect(() => {
@@ -21,15 +23,23 @@ export default function User() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-30 glass bg-white/40 dark:bg-neutral-950/45 border-b border-blue-100/60 dark:border-white/[0.06]">
-        <div className="max-w-4xl mx-auto flex items-center justify-between px-6" style={{ height: 56 }}>
+        <div className="max-w-5xl mx-auto flex items-center justify-between px-6" style={{ height: 56 }}>
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 bg-blue-600 dark:bg-[#FF6363] rounded-lg flex items-center justify-center">
               <Database size={14} className="text-white" />
             </div>
             <span className="font-bold text-gray-900 dark:text-white text-sm">DFS</span>
-            <span className="hidden sm:block text-xs text-gray-400 dark:text-neutral-500 border-l border-gray-200 dark:border-neutral-800 pl-2.5 ml-0.5">
+            <span className="hidden sm:block text-[11px] font-semibold bg-blue-100 dark:bg-[#FF6363]/15 text-blue-700 dark:text-[#FF6363] px-2 py-0.5 rounded-full border border-blue-300 dark:border-[#FF6363]/35">
               Guest
             </span>
+            <div
+              title={apiStatus === "online" ? "Server connected" : apiStatus === "offline" ? "Server offline" : "Connecting…"}
+              className={`hidden sm:block w-1.5 h-1.5 rounded-full transition-colors duration-500 ${
+                apiStatus === "online"  ? "bg-emerald-500 animate-pulse" :
+                apiStatus === "offline" ? "bg-red-500"                  :
+                                         "bg-neutral-400"
+              }`}
+            />
           </div>
 
           <div className="flex items-center gap-2">
@@ -58,7 +68,7 @@ export default function User() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-6 py-8">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-8">
         <div className="mb-6">
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Files</h1>
           <p className="text-sm text-gray-500 dark:text-neutral-400 mt-0.5">

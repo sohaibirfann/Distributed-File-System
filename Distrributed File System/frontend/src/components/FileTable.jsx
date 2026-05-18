@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNotify } from "../context/NotificationContext";
 import {
-  Download, Eye, Trash2, Search, X, AlertTriangle,
+  Download, Eye, Trash2, Search, X, AlertTriangle, WifiOff,
   FileText, Image, Film, Music, Archive, Code, File,
 } from "lucide-react";
 
@@ -59,6 +59,7 @@ export default function FileTable({ isAdmin = false }) {
   const notify = useNotify();
   const [files, setFiles]               = useState([]);
   const [search, setSearch]             = useState("");
+  const [apiError, setApiError]         = useState(false);
   const [fileToDelete, setFileToDelete] = useState(null);
   const [previewFile, setPreviewFile]   = useState(null);
   const [previewContent, setPreviewContent] = useState("");
@@ -73,7 +74,10 @@ export default function FileTable({ isAdmin = false }) {
     try {
       const res = await fetch(`${API}/api/files`);
       setFiles(await res.json());
-    } catch {}
+      setApiError(false);
+    } catch {
+      setApiError(true);
+    }
   }
 
   async function handleDownload(filename) {
@@ -164,14 +168,24 @@ export default function FileTable({ isAdmin = false }) {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan="4" className="px-5 py-16 text-center">
-                    <File size={28} className="mx-auto mb-3 text-gray-200 dark:text-neutral-700" />
-                    <p className="text-sm font-medium text-gray-400 dark:text-neutral-500">
-                      {search ? "No files match your search" : "No files here yet"}
-                    </p>
-                    {!search && (
-                      <p className="text-xs text-gray-300 dark:text-neutral-600 mt-1">
-                        {isAdmin ? "Upload a file to get started" : "Check back later"}
-                      </p>
+                    {apiError && files.length === 0 ? (
+                      <>
+                        <WifiOff size={28} className="mx-auto mb-3 text-red-400 dark:text-[#FF6363]" />
+                        <p className="text-sm font-medium text-gray-400 dark:text-neutral-500">Can't reach server</p>
+                        <p className="text-xs text-gray-300 dark:text-neutral-600 mt-1">Make sure the backend is running</p>
+                      </>
+                    ) : (
+                      <>
+                        <File size={28} className="mx-auto mb-3 text-gray-200 dark:text-neutral-700" />
+                        <p className="text-sm font-medium text-gray-400 dark:text-neutral-500">
+                          {search ? "No files match your search" : "No files here yet"}
+                        </p>
+                        {!search && (
+                          <p className="text-xs text-gray-300 dark:text-neutral-600 mt-1">
+                            {isAdmin ? "Upload a file to get started" : "Check back later"}
+                          </p>
+                        )}
+                      </>
                     )}
                   </td>
                 </tr>
@@ -179,7 +193,7 @@ export default function FileTable({ isAdmin = false }) {
                 filtered.map((file, i) => {
                   const { icon: Icon, bg, color } = getType(file.filename);
                   return (
-                    <tr key={i} className="group hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition-colors">
+                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition-colors">
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
@@ -202,7 +216,7 @@ export default function FileTable({ isAdmin = false }) {
                         </span>
                       </td>
                       <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-100">
+                        <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => handleDownload(file.filename)}
                             title="Download"

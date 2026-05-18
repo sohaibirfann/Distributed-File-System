@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import {
@@ -9,6 +9,7 @@ import FileTable from "../components/FileTable";
 import UploadPanel from "../components/UploadPanel";
 import NodesGrid from "../components/NodesGrid";
 import LogsPanel from "../components/LogsPanel";
+import { useApiStatus } from "../hooks/useApiStatus";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -132,9 +133,17 @@ function FilesTab({ refresh, onRefresh }) {
 // ── Admin page ────────────────────────────────────────────────
 export default function Admin() {
   const { isDark, toggleTheme } = useTheme();
-  const navigate  = useNavigate();
+  const navigate    = useNavigate();
+  const apiStatus   = useApiStatus();
   const [active, setActive]   = useState("overview");
   const [refresh, setRefresh] = useState(false);
+  const tabRefs = useRef({});
+  const [ind, setInd] = useState({ left: 0, width: 0 });
+
+  useLayoutEffect(() => {
+    const el = tabRefs.current[active];
+    if (el) setInd({ left: el.offsetLeft, width: el.offsetWidth });
+  }, [active]);
 
   if (!localStorage.getItem("isAdmin")) return <Navigate to="/" replace />;
 
@@ -153,9 +162,17 @@ export default function Admin() {
                 <Database size={14} className="text-white" />
               </div>
               <span className="font-bold text-gray-900 dark:text-white text-sm">DFS</span>
-              <span className="text-[11px] font-semibold bg-blue-100 dark:bg-[#FF6363]/15 text-blue-700 dark:text-[#FF6363] px-2 py-0.5 rounded-full">
+              <span className="text-[11px] font-semibold bg-blue-100 dark:bg-[#FF6363]/15 text-blue-700 dark:text-[#FF6363] px-2 py-0.5 rounded-full border border-blue-300 dark:border-[#FF6363]/35">
                 Admin
               </span>
+              <div
+                title={apiStatus === "online" ? "Server connected" : apiStatus === "offline" ? "Server offline" : "Connecting…"}
+                className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${
+                  apiStatus === "online"  ? "bg-emerald-500 animate-pulse" :
+                  apiStatus === "offline" ? "bg-red-500"                  :
+                                           "bg-neutral-400"
+                }`}
+              />
             </div>
 
             <div className="flex items-center gap-1">
@@ -175,15 +192,21 @@ export default function Admin() {
             </div>
           </div>
 
-          <div className="flex -mb-px">
+          <div className="relative flex -mb-px">
+            {/* sliding underline */}
+            <span
+              className="absolute bottom-0 h-0.5 rounded-full bg-blue-600 dark:bg-[#FF6363] transition-all duration-200 ease-out"
+              style={{ left: ind.left, width: ind.width }}
+            />
             {TABS.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
+                ref={(el) => { tabRefs.current[id] = el; }}
                 onClick={() => setActive(id)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors duration-150 ${
                   active === id
-                    ? "border-blue-600 text-blue-600 dark:border-[#FF6363] dark:text-[#FF6363]"
-                    : "border-transparent text-gray-500 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-neutral-200 hover:border-gray-200 dark:hover:border-neutral-700"
+                    ? "text-blue-600 dark:text-[#FF6363]"
+                    : "text-gray-500 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-neutral-200"
                 }`}
               >
                 <Icon size={15} />
@@ -195,6 +218,7 @@ export default function Admin() {
       </header>
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-8">
+        <div key={active} className="tab-content">
         {active === "overview" && <OverviewTab refresh={refresh} />}
         {active === "files"    && <FilesTab    refresh={refresh} onRefresh={() => setRefresh((p) => !p)} />}
         {active === "nodes"    && (
@@ -215,6 +239,7 @@ export default function Admin() {
             <LogsPanel fullHeight />
           </div>
         )}
+        </div>
       </main>
     </div>
   );

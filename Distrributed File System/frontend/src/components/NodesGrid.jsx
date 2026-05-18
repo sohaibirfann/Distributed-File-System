@@ -4,7 +4,8 @@ import { HardDrive, Wifi, WifiOff } from "lucide-react";
 const API = import.meta.env.VITE_API_URL;
 
 export default function NodesGrid({ refresh }) {
-  const [nodes, setNodes] = useState([]);
+  const [nodes, setNodes]   = useState([]);
+  const [apiError, setApiError] = useState(false);
 
   useEffect(() => {
     fetchNodes();
@@ -16,7 +17,10 @@ export default function NodesGrid({ refresh }) {
     try {
       const res = await fetch(`${API}/api/nodes`);
       setNodes(await res.json());
-    } catch {}
+      setApiError(false);
+    } catch {
+      setApiError(true);
+    }
   }
 
   const online  = nodes.filter((n) => n.status === "online").length;
@@ -39,11 +43,18 @@ export default function NodesGrid({ refresh }) {
 
       {nodes.length === 0 ? (
         <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 flex flex-col items-center py-16">
-          <div className="w-12 h-12 bg-gray-100 dark:bg-neutral-800 rounded-2xl flex items-center justify-center mb-3">
-            <HardDrive size={22} className="text-gray-400 dark:text-neutral-500" />
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 ${apiError ? "bg-red-50 dark:bg-[#FF6363]/10" : "bg-gray-100 dark:bg-neutral-800"}`}>
+            {apiError
+              ? <WifiOff size={22} className="text-red-400 dark:text-[#FF6363]" />
+              : <HardDrive size={22} className="text-gray-400 dark:text-neutral-500" />
+            }
           </div>
-          <p className="text-sm font-medium text-gray-500 dark:text-neutral-400">No nodes connected</p>
-          <p className="text-xs text-gray-400 dark:text-neutral-500 mt-1">Nodes will appear here once they register</p>
+          <p className="text-sm font-medium text-gray-500 dark:text-neutral-400">
+            {apiError ? "Can't reach server" : "No nodes connected"}
+          </p>
+          <p className="text-xs text-gray-400 dark:text-neutral-500 mt-1">
+            {apiError ? "Make sure the backend is running" : "Nodes will appear here once they register"}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
