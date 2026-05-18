@@ -1,6 +1,19 @@
 @import "tailwindcss";
 
+@custom-variant dark (.dark &);
+
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes notificationEnter {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+.notification-enter {
+  animation: notificationEnter 0.15s ease-out forwards;
 }
