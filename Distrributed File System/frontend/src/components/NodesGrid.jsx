@@ -24,7 +24,6 @@ export default function NodesGrid({ refresh }) {
 
   return (
     <div className="space-y-3">
-      {/* Summary bar */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -39,12 +38,12 @@ export default function NodesGrid({ refresh }) {
       </div>
 
       {nodes.length === 0 ? (
-        <div className="bg-stone-50 dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 flex flex-col items-center py-16">
-          <div className="w-12 h-12 bg-stone-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center mb-3">
-            <HardDrive size={22} className="text-gray-400 dark:text-zinc-500" />
+        <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 flex flex-col items-center py-16">
+          <div className="w-12 h-12 bg-gray-100 dark:bg-neutral-800 rounded-2xl flex items-center justify-center mb-3">
+            <HardDrive size={22} className="text-gray-400 dark:text-neutral-500" />
           </div>
-          <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">No nodes connected</p>
-          <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1">Nodes will appear here once they register</p>
+          <p className="text-sm font-medium text-gray-500 dark:text-neutral-400">No nodes connected</p>
+          <p className="text-xs text-gray-400 dark:text-neutral-500 mt-1">Nodes will appear here once they register</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -53,54 +52,49 @@ export default function NodesGrid({ refresh }) {
             return (
               <div
                 key={i}
-                className={`bg-stone-50 dark:bg-zinc-900 rounded-2xl border p-5 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm ${
+                className={`glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border p-5 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm dark:hover:shadow-none ${
                   on
-                    ? "border-stone-200 dark:border-zinc-800"
-                    : "border-stone-200 dark:border-zinc-800 opacity-70"
+                    ? "border-gray-100 dark:border-neutral-800"
+                    : "border-gray-100 dark:border-neutral-800 opacity-60"
                 }`}
               >
-                {/* Header */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2.5">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${on ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-stone-100 dark:bg-zinc-800"}`}>
-                      <HardDrive size={16} className={on ? "text-emerald-500" : "text-gray-400 dark:text-zinc-500"} />
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${on ? "bg-emerald-50 dark:bg-emerald-500/10" : "bg-gray-100 dark:bg-neutral-800"}`}>
+                      <HardDrive size={16} className={on ? "text-emerald-500" : "text-gray-400 dark:text-neutral-500"} />
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white font-mono">{node.name}</p>
-                    </div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white font-mono">{node.name}</p>
                   </div>
                   <div className={`flex items-center gap-1 ${on ? "text-emerald-600 dark:text-emerald-400" : "text-red-400"}`}>
                     {on ? <Wifi size={14} /> : <WifiOff size={14} />}
                   </div>
                 </div>
 
-                {/* Stats */}
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-zinc-400 mb-0.5">Chunks stored</p>
-                    <p className="text-2xl font-bold font-mono text-gray-800 dark:text-zinc-100">{node.chunks}</p>
+                    <p className="text-xs text-gray-500 dark:text-neutral-400 mb-0.5">Chunks stored</p>
+                    <p className="text-2xl font-bold font-mono text-gray-800 dark:text-neutral-100">{node.chunks}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-gray-500 dark:text-zinc-400 mb-0.5">Health</p>
+                    <p className="text-xs text-gray-500 dark:text-neutral-400 mb-0.5">Health</p>
                     <span className={`text-sm font-semibold ${on ? "text-emerald-600 dark:text-emerald-400" : "text-red-400"}`}>
                       {on ? "Healthy" : "Degraded"}
                     </span>
                   </div>
                 </div>
 
-                {/* Chunk bar */}
                 {node.chunks > 0 && (
                   <div className="mt-4 flex items-end gap-0.5 h-8">
                     {Array.from({ length: Math.min(node.chunks, 16) }).map((_, j) => (
                       <div
                         key={j}
-                        className={`flex-1 rounded-sm ${on ? "bg-violet-200 dark:bg-violet-800/60" : "bg-gray-200 dark:bg-zinc-700"}`}
+                        className={`flex-1 rounded-sm ${on ? "bg-blue-200 dark:bg-[#FF6363]/20" : "bg-gray-200 dark:bg-neutral-700"}`}
                         style={{ height: `${35 + (j % 5) * 15}%` }}
                       />
                     ))}
                     {node.chunks > 16 && (
                       <div className="flex-1 flex items-end justify-center">
-                        <span className="text-[10px] text-gray-400 dark:text-zinc-500">+{node.chunks - 16}</span>
+                        <span className="text-[10px] text-gray-400 dark:text-neutral-500">+{node.chunks - 16}</span>
                       </div>
                     )}
                   </div>

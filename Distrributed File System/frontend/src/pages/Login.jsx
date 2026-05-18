@@ -3,14 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { Database, FolderOpen, ShieldCheck, ArrowRight, Eye, EyeOff, Sun, Moon, ServerOff } from "lucide-react";
 
-const isAdminMachine = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-
 const ADMIN_PASSWORD = "admin";
+const isAdminMachine = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
 export default function Login() {
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const [screen, setScreen] = useState("home"); // "home" | "admin"
+  const [screen, setScreen] = useState("home");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
@@ -31,34 +30,32 @@ export default function Login() {
   }
 
   return (
-    <div className="relative min-h-screen bg-stone-100 dark:bg-zinc-950 flex flex-col">
+    <div className="relative min-h-screen flex flex-col">
       <button
         onClick={toggleTheme}
-        className="absolute top-4 right-4 z-10 p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:text-zinc-500 dark:hover:text-zinc-200 hover:bg-stone-200 dark:hover:bg-zinc-800 transition-colors"
+        className="absolute top-4 right-4 z-10 p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
       >
         {isDark ? <Sun size={17} /> : <Moon size={17} />}
       </button>
 
       <div className="flex-1 flex flex-col items-center justify-center px-4">
-        {/* Logo */}
-        <div className="w-16 h-16 bg-violet-600 rounded-2xl flex items-center justify-center mb-5 shadow-lg shadow-violet-500/25">
+        <div className="w-16 h-16 bg-blue-600 dark:bg-[#FF6363] rounded-2xl flex items-center justify-center mb-5 shadow-lg shadow-blue-500/20 dark:shadow-[#FF6363]/20">
           <Database size={28} className="text-white" />
         </div>
 
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
           Distributed File System
         </h1>
-        <p className="text-sm text-gray-500 dark:text-zinc-400 mb-8">
+        <p className="text-sm text-gray-500 dark:text-neutral-400 mb-8">
           Encrypted storage across your local network
         </p>
 
-        {/* Card */}
-        <div className="w-full max-w-[340px] bg-stone-50 dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 p-6">
+        <div className="glass w-full max-w-[340px] bg-white/60 dark:bg-white/[0.05] rounded-2xl border border-gray-100 dark:border-neutral-800 p-6">
           {screen === "home" && (
             <div className="space-y-3">
               <button
                 onClick={() => navigate("/user")}
-                className="w-full flex items-center justify-between px-4 py-3.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-medium text-sm transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 group"
+                className="w-full flex items-center justify-between px-4 py-3.5 bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] text-white rounded-xl font-medium text-sm transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 group"
               >
                 <div className="flex items-center gap-2.5">
                   <FolderOpen size={16} />
@@ -69,7 +66,7 @@ export default function Login() {
 
               <button
                 onClick={() => setScreen("admin")}
-                className="w-full flex items-center justify-between px-4 py-3.5 bg-stone-50 hover:bg-stone-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-stone-200 dark:border-zinc-700 text-stone-700 dark:text-zinc-200 rounded-xl font-medium text-sm transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 group"
+                className="w-full flex items-center justify-between px-4 py-3.5 bg-white/70 hover:bg-white dark:bg-neutral-800/60 dark:hover:bg-neutral-700/70 border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-200 rounded-xl font-medium text-sm transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 group"
               >
                 <div className="flex items-center gap-2.5">
                   <ShieldCheck size={16} />
@@ -90,12 +87,12 @@ export default function Login() {
                   <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
                     Admin not available here
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-zinc-400 mb-4 leading-relaxed">
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mb-4 leading-relaxed">
                     Admin access is only available on the machine running the backend server.
                   </p>
                   <button
                     onClick={() => setScreen("home")}
-                    className="w-full py-2 text-sm text-gray-400 dark:text-zinc-500 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+                    className="w-full py-2 text-sm text-gray-400 dark:text-neutral-500 hover:text-gray-700 dark:hover:text-neutral-200 transition-colors"
                   >
                     ← Back
                   </button>
@@ -105,7 +102,7 @@ export default function Login() {
                   <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
                     Admin sign in
                   </h2>
-                  <p className="text-xs text-gray-500 dark:text-zinc-400 mb-4">
+                  <p className="text-xs text-gray-500 dark:text-neutral-400 mb-4">
                     Enter your admin password to continue
                   </p>
 
@@ -117,12 +114,12 @@ export default function Login() {
                         onChange={(e) => { setPassword(e.target.value); setError(""); }}
                         placeholder="Password"
                         autoFocus
-                        className="w-full px-4 py-3 pr-10 bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl text-sm text-stone-900 dark:text-white placeholder-stone-400 dark:placeholder-zinc-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
+                        className="w-full px-4 py-3 pr-10 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[#FF6363] focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-[#FF6363]/20 transition-all"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPass((s) => !s)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-neutral-200 transition-colors"
                       >
                         {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                       </button>
@@ -133,7 +130,7 @@ export default function Login() {
                     <button
                       type="submit"
                       disabled={loading || !password}
-                      className="w-full py-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-medium text-sm transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 disabled:hover:translate-y-0"
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-medium text-sm transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 disabled:hover:translate-y-0"
                     >
                       {loading ? "Signing in…" : "Sign In"}
                     </button>
@@ -141,7 +138,7 @@ export default function Login() {
                     <button
                       type="button"
                       onClick={() => { setScreen("home"); setPassword(""); setError(""); }}
-                      className="w-full py-2 text-sm text-gray-400 dark:text-zinc-500 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+                      className="w-full py-2 text-sm text-gray-400 dark:text-neutral-500 hover:text-gray-700 dark:hover:text-neutral-200 transition-colors"
                     >
                       ← Back
                     </button>
@@ -152,7 +149,7 @@ export default function Login() {
           )}
         </div>
 
-        <p className="mt-6 text-xs text-gray-300 dark:text-zinc-600">
+        <p className="mt-6 text-xs text-gray-400 dark:text-neutral-600">
           AES-256 encrypted · Fault tolerant · Multi-node
         </p>
       </div>

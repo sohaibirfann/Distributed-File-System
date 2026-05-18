@@ -38,44 +38,42 @@ function OverviewTab({ refresh }) {
 
   const cards = [
     { label: "Nodes online",  value: stats.usersOnline, num: "text-emerald-600 dark:text-emerald-400" },
-    { label: "Files stored",  value: stats.files,        num: "text-violet-600  dark:text-violet-400"  },
-    { label: "Total chunks",  value: stats.chunks,       num: "text-amber-600   dark:text-amber-400"   },
+    { label: "Files stored",  value: stats.files,        num: "text-blue-600 dark:text-[#FF6363]"        },
+    { label: "Total chunks",  value: stats.chunks,       num: "text-amber-600 dark:text-amber-400"     },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {cards.map((c) => (
-          <div key={c.label} className="bg-stone-50 dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 p-5">
-            <p className="text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-2">{c.label}</p>
+          <div key={c.label} className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 p-5">
+            <p className="text-xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-2">{c.label}</p>
             <p className={`text-4xl font-bold font-mono ${c.num}`}>{c.value}</p>
           </div>
         ))}
       </div>
 
-      {/* Node table */}
-      <div className="bg-stone-50 dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 dark:border-zinc-800">
+      <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-neutral-800">
           <p className="text-sm font-semibold text-gray-900 dark:text-white">Node status</p>
-          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">All connected storage nodes</p>
+          <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">All connected storage nodes</p>
         </div>
         {nodes.length === 0 ? (
-          <p className="px-5 py-10 text-sm text-center text-gray-400 dark:text-zinc-500">No nodes connected yet</p>
+          <p className="px-5 py-10 text-sm text-center text-gray-400 dark:text-neutral-500">No nodes connected yet</p>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-stone-50 dark:bg-zinc-800/50">
-              <tr className="border-b border-gray-100 dark:border-zinc-800">
+            <thead className="bg-white/40 dark:bg-neutral-800/40">
+              <tr className="border-b border-gray-100 dark:border-neutral-800">
                 {["Node", "Status", "Chunks", "Health"].map((h) => (
-                  <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-zinc-400">{h}</th>
+                  <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50 dark:divide-zinc-800">
+            <tbody className="divide-y divide-gray-50 dark:divide-neutral-800">
               {nodes.map((node, i) => {
                 const on = node.status === "online";
                 return (
-                  <tr key={i} className="hover:bg-stone-50 dark:hover:bg-zinc-800/40 transition-colors">
+                  <tr key={i} className="hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition-colors">
                     <td className="px-5 py-3 font-mono font-medium text-gray-900 dark:text-white">{node.name}</td>
                     <td className="px-5 py-3">
                       <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${on ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
@@ -83,7 +81,7 @@ function OverviewTab({ refresh }) {
                         {on ? "Online" : "Offline"}
                       </span>
                     </td>
-                    <td className="px-5 py-3 font-mono text-gray-600 dark:text-zinc-300">{node.chunks}</td>
+                    <td className="px-5 py-3 font-mono text-gray-600 dark:text-neutral-300">{node.chunks}</td>
                     <td className={`px-5 py-3 text-xs font-medium ${on ? "text-emerald-600 dark:text-emerald-400" : "text-red-400"}`}>
                       {on ? "Healthy" : "Degraded"}
                     </td>
@@ -107,14 +105,14 @@ function FilesTab({ refresh, onRefresh }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold text-gray-900 dark:text-white">All files</h2>
-          <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Upload, preview, download, or delete files</p>
+          <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Upload, preview, download, or delete files</p>
         </div>
         <button
           onClick={() => setShowUpload((v) => !v)}
           className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
             showUpload
-              ? "bg-stone-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300"
-              : "bg-violet-600 hover:bg-violet-500 text-white hover:-translate-y-0.5 active:translate-y-0"
+              ? "bg-white/60 dark:bg-neutral-800/60 text-gray-700 dark:text-neutral-300"
+              : "bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] text-white hover:-translate-y-0.5 active:translate-y-0"
           }`}
         >
           <Upload size={14} />
@@ -146,18 +144,16 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-100 dark:bg-zinc-950 flex flex-col">
-      {/* Sticky header + tabs */}
-      <header className="sticky top-0 z-40 bg-stone-50 dark:bg-zinc-900 border-b border-stone-200 dark:border-zinc-800">
+    <div className="min-h-screen flex flex-col">
+      <header className="sticky top-0 z-40 glass bg-white/40 dark:bg-neutral-950/45 border-b border-blue-100/60 dark:border-white/[0.06]">
         <div className="max-w-5xl mx-auto px-6">
-          {/* Top row */}
           <div className="flex items-center justify-between" style={{ height: 56 }}>
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 bg-violet-600 rounded-lg flex items-center justify-center">
+              <div className="w-7 h-7 bg-blue-600 dark:bg-[#FF6363] rounded-lg flex items-center justify-center">
                 <Database size={14} className="text-white" />
               </div>
               <span className="font-bold text-gray-900 dark:text-white text-sm">DFS</span>
-              <span className="text-[11px] font-semibold bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 px-2 py-0.5 rounded-full">
+              <span className="text-[11px] font-semibold bg-blue-100 dark:bg-[#FF6363]/15 text-blue-700 dark:text-[#FF6363] px-2 py-0.5 rounded-full">
                 Admin
               </span>
             </div>
@@ -165,13 +161,13 @@ export default function Admin() {
             <div className="flex items-center gap-1">
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:text-zinc-500 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                className="p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:text-neutral-500 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
               >
                 {isDark ? <Sun size={15} /> : <Moon size={15} />}
               </button>
               <button
                 onClick={handleExit}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-500 dark:text-neutral-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-[#FF6363]/10 transition-colors"
               >
                 <LogOut size={13} />
                 Sign out
@@ -179,7 +175,6 @@ export default function Admin() {
             </div>
           </div>
 
-          {/* Tab row */}
           <div className="flex -mb-px">
             {TABS.map(({ id, label, icon: Icon }) => (
               <button
@@ -187,8 +182,8 @@ export default function Admin() {
                 onClick={() => setActive(id)}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                   active === id
-                    ? "border-violet-600 text-violet-600 dark:border-violet-400 dark:text-violet-400"
-                    : "border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-zinc-200 hover:border-gray-200 dark:hover:border-zinc-700"
+                    ? "border-blue-600 text-blue-600 dark:border-[#FF6363] dark:text-[#FF6363]"
+                    : "border-transparent text-gray-500 dark:text-neutral-400 hover:text-gray-800 dark:hover:text-neutral-200 hover:border-gray-200 dark:hover:border-neutral-700"
                 }`}
               >
                 <Icon size={15} />
@@ -199,7 +194,6 @@ export default function Admin() {
         </div>
       </header>
 
-      {/* Content */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-8">
         {active === "overview" && <OverviewTab refresh={refresh} />}
         {active === "files"    && <FilesTab    refresh={refresh} onRefresh={() => setRefresh((p) => !p)} />}
@@ -207,7 +201,7 @@ export default function Admin() {
           <div className="space-y-4">
             <div>
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Storage nodes</h2>
-              <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Connected peers and chunk distribution</p>
+              <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Connected peers and chunk distribution</p>
             </div>
             <NodesGrid refresh={refresh} />
           </div>
@@ -216,7 +210,7 @@ export default function Admin() {
           <div className="space-y-4">
             <div>
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Activity log</h2>
-              <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Live event stream from the network</p>
+              <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Live event stream from the network</p>
             </div>
             <LogsPanel fullHeight />
           </div>

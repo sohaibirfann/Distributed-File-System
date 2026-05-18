@@ -19,14 +19,14 @@ const CONFIG = {
   loading: {
     icon: Loader2,
     classes:
-      "bg-violet-50 dark:bg-violet-950/90 border-violet-200 dark:border-violet-800 text-violet-800 dark:text-violet-300",
-    iconColor: "text-violet-500",
+      "bg-white dark:bg-neutral-900/95 border-gray-200 dark:border-neutral-700 text-gray-800 dark:text-neutral-200",
+    iconColor: "text-gray-500 dark:text-neutral-400",
   },
   info: {
     icon: Info,
     classes:
-      "bg-white dark:bg-zinc-800/90 border-gray-200 dark:border-zinc-700 text-gray-800 dark:text-zinc-300",
-    iconColor: "text-gray-400 dark:text-zinc-400",
+      "bg-white dark:bg-neutral-900/95 border-gray-200 dark:border-neutral-700 text-gray-800 dark:text-neutral-200",
+    iconColor: "text-gray-400 dark:text-neutral-400",
   },
 };
 
