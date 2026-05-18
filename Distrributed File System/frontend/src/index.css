@@ -65,6 +65,21 @@ body::before {
 }
 
 /* ── Notifications ──────────────────────────────────────────── */
+/* View Transitions: cross-fade between themes */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.35s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Fallback for browsers without View Transitions: brief color fade */
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition: background-color 250ms ease, color 250ms ease,
+              border-color 250ms ease, box-shadow 250ms ease !important;
+}
+
 @keyframes tabEnter {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0);    }
