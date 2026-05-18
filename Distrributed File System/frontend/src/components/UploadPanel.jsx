@@ -10,9 +10,9 @@ function formatSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-export default function UploadPanel({ onUploadSuccess }) {
+export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
   const notify = useNotify();
-  const [file, setFile]         = useState(null);
+  const [file, setFile]         = useState(initialFile);
   const [progress, setProgress] = useState(0);
   const [done, setDone]         = useState(false);
   const [drag, setDrag]         = useState(false);

@@ -98,8 +98,8 @@ function OverviewTab({ refresh }) {
 }
 
 // ── Files ─────────────────────────────────────────────────────
-function FilesTab({ refresh, onRefresh }) {
-  const [showUpload, setShowUpload] = useState(false);
+function FilesTab({ refresh, onRefresh, droppedFile }) {
+  const [showUpload, setShowUpload] = useState(!!droppedFile);
 
   return (
     <div className="space-y-4">
@@ -122,7 +122,10 @@ function FilesTab({ refresh, onRefresh }) {
       </div>
 
       {showUpload && (
-        <UploadPanel onUploadSuccess={() => { onRefresh(); setShowUpload(false); }} />
+        <UploadPanel
+          initialFile={droppedFile}
+          onUploadSuccess={() => { onRefresh(); setShowUpload(false); }}
+        />
       )}
 
       <FileTable isAdmin={true} refresh={refresh} />
@@ -137,6 +140,9 @@ export default function Admin() {
   const apiStatus   = useApiStatus();
   const [active, setActive]   = useState("overview");
   const [refresh, setRefresh] = useState(false);
+  const [dragOver, setDragOver]     = useState(false);
+  const [droppedFile, setDroppedFile] = useState(null);
+  const dragCount = useRef(0);
   const tabRefs = useRef({});
   const [ind, setInd] = useState({ left: 0, width: 0 });
 
@@ -144,6 +150,34 @@ export default function Admin() {
     const el = tabRefs.current[active];
     if (el) setInd({ left: el.offsetLeft, width: el.offsetWidth });
   }, [active]);
+
+  useEffect(() => {
+    if (active !== "files") setDroppedFile(null);
+  }, [active]);
+
+  function handleDragEnter(e) {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    dragCount.current++;
+    setDragOver(true);
+  }
+  function handleDragOver(e) {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+  }
+  function handleDragLeave(e) {
+    dragCount.current--;
+    if (dragCount.current === 0) setDragOver(false);
+  }
+  function handleDrop(e) {
+    e.preventDefault();
+    dragCount.current = 0;
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    setDroppedFile(file);
+    setActive("files");
+  }
 
   if (!localStorage.getItem("isAdmin")) return <Navigate to="/" replace />;
 
@@ -153,7 +187,13 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div
+      className="min-h-screen flex flex-col"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <header className="sticky top-0 z-40 glass bg-white/40 dark:bg-neutral-950/45 border-b border-blue-100/60 dark:border-white/[0.06]">
         <div className="max-w-5xl mx-auto px-6">
           <div className="flex items-center justify-between" style={{ height: 56 }}>
@@ -220,7 +260,7 @@ export default function Admin() {
       <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-8">
         <div key={active} className="tab-content">
         {active === "overview" && <OverviewTab refresh={refresh} />}
-        {active === "files"    && <FilesTab    refresh={refresh} onRefresh={() => setRefresh((p) => !p)} />}
+        {active === "files"    && <FilesTab    refresh={refresh} onRefresh={() => setRefresh((p) => !p)} droppedFile={droppedFile} />}
         {active === "nodes"    && (
           <div className="space-y-4">
             <div>
@@ -241,6 +281,19 @@ export default function Admin() {
         )}
         </div>
       </main>
+
+      {dragOver && (
+        <div className="fixed inset-0 z-50 pointer-events-none flex flex-col items-center justify-center gap-4
+          bg-blue-500/10 dark:bg-[#FF6363]/10 backdrop-blur-sm
+          border-4 border-dashed border-blue-400/70 dark:border-[#FF6363]/70
+          animate-[fadeIn_0.15s_ease-out]">
+          <div className="w-20 h-20 rounded-3xl bg-blue-100 dark:bg-[#FF6363]/15 flex items-center justify-center">
+            <Upload size={36} className="text-blue-500 dark:text-[#FF6363]" />
+          </div>
+          <p className="text-lg font-semibold text-blue-600 dark:text-[#FF6363]">Drop to upload</p>
+          <p className="text-sm text-blue-500/70 dark:text-[#FF6363]/60">The file dropped will be set up for upload.</p>
+        </div>
+      )}
     </div>
   );
 }
