@@ -108,17 +108,19 @@ app.post("/delete-chunk", (req, res) => {
 app.listen(PORT, "0.0.0.0", async () => {
   console.log(`${USER} node running on port ${PORT}`);
 
-  const localIP = getLocalIP();
+  const localIP  = getLocalIP();
   const NODE_URL = `http://${localIP}:${PORT}`;
 
   try {
-    await axios.post(`${BACKEND_URL}/api/register-node`, {
-      name: USER,
-      url: NODE_URL,
-    });
-
+    await axios.post(`${BACKEND_URL}/api/register-node`, { name: USER, url: NODE_URL });
     console.log(`Registered: ${USER} → ${NODE_URL}`);
   } catch (err) {
     console.error("Registration failed:", err.message);
   }
+
+  setInterval(async () => {
+    try {
+      await axios.post(`${BACKEND_URL}/api/heartbeat`, { name: USER });
+    } catch {}
+  }, 15_000);
 });

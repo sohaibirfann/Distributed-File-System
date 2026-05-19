@@ -70,7 +70,7 @@ function OverviewTab({ refresh }) {
           <table className="w-full text-sm">
             <thead className="bg-white/40 dark:bg-neutral-800/40">
               <tr className="border-b border-gray-100 dark:border-neutral-800">
-                {["Node", "Status", "Chunks", "Health"].map((h) => (
+                {["Node", "Status", "Chunks", "Latency"].map((h) => (
                   <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400">{h}</th>
                 ))}
               </tr>
@@ -88,8 +88,13 @@ function OverviewTab({ refresh }) {
                       </span>
                     </td>
                     <td className="px-5 py-3 font-mono text-gray-600 dark:text-neutral-300">{node.chunks}</td>
-                    <td className={`px-5 py-3 text-xs font-medium ${on ? "text-emerald-600 dark:text-emerald-400" : "text-red-400"}`}>
-                      {on ? "Healthy" : "Degraded"}
+                    <td className={`px-5 py-3 text-xs font-semibold font-mono ${
+                      node.latency === null  ? "text-red-400" :
+                      node.latency < 100     ? "text-emerald-600 dark:text-emerald-400" :
+                      node.latency < 500     ? "text-amber-500 dark:text-amber-400" :
+                                               "text-red-500"
+                    }`}>
+                      {node.latency === null ? "Offline" : `${node.latency} ms`}
                     </td>
                   </tr>
                 );

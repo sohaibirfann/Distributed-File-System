@@ -1,6 +1,18 @@
 import { useEffect, useState } from "react";
 import { HardDrive, Wifi, WifiOff } from "lucide-react";
 
+function latencyColor(ms) {
+  if (ms === null)  return "text-red-400";
+  if (ms < 100)     return "text-emerald-600 dark:text-emerald-400";
+  if (ms < 500)     return "text-amber-500 dark:text-amber-400";
+  return "text-red-500";
+}
+
+function latencyLabel(ms) {
+  if (ms === null) return "Offline";
+  return `${ms} ms`;
+}
+
 const API = import.meta.env.VITE_API_URL;
 
 export default function NodesGrid({ refresh }) {
@@ -87,9 +99,9 @@ export default function NodesGrid({ refresh }) {
                     <p className="text-2xl font-bold font-mono text-gray-800 dark:text-neutral-100">{node.chunks}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-gray-500 dark:text-neutral-400 mb-0.5">Health</p>
-                    <span className={`text-sm font-semibold ${on ? "text-emerald-600 dark:text-emerald-400" : "text-red-400"}`}>
-                      {on ? "Healthy" : "Degraded"}
+                    <p className="text-xs text-gray-500 dark:text-neutral-400 mb-0.5">Latency</p>
+                    <span className={`text-sm font-semibold font-mono ${latencyColor(node.latency)}`}>
+                      {latencyLabel(node.latency)}
                     </span>
                   </div>
                 </div>
