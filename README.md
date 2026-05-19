@@ -134,6 +134,7 @@ Distributed File System/
 │   │   │   └── User.jsx          # Public file browser (download only)
 │   │   └── main.jsx
 │   ├── .env                      # VITE_API_URL (git-ignored)
+│   ├── .env.example              # Template for .env
 │   └── package.json
 ```
 
@@ -269,7 +270,12 @@ node_modules/   (after npm install)
 
 3. **Create the environment file**
 
-   Create `frontend/.env`:
+   Copy the example file:
+   ```bash
+   cp .env.example .env
+   ```
+
+   Then set the backend IP in `frontend/.env`:
    ```
    VITE_API_URL=http://<backend-machine-ip>:5000
    ```
