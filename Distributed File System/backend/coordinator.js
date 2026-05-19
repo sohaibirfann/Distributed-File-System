@@ -162,6 +162,7 @@ if (process.argv[2] === "upload") {
               chunkId: chunk.chunkId,
               data: encrypt(chunk.data),
             }),
+            signal: AbortSignal.timeout(5000),
           });
 
           distributed.push({ user, chunkId: chunk.chunkId });
@@ -181,6 +182,7 @@ if (process.argv[2] === "upload") {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ filename, chunkId }),
+              signal: AbortSignal.timeout(3000),
             });
           } catch {}
         }

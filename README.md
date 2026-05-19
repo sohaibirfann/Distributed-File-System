@@ -17,6 +17,7 @@ A local-network distributed file storage system that splits files into encrypted
   - [Frontend](#frontend)
 - [Environment Variables](#environment-variables)
 - [Running the System](#running-the-system)
+- [Demo / Quick-Start Checklist](#demo--quick-start-checklist)
 - [API Endpoints](#api-endpoints)
 - [Key Concepts](#key-concepts)
 - [Limitations](#limitations)
@@ -92,7 +93,7 @@ A local-network distributed file storage system that splits files into encrypted
 | React Router v7 | Client-side routing |
 | Socket.io client | Real-time log subscription |
 | lucide-react | Icons |
-| react-hot-toast | Toast notifications |
+| Custom NotificationContext | In-app toast banners (success, error, loading) |
 
 ---
 
@@ -326,10 +327,36 @@ Minimum setup to get files uploading and downloading:
 1. Start the backend on one machine
 2. Start at least one node server (on any machine on the network)
 3. Start the frontend
-4. Open the frontend in a browser **on the backend machine** and go to **Admin** — admin access is restricted to `localhost` / `127.0.0.1` and will be blocked from any other device
+4. Open the frontend in a browser **on the backend machine** and go to **Admin** (password: `admin`) — admin access is restricted to `localhost` / `127.0.0.1` and will be blocked from any other device
 5. Upload a file — it will be chunked, encrypted, and distributed to connected nodes
 
 The system works with one node but there is no redundancy until there are at least two nodes (each chunk needs two replicas).
+
+---
+
+## Demo / Quick-Start Checklist
+
+Use this order every time — starting nodes before the backend means registration will fail.
+
+**1. Backend machine**
+- [ ] `cd "Distributed File System/backend" && node app.js`
+- [ ] Confirm: `Backend running on port 5000`
+
+**2. Each node machine** (repeat for every device)
+- [ ] Ensure `.env` has the correct `BACKEND_URL`
+- [ ] `node nodeServer.js <username> <port>` (e.g. `node nodeServer.js user1 7001`)
+- [ ] Confirm: `<username> node running on port <port>` and `Registered: <username> → http://...`
+
+**3. Frontend** (run on the backend machine for admin access)
+- [ ] `cd "Distributed File System/frontend" && npm run dev`
+- [ ] Open `http://localhost:5173` in a browser
+- [ ] **Admin** tab: verify all nodes appear as online in the Nodes view
+
+**Demonstrating fault tolerance**
+- Upload a file with all nodes online
+- Stop one node process (Ctrl+C)
+- Wait a few seconds, then download the same file — it should still succeed
+- The Logs tab will show the node deregistering after ~60 seconds
 
 ---
 
