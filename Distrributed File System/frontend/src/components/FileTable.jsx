@@ -3,6 +3,7 @@ import { useNotify } from "../context/NotificationContext";
 import {
   Download, Eye, Trash2, Search, X, AlertTriangle, WifiOff,
   FileText, Image, Film, Music, Archive, Code, File,
+  ChevronUp, ChevronDown, ChevronsUpDown,
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
@@ -168,9 +169,37 @@ export default function FileTable({ isAdmin = false }) {
     }
   }
 
+  const [sort, setSort] = useState({ col: "uploadedAt", dir: "desc" });
+
+  function handleSort(col) {
+    setSort((prev) => ({
+      col,
+      dir: prev.col === col && prev.dir === "asc" ? "desc" : "asc",
+    }));
+  }
+
+  function SortIcon({ col }) {
+    if (sort.col !== col) return <ChevronsUpDown size={11} className="text-gray-300 dark:text-neutral-600" />;
+    return sort.dir === "asc"
+      ? <ChevronUp   size={11} className="text-blue-500 dark:text-[#FF6363]" />
+      : <ChevronDown size={11} className="text-blue-500 dark:text-[#FF6363]" />;
+  }
+
   const filtered = files.filter((f) =>
     f.filename.toLowerCase().includes(search.toLowerCase())
   );
+
+  const sorted = [...filtered].sort((a, b) => {
+    let av, bv;
+    if      (sort.col === "filename")   { av = a.filename.toLowerCase();  bv = b.filename.toLowerCase(); }
+    else if (sort.col === "size")       { av = a.size;                    bv = b.size; }
+    else if (sort.col === "type")       { av = a.filename.split(".").pop()?.toLowerCase() ?? ""; bv = b.filename.split(".").pop()?.toLowerCase() ?? ""; }
+    else if (sort.col === "uploadedAt") { av = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0; bv = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0; }
+    else return 0;
+    if (av < bv) return sort.dir === "asc" ? -1 : 1;
+    if (av > bv) return sort.dir === "asc" ?  1 : -1;
+    return 0;
+  });
 
   return (
     <>
@@ -194,7 +223,7 @@ export default function FileTable({ isAdmin = false }) {
             </button>
           )}
           <span className="text-xs text-gray-400 dark:text-neutral-500 shrink-0 border-l border-gray-100 dark:border-neutral-800 pl-3">
-            {filtered.length} {filtered.length === 1 ? "file" : "files"}
+            {sorted.length} {sorted.length === 1 ? "file" : "files"}
           </span>
         </div>
 
@@ -203,10 +232,23 @@ export default function FileTable({ isAdmin = false }) {
           <table className="w-full text-sm">
             <thead className="bg-white/40 dark:bg-neutral-800/40 border-b border-gray-100 dark:border-neutral-800">
               <tr>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400">Name</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400 hidden sm:table-cell">Size</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400 hidden md:table-cell">Type</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400 hidden lg:table-cell">Added</th>
+                {[
+                  { label: "Name",   col: "filename",   cls: "" },
+                  { label: "Size",   col: "size",       cls: "hidden sm:table-cell" },
+                  { label: "Type",   col: "type",       cls: "hidden md:table-cell" },
+                  { label: "Added",  col: "uploadedAt", cls: "hidden lg:table-cell" },
+                ].map(({ label, col, cls }) => (
+                  <th
+                    key={col}
+                    onClick={() => handleSort(col)}
+                    className={`px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400 cursor-pointer select-none hover:text-gray-700 dark:hover:text-neutral-200 transition-colors ${cls}`}
+                  >
+                    <div className="flex items-center gap-1">
+                      {label}
+                      <SortIcon col={col} />
+                    </div>
+                  </th>
+                ))}
                 <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 dark:text-neutral-400">Actions</th>
               </tr>
             </thead>
@@ -236,7 +278,7 @@ export default function FileTable({ isAdmin = false }) {
                   </td>
                 </tr>
               ) : (
-                filtered.map((file, i) => {
+                sorted.map((file, i) => {
                   const { icon: Icon, bg, color } = getType(file.filename);
                   return (
                     <tr key={i} className="hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition-colors">

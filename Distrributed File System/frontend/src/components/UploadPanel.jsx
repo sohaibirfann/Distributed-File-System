@@ -27,31 +27,39 @@ export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
   async function upload() {
     if (!file) return notify.error("Select a file first");
     const id = notify.loading("Uploading…");
+    const form = new FormData();
+    form.append("file", file);
+
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch(`${API}/api/files/upload`, { method: "POST", body: form });
-      if (!res.ok) throw new Error();
-      let v = 0;
-      const tick = setInterval(() => {
-        v += 10;
-        setProgress(v);
-        if (v >= 100) {
-          clearInterval(tick);
-          setDone(true);
-          notify.dismiss(id);
-          notify.success("File uploaded successfully");
-          setTimeout(() => {
-            onUploadSuccess?.();
-            setFile(null);
-            setProgress(0);
-            setDone(false);
-          }, 800);
-        }
-      }, 120);
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${API}/api/files/upload`);
+
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
+        });
+
+        xhr.addEventListener("load", () => {
+          xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error());
+        });
+        xhr.addEventListener("error", reject);
+        xhr.addEventListener("abort", reject);
+        xhr.send(form);
+      });
+
+      setDone(true);
+      notify.dismiss(id);
+      notify.success("File uploaded successfully");
+      setTimeout(() => {
+        onUploadSuccess?.();
+        setFile(null);
+        setProgress(0);
+        setDone(false);
+      }, 800);
     } catch {
       notify.dismiss(id);
       notify.error("Upload failed");
+      setProgress(0);
     }
   }
 
@@ -109,7 +117,7 @@ export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
                 />
               </div>
               <p className="text-xs text-gray-400 dark:text-neutral-500 mt-1.5 font-mono">
-                {done ? "Done!" : `${progress}%`}
+                {done ? "Done!" : progress === 100 ? "Distributing…" : `${progress}%`}
               </p>
             </div>
           )}
