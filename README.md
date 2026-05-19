@@ -97,7 +97,7 @@ A local-network distributed file storage system that splits files into encrypted
 ## Project Structure
 
 ```
-Distrributed File System/
+Distributed File System/
 ├── backend/
 │   ├── controllers/
 │   │   ├── fileController.js     # Upload, download, delete, cache logic
@@ -151,7 +151,7 @@ Distrributed File System/
 
 1. **Navigate to the backend folder**
    ```bash
-   cd "Distrributed File System/backend"
+   cd "Distributed File System/backend"
    ```
 
 2. **Install dependencies**
@@ -252,7 +252,7 @@ node_modules/   (after npm install)
 
 1. **Navigate to the frontend folder**
    ```bash
-   cd "Distrributed File System/frontend"
+   cd "Distributed File System/frontend"
    ```
 
 2. **Install dependencies**
