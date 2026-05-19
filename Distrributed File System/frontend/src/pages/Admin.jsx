@@ -21,24 +21,20 @@ const TABS = [
 ];
 
 // ── Overview ──────────────────────────────────────────────────
-function OverviewTab({ refresh }) {
+function OverviewTab({ refresh, nodes }) {
   const [stats, setStats] = useState({ files: 0, chunks: 0, usersOnline: 0 });
-  const [nodes, setNodes] = useState([]);
 
-  useEffect(() => { fetchAll(); }, [refresh]);
+  useEffect(() => { fetchStats(); }, [refresh]);
 
   useEffect(() => {
-    const id = setInterval(fetchAll, 5000);
+    const id = setInterval(fetchStats, 5000);
     return () => clearInterval(id);
   }, []);
 
-  async function fetchAll() {
+  async function fetchStats() {
     try {
-      const [h, n] = await Promise.all([
-        fetch(`${API}/api/health`).then((r) => r.json()),
-        fetch(`${API}/api/nodes`).then((r)  => r.json()),
-      ]);
-      setStats(h); setNodes(n);
+      const h = await fetch(`${API}/api/health`).then((r) => r.json());
+      setStats(h);
     } catch {}
   }
 
@@ -154,8 +150,10 @@ export default function Admin() {
   const apiStatus   = useApiStatus();
   const [active, setActive]   = useState("overview");
   const [refresh, setRefresh] = useState(false);
-  const [dragOver, setDragOver]     = useState(false);
+  const [dragOver, setDragOver]       = useState(false);
   const [droppedFile, setDroppedFile] = useState(null);
+  const [nodes, setNodes]       = useState([]);
+  const [nodesError, setNodesError] = useState(false);
   const dragCount       = useRef(0);
   const tabRefs         = useRef({});
   const tabContentRefs  = useRef({});
@@ -169,6 +167,21 @@ export default function Admin() {
   useEffect(() => {
     if (active !== "files") setDroppedFile(null);
   }, [active]);
+
+  useEffect(() => {
+    async function fetchNodes() {
+      try {
+        const res = await fetch(`${API}/api/nodes`);
+        setNodes(await res.json());
+        setNodesError(false);
+      } catch {
+        setNodesError(true);
+      }
+    }
+    fetchNodes();
+    const id = setInterval(fetchNodes, 5000);
+    return () => clearInterval(id);
+  }, []);
 
   function handleTabSwitch(id) {
     setActive(id);
@@ -284,7 +297,7 @@ export default function Admin() {
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-8">
         <div ref={(el) => { tabContentRefs.current["overview"] = el; }} className="tab-content" style={{ display: active === "overview" ? "" : "none" }}>
-          <OverviewTab refresh={refresh} />
+          <OverviewTab refresh={refresh} nodes={nodes} />
         </div>
         <div ref={(el) => { tabContentRefs.current["files"] = el; }} className="tab-content" style={{ display: active === "files" ? "" : "none" }}>
           <FilesTab refresh={refresh} onRefresh={() => setRefresh((p) => !p)} droppedFile={droppedFile} />
@@ -295,7 +308,7 @@ export default function Admin() {
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Storage nodes</h2>
               <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Connected peers and chunk distribution</p>
             </div>
-            <NodesGrid refresh={refresh} />
+            <NodesGrid nodes={nodes} apiError={nodesError} />
           </div>
         </div>
         <div ref={(el) => { tabContentRefs.current["logs"] = el; }} className="tab-content" style={{ display: active === "logs" ? "" : "none" }}>

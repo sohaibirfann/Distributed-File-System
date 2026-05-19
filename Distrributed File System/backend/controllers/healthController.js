@@ -16,7 +16,9 @@ const getHealth = (req, res) => {
       totalFiles = Object.keys(metadata).length;
 
       for (const file in metadata) {
-        totalChunks += metadata[file].length;
+        const entry  = metadata[file];
+        const chunks = Array.isArray(entry) ? entry : (entry?.chunks ?? []);
+        totalChunks += chunks.length;
       }
     }
 

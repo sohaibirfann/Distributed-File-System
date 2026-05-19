@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
-const axios = require("axios");
 
 const SHARED_FOLDER   = path.join(__dirname, "../shared");
 const METADATA_FILE   = path.join(__dirname, "../metadata.json");
@@ -39,31 +38,6 @@ function evictCache(incomingBytes) {
     if (total <= CACHE_MAX_BYTES) break;
     fs.unlinkSync(entry.p);
     total -= entry.size;
-  }
-}
-
-/*
-|--------------------------------------------------------------------------
-| Helper: Get dynamic nodes
-|--------------------------------------------------------------------------
-*/
-
-async function getNodeMap() {
-  try {
-    const res = await axios.get("http://localhost:5000/api/nodes");
-
-    const nodes = res.data;
-
-    const map = {};
-
-    nodes.forEach((node) => {
-      map[node.name] = node.url;
-    });
-
-    return map;
-  } catch (err) {
-    console.error("Failed to fetch nodes:", err.message);
-    return {};
   }
 }
 
@@ -200,7 +174,7 @@ const downloadFile = async (req, res) => {
     }
 
     const chunks   = getChunks(metadata[filename]);
-    const NODE_MAP = await getNodeMap();
+    const NODE_MAP = req.app.get("nodes") || {};
 
     const buffers = [];
 
@@ -281,7 +255,7 @@ const deleteFile = async (req, res) => {
     const io = req.app.get("io");
     io.emit("log", `[delete] ${filename} · requested by ${clientIP(req)}`);
 
-    const NODE_MAP = await getNodeMap();
+    const NODE_MAP = req.app.get("nodes") || {};
 
     // delete chunks from all nodes
     for (const chunk of fileChunks) {

@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { HardDrive, Wifi, WifiOff } from "lucide-react";
 
 function latencyColor(ms) {
@@ -13,28 +12,7 @@ function latencyLabel(ms) {
   return `${ms} ms`;
 }
 
-const API = import.meta.env.VITE_API_URL;
-
-export default function NodesGrid({ refresh }) {
-  const [nodes, setNodes]   = useState([]);
-  const [apiError, setApiError] = useState(false);
-
-  useEffect(() => {
-    fetchNodes();
-    const id = setInterval(fetchNodes, 5000);
-    return () => clearInterval(id);
-  }, [refresh]);
-
-  async function fetchNodes() {
-    try {
-      const res = await fetch(`${API}/api/nodes`);
-      setNodes(await res.json());
-      setApiError(false);
-    } catch {
-      setApiError(true);
-    }
-  }
-
+export default function NodesGrid({ nodes = [], apiError = false }) {
   const online  = nodes.filter((n) => n.status === "online").length;
   const offline = nodes.length - online;
 
