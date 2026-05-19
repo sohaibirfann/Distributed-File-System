@@ -81,6 +81,7 @@ A local-network distributed file storage system that splits files into encrypted
 | Node.js + Express | Lightweight HTTP server |
 | cors | Cross-origin request handling |
 | axios | Registration and heartbeat requests to backend |
+| dotenv | Environment variable loading |
 
 ### Frontend
 | Package | Purpose |
@@ -202,13 +203,14 @@ node_modules/   (after npm install)
 
 1. **Copy `nodeServer.js` and `package.json` to the node machine**
 
-   The node server requires three dependencies: `express`, `cors`, `axios`. You can use the backend `package.json` as-is or create a minimal one:
+   The node server requires four dependencies: `express`, `cors`, `axios`, `dotenv`. You can use the backend `package.json` as-is or create a minimal one:
    ```json
    {
      "dependencies": {
        "express": "^5.1.0",
        "cors": "^2.8.5",
-       "axios": "^1.16.1"
+       "axios": "^1.16.1",
+       "dotenv": "^16.0.0"
      }
    }
    ```
@@ -218,12 +220,14 @@ node_modules/   (after npm install)
    npm install
    ```
 
-3. **Update the backend URL**
+3. **Create the environment file**
 
-   Open `nodeServer.js` and set `BACKEND_URL` to the IP address of the machine running the backend:
-   ```js
-   const BACKEND_URL = "http://<backend-machine-ip>:5000";
+   Create a `.env` file in the same folder as `nodeServer.js`:
    ```
+   BACKEND_URL=http://<backend-machine-ip>:5000
+   ```
+
+   Replace `<backend-machine-ip>` with the local IP of the machine running the backend. On Windows, find it with `ipconfig`.
 
 4. **Start the node server**
    ```bash
@@ -291,6 +295,12 @@ node_modules/   (after npm install)
 | `ENCRYPTION_KEY` | 64-character hex string (32 bytes). Used for AES-256-GCM chunk encryption. | `5832bbc4b945...` |
 
 The backend will refuse to start with a missing or malformed key.
+
+### Node Server — `.env` (alongside `nodeServer.js`)
+
+| Variable | Description | Example |
+|---|---|---|
+| `BACKEND_URL` | Full URL of the backend server that this node should register with. | `http://192.168.1.10:5000` |
 
 ### Frontend — `frontend/.env`
 
@@ -369,7 +379,6 @@ Nodes send `POST /api/heartbeat` every **15 seconds**. The backend checks every 
 ## Limitations
 
 - **No HTTPS** — all traffic between frontend, backend, and nodes is plain HTTP. Acceptable on a trusted LAN but not suitable for the open internet.
-- **Hardcoded backend IP** — `nodeServer.js` has `BACKEND_URL` hardcoded. It must be manually edited when deploying to a different machine.
 - **File-based metadata** — `metadata.json` is read/written on every operation. Not suitable for high concurrency or large numbers of files.
 - **No chunk integrity verification on download** — SHA-256 hashes are stored in metadata but not verified when chunks are reassembled.
 - **Single backend** — the backend is a single point of failure. If it goes down, uploads and downloads stop even if all nodes are healthy.
@@ -382,7 +391,6 @@ Nodes send `POST /api/heartbeat` every **15 seconds**. The backend checks every 
 
 - HTTPS / TLS for all traffic
 - Proper authentication with hashed passwords or tokens
-- Dynamic backend URL via CLI argument for node servers
 - Chunk integrity verification using stored SHA-256 hashes on every download
 - Configurable replication factor
 - Replace `metadata.json` with a proper database (SQLite or similar)

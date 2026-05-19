@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const fs = require("fs");
 const cors = require("cors");
@@ -14,7 +15,7 @@ app.use(express.json({ limit: "10mb" }));
 const USER = process.argv[2] || "user1";
 const PORT = process.argv[3] || 7001;
 
-const BACKEND_URL = "http://192.168.1.231:5000"; // replace with your IP
+const BACKEND_URL = process.env.BACKEND_URL;
 const STORAGE = path.join(__dirname, "node_storage", USER);
 
 function getLocalIP() {
