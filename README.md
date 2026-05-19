@@ -249,6 +249,8 @@ node_modules/   (after npm install)
    - Register itself with the backend
    - Begin sending heartbeats every 15 seconds
 
+   If registration fails (e.g. backend not yet running), the node logs the error and continues. It will not appear in the dashboard or receive any chunks until a successful registration. Restart the node once the backend is up.
+
    You can run multiple nodes on the same machine using different usernames and ports.
 
 ---
@@ -318,7 +320,7 @@ Minimum setup to get files uploading and downloading:
 1. Start the backend on one machine
 2. Start at least one node server (on any machine on the network)
 3. Start the frontend
-4. Open the frontend in a browser, go to **Admin** (password: `admin`)
+4. Open the frontend in a browser **on the backend machine** and go to **Admin** — admin access is restricted to `localhost` / `127.0.0.1` and will be blocked from any other device
 5. Upload a file — it will be chunked, encrypted, and distributed to connected nodes
 
 The system works with one node but there is no redundancy until there are at least two nodes (each chunk needs two replicas).
@@ -367,7 +369,7 @@ Chunks are encrypted with **AES-256-GCM** before being sent to nodes. The encryp
 [ IV (12 bytes) ][ Auth Tag (16 bytes) ][ Ciphertext ]
 ```
 
-The auth tag ensures integrity — a tampered chunk will fail decryption. The key never leaves the backend machine.
+This buffer is then **base64-encoded** for transmission. The auth tag ensures integrity — a tampered chunk will fail decryption. The key never leaves the backend machine.
 
 After decryption, the backend recomputes a SHA-256 hash of the plaintext and compares it against the hash stored in `metadata.json` at upload time. If they differ, that replica is rejected and the next replica is tried automatically. If every replica of a chunk fails the hash check, the download is aborted with an error.
 
@@ -385,6 +387,8 @@ Nodes send `POST /api/heartbeat` every **15 seconds**. The backend checks every 
 - **File-based metadata** — `metadata.json` is read/written on every operation. Not suitable for high concurrency or large numbers of files.
 - **Single backend** — the backend is a single point of failure. If it goes down, uploads and downloads stop even if all nodes are healthy.
 - **Admin authentication** — the admin panel is protected only by a `localStorage` flag. It is not secure against a determined user on the same machine.
+- **Admin is localhost-only** — the admin panel is blocked on any browser not running on the backend machine itself. The guest (read-only) view is accessible from any device.
+- **Dead-node deregistration window** — when a node goes offline it takes up to 60 seconds to be deregistered. During that window it is still attempted as a replica source, but each fetch is capped at a **3-second timeout** before falling back to the next replica, so downloads remain responsive.
 - **Fixed replication factor** — always 2 replicas. Cannot be configured without code changes.
 
 ---

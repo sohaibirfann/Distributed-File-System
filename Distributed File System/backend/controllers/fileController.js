@@ -207,6 +207,7 @@ const downloadFile = async (req, res) => {
         try {
           const response = await fetch(
             `${NODE_MAP[user]}/get-chunk?filename=${filename}&chunkId=${chunk.chunkId}`,
+            { signal: AbortSignal.timeout(3000) },
           );
 
           if (!response.ok) throw new Error();
