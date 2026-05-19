@@ -49,6 +49,20 @@ function getType(filename) {
   return TYPE_MAP[ext] ?? DEFAULT_TYPE;
 }
 
+const TEXT_EXTENSIONS = new Set([
+  "txt","md","csv","log","json","xml","yaml","yml","toml","ini","env","conf",
+  "html","css","svg","js","ts","jsx","tsx","py","java","c","cpp","h","cs",
+  "go","rs","rb","php","swift","kt","sh","bash","zsh","ps1","bat","sql",
+]);
+const IMAGE_EXTENSIONS = new Set(["jpg","jpeg","png","gif","webp","svg"]);
+
+function getPreviewType(filename) {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  if (IMAGE_EXTENSIONS.has(ext)) return "image";
+  if (TEXT_EXTENSIONS.has(ext))  return "text";
+  return null;
+}
+
 function formatSize(bytes) {
   if (bytes < 1024)        return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -73,9 +87,11 @@ export default function FileTable({ isAdmin = false }) {
   const [files, setFiles]               = useState([]);
   const [search, setSearch]             = useState("");
   const [apiError, setApiError]         = useState(false);
-  const [fileToDelete, setFileToDelete] = useState(null);
-  const [previewFile, setPreviewFile]   = useState(null);
+  const [fileToDelete, setFileToDelete]     = useState(null);
+  const [previewFile, setPreviewFile]       = useState(null);
+  const [previewType, setPreviewType]       = useState(null);
   const [previewContent, setPreviewContent] = useState("");
+  const [previewUrl, setPreviewUrl]         = useState(null);
 
   useEffect(() => {
     fetchFiles();
@@ -112,11 +128,27 @@ export default function FileTable({ isAdmin = false }) {
     }
   }
 
+  function closePreview() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewFile(null);
+    setPreviewType(null);
+    setPreviewContent("");
+    setPreviewUrl(null);
+  }
+
   async function handlePreview(filename) {
-    const id = notify.loading("Loading preview…");
+    const type = getPreviewType(filename);
+    const id   = notify.loading("Loading preview…");
     try {
       const res = await fetch(`${API}/api/files/download/${filename}`);
-      setPreviewContent(await res.text());
+      if (!res.ok) throw new Error();
+      if (type === "image") {
+        const blob = await res.blob();
+        setPreviewUrl(URL.createObjectURL(blob));
+      } else {
+        setPreviewContent(await res.text());
+      }
+      setPreviewType(type);
       setPreviewFile(filename);
       notify.dismiss(id);
     } catch {
@@ -251,14 +283,16 @@ export default function FileTable({ isAdmin = false }) {
                             <Download size={13} />
                             <span className="hidden sm:inline">Download</span>
                           </button>
-                          <button
-                            onClick={() => handlePreview(file.filename)}
-                            title="Preview"
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-700 dark:hover:text-blue-400 transition-colors"
-                          >
-                            <Eye size={13} />
-                            <span className="hidden sm:inline">Preview</span>
-                          </button>
+                          {getPreviewType(file.filename) && (
+                            <button
+                              onClick={() => handlePreview(file.filename)}
+                              title="Preview"
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-700 dark:hover:text-blue-400 transition-colors"
+                            >
+                              <Eye size={13} />
+                              <span className="hidden sm:inline">Preview</span>
+                            </button>
+                          )}
                           {isAdmin && (
                             <button
                               onClick={() => setFileToDelete(file.filename)}
@@ -283,12 +317,13 @@ export default function FileTable({ isAdmin = false }) {
       {previewFile && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={() => setPreviewFile(null)}
+          onClick={closePreview}
         >
           <div
-            className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-2xl max-h-[80vh] flex flex-col"
+            className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-3xl max-h-[80vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Modal header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-neutral-800 shrink-0">
               <div className="flex items-center gap-2.5">
                 {(() => { const { icon: Icon, bg, color } = getType(previewFile); return (
@@ -297,19 +332,48 @@ export default function FileTable({ isAdmin = false }) {
                   </div>
                 ); })()}
                 <span className="text-sm font-semibold text-gray-900 dark:text-white">{previewFile}</span>
+                {previewType === "text" && (
+                  <span className="text-xs text-gray-400 dark:text-neutral-500">
+                    {previewContent.split("\n").length} lines
+                  </span>
+                )}
               </div>
               <button
-                onClick={() => setPreviewFile(null)}
+                onClick={closePreview}
                 className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
               >
                 <X size={15} />
               </button>
             </div>
-            <div className="flex-1 overflow-auto p-5 bg-white/30 dark:bg-black rounded-b-2xl">
-              <pre className="text-xs text-gray-700 dark:text-neutral-300 font-mono whitespace-pre-wrap leading-relaxed">
-                {previewContent}
-              </pre>
-            </div>
+
+            {/* Modal body */}
+            {previewType === "image" ? (
+              <div className="flex-1 overflow-auto p-6 flex items-center justify-center bg-[length:16px_16px] rounded-b-2xl"
+                style={{ background: "repeating-conic-gradient(#e5e7eb 0% 25%, transparent 0% 50%) 0 0 / 16px 16px" }}>
+                <img
+                  src={previewUrl}
+                  alt={previewFile}
+                  className="max-w-full max-h-full object-contain rounded-lg shadow-md"
+                />
+              </div>
+            ) : (
+              <div className="flex-1 overflow-auto rounded-b-2xl bg-white/30 dark:bg-black">
+                <table className="min-w-full border-collapse font-mono text-xs">
+                  <tbody>
+                    {previewContent.split("\n").map((line, i) => (
+                      <tr key={i} className="hover:bg-blue-50/40 dark:hover:bg-neutral-800/40">
+                        <td className="sticky left-0 select-none text-right pr-3 pl-4 py-px text-neutral-400 dark:text-neutral-600 bg-gray-50/90 dark:bg-neutral-900/90 border-r border-gray-100 dark:border-neutral-800 w-10 align-top leading-5">
+                          {i + 1}
+                        </td>
+                        <td className="pl-4 pr-6 py-px text-gray-700 dark:text-neutral-300 whitespace-pre align-top leading-5">
+                          {line || " "}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
