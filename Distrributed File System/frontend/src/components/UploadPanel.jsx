@@ -26,6 +26,7 @@ export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
 
   async function upload() {
     if (!file) return notify.error("Select a file first");
+    if (file.size > 500 * 1024 * 1024) return notify.error("File too large (max 500 MB)");
     const id = notify.loading("Uploading…");
     const form = new FormData();
     form.append("file", file);
@@ -40,10 +41,19 @@ export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
         });
 
         xhr.addEventListener("load", () => {
-          xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error());
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            try {
+              const body = JSON.parse(xhr.responseText);
+              reject(new Error(body.message || "Upload failed"));
+            } catch {
+              reject(new Error("Upload failed"));
+            }
+          }
         });
-        xhr.addEventListener("error", reject);
-        xhr.addEventListener("abort", reject);
+        xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+        xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
         xhr.send(form);
       });
 
@@ -56,9 +66,9 @@ export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
         setProgress(0);
         setDone(false);
       }, 800);
-    } catch {
+    } catch (err) {
       notify.dismiss(id);
-      notify.error("Upload failed");
+      notify.error(err.message || "Upload failed");
       setProgress(0);
     }
   }

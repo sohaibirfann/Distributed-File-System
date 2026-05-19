@@ -106,7 +106,7 @@ if (process.argv[2] === "upload") {
     const USERS = Object.keys(NODE_MAP);
 
     if (USERS.length === 0) {
-      console.log("No nodes available");
+      console.error("No nodes available — start at least one node before uploading");
       process.exit(1);
     }
 
