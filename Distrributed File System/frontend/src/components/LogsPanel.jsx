@@ -10,6 +10,8 @@ export default function LogsPanel({ fullHeight = false }) {
   const bottomRef                 = useRef(null);
 
   useEffect(() => {
+    if (socket.connected) setConnected(true);
+
     socket.on("connect",    () => setConnected(true));
     socket.on("disconnect", () => setConnected(false));
     socket.on("log", (msg) => {
