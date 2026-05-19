@@ -6,11 +6,12 @@ const axios = require("axios");
 
 let NODES = {};
 
-const fileRoutes = require("./routes/fileRoutes");
-const nodeRoutes = require("./routes/nodeRoutes");
+const fileRoutes   = require("./routes/fileRoutes");
 const healthRoutes = require("./routes/healthRoutes");
 
 const app = express();
+
+app.set("nodes", NODES);
 
 const server = http.createServer(app);
 
@@ -30,10 +31,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/files", fileRoutes);
-
-app.use("/api", nodeRoutes);
-
-app.use("/api", healthRoutes);
+app.use("/api",       healthRoutes);
 
 app.get("/", (req, res) => {
   res.json({
@@ -63,6 +61,7 @@ app.post("/api/register-node", (req, res) => {
   NODES[name] = url;
 
   console.log(`Node registered: ${name} → ${url}`);
+  io.emit("log", `[node] ${name} registered @ ${url}`);
   res.json({ success: true });
 });
 
@@ -72,21 +71,17 @@ app.get("/api/nodes", async (req, res) => {
   const results = await Promise.all(
     nodeEntries.map(async ([name, url]) => {
       try {
-        const response = await axios.get(`${url}/stats`, {
+        const { data } = await axios.get(`${url}/stats`, {
           timeout: 5000,
         });
 
         console.log("SUCCESS:", name);
 
-        const stats = await axios.get(`${url}/stats`, {
-          timeout: 5000,
-        });
-
         return {
           name,
           url,
           status: "online",
-          chunks: stats.data.chunks || 0,
+          chunks: data.chunks || 0,
           replication: "Healthy",
         };
       } catch (err) {

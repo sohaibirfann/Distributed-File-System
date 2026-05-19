@@ -1,26 +1,12 @@
-const net = require("net");
 const fs = require("fs");
 const crypto = require("crypto");
 const path = require("path");
 const axios = require("axios");
 
-const COORD_PORT = 6000;
 const CHUNK_SIZE = 4 * 1024;
 const METADATA_FILE = path.join(__dirname, "metadata.json");
 
 const BACKEND_URL = "http://localhost:5000";
-
-// const USERS_FOLDER = path.join(__dirname, "users");
-
-// // Get user folders
-// const USERS = fs
-//   .readdirSync(USERS_FOLDER)
-//   .filter((file) => fs.statSync(path.join(USERS_FOLDER, file)).isDirectory());
-
-// // Ensure users folder exists
-// if (!fs.existsSync(USERS_FOLDER)) {
-//   fs.mkdirSync(USERS_FOLDER);
-// }
 
 // Load metadata
 
@@ -78,14 +64,6 @@ function chunkFile(filePath) {
   }
 
   return chunks;
-}
-
-// Dummy TCP handler (unchanged)
-function handleRequest(socket) {
-  socket.on("data", () => {});
-  socket.on("end", () => {
-    socket.end();
-  });
 }
 
 // ----------------------------
@@ -157,16 +135,4 @@ if (process.argv[2] === "upload") {
     saveMetadata();
     console.log("All chunks distributed successfully");
   })();
-}
-
-// ----------------------------
-// TCP SERVER (UNCHANGED)
-// ----------------------------
-
-if (process.argv[2] !== "upload") {
-  const coordinator = net.createServer(handleRequest);
-
-  coordinator.listen(COORD_PORT, () => {
-    console.log("Coordinator running on port", COORD_PORT);
-  });
 }

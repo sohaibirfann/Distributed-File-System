@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { io } from "socket.io-client";
-import { Terminal, Trash2 } from "lucide-react";
+import { Terminal, Trash2, Download } from "lucide-react";
 
 const socket = io(import.meta.env.VITE_API_URL);
 
@@ -30,6 +30,19 @@ export default function LogsPanel({ fullHeight = false }) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
+  function exportLogs() {
+    const text = logs.map((e) => `[${e.time}] ${e.msg}`).join("\n");
+    const blob = new Blob([text], { type: "text/plain" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `dfs-logs-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-neutral-800">
@@ -45,13 +58,22 @@ export default function LogsPanel({ fullHeight = false }) {
           </span>
         </div>
         {logs.length > 0 && (
-          <button
-            onClick={() => setLogs([])}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
-          >
-            <Trash2 size={12} />
-            Clear
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={exportLogs}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
+            >
+              <Download size={12} />
+              Export
+            </button>
+            <button
+              onClick={() => setLogs([])}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
+            >
+              <Trash2 size={12} />
+              Clear
+            </button>
+          </div>
         )}
       </div>
 

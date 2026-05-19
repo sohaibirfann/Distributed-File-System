@@ -11,67 +11,45 @@ const {
   deleteFile,
 } = require("../controllers/fileController");
 
-/*
-|--------------------------------------------------------------------------
-| Upload File
-|--------------------------------------------------------------------------
-*/
+function clientIP(req) {
+  return (req.ip || "").replace(/^::ffff:/, "") || "unknown";
+}
+
+function fmtBytes(b) {
+  if (b < 1024)        return `${b} B`;
+  if (b < 1048576)     return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / 1048576).toFixed(2)} MB`;
+}
 
 router.post(
   "/upload",
   upload.single("file"),
   (req, res, next) => {
-    const io = req.app.get("io");
-
     if (req.file) {
-      io.emit(
+      req.app.get("io").emit(
         "log",
-        `Uploading file: ${req.file.originalname}`
+        `[upload] ${req.file.originalname} · ${fmtBytes(req.file.size)} · from ${clientIP(req)}`
       );
     }
-
     next();
   },
   uploadFile
 );
 
-
-// get all files
 router.get("/", getFiles);
 
-// merge files
-// router.post(
-//   "/merge/:filename",
-//   (req, res, next) => {
-//     const io = req.app.get("io");
-
-//     io.emit(
-//       "log",
-//       `Merge started for ${req.params.filename}`
-//     );
-
-//     next();
-//   },
-//   mergeFileController
-// );
-
-// download files
 router.get(
   "/download/:filename",
   (req, res, next) => {
-    const io = req.app.get("io");
-
-    io.emit(
+    req.app.get("io").emit(
       "log",
-      `Download requested: ${req.params.filename}`
+      `[download] ${req.params.filename} · requested by ${clientIP(req)}`
     );
-
     next();
   },
   downloadFile
 );
 
-// delete files
 router.delete("/delete/:filename", deleteFile);
 
 module.exports = router;

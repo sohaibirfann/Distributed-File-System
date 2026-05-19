@@ -3,8 +3,39 @@ const path = require("path");
 const { exec } = require("child_process");
 const axios = require("axios");
 
-const SHARED_FOLDER = path.join(__dirname, "../shared");
-const METADATA_FILE = path.join(__dirname, "../metadata.json");
+const SHARED_FOLDER   = path.join(__dirname, "../shared");
+const METADATA_FILE   = path.join(__dirname, "../metadata.json");
+const CACHE_MAX_BYTES = 200 * 1024 * 1024; // 200 MB
+
+function clientIP(req) {
+  return (req.ip || "").replace(/^::ffff:/, "") || "unknown";
+}
+
+/*
+|--------------------------------------------------------------------------
+| Helper: Evict oldest cached files until there is room for incomingBytes
+|--------------------------------------------------------------------------
+*/
+
+function evictCache(incomingBytes) {
+  if (!fs.existsSync(SHARED_FOLDER)) return;
+
+  const entries = fs.readdirSync(SHARED_FOLDER)
+    .map((name) => {
+      const p    = path.join(SHARED_FOLDER, name);
+      const stat = fs.statSync(p);
+      return { p, size: stat.size, mtime: stat.mtimeMs };
+    })
+    .sort((a, b) => a.mtime - b.mtime); // oldest first
+
+  let total = entries.reduce((sum, e) => sum + e.size, 0) + incomingBytes;
+
+  for (const entry of entries) {
+    if (total <= CACHE_MAX_BYTES) break;
+    fs.unlinkSync(entry.p);
+    total -= entry.size;
+  }
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -59,13 +90,16 @@ const uploadFile = (req, res) => {
       },
       (error, stdout, stderr) => {
         if (error) {
+          io.emit("log", `[upload] failed: ${req.file.originalname} — ${stderr || error.message}`);
           return res.status(500).json({
             success: false,
             message: stderr || error.message,
           });
         }
 
-        io.emit("log", `Replication completed for ${req.file.originalname}`);
+        const chunkLine = stdout.match(/Total chunks:\s*(\d+)/);
+        const chunkCount = chunkLine ? chunkLine[1] : "?";
+        io.emit("log", `[replication] ${req.file.originalname} · ${chunkCount} chunks distributed`);
 
         res.json({
           success: true,
@@ -130,8 +164,22 @@ const getFiles = (req, res) => {
 
 const downloadFile = async (req, res) => {
   try {
-    const filename = req.params.filename;
+    const filename   = req.params.filename;
+    const cachedPath = path.join(SHARED_FOLDER, filename);
 
+    // Cache hit: serve directly and refresh its mtime for LRU tracking
+    if (fs.existsSync(cachedPath)) {
+      const now = new Date();
+      fs.utimesSync(cachedPath, now, now);
+      req.app.get("io").emit("log", `[cache hit] ${filename} · served to ${clientIP(req)}`);
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader("Content-Type", "application/octet-stream");
+      return fs.createReadStream(cachedPath).pipe(res);
+    }
+
+    req.app.get("io").emit("log", `[cache miss] ${filename} · assembling from nodes`);
+
+    // Cache miss: assemble from nodes
     if (!fs.existsSync(METADATA_FILE)) {
       return res.status(404).json({
         success: false,
@@ -187,6 +235,11 @@ const downloadFile = async (req, res) => {
 
     const finalBuffer = Buffer.concat(buffers);
 
+    // Write to shared cache (evict oldest entries if over limit)
+    evictCache(finalBuffer.length);
+    fs.writeFileSync(cachedPath, finalBuffer);
+    req.app.get("io").emit("log", `[cached] ${filename} · ready for future requests`);
+
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/octet-stream");
 
@@ -223,6 +276,9 @@ const deleteFile = async (req, res) => {
       return res.status(404).json({ message: "File not found" });
     }
 
+    const io = req.app.get("io");
+    io.emit("log", `[delete] ${filename} · requested by ${clientIP(req)}`);
+
     const NODE_MAP = await getNodeMap();
 
     // delete chunks from all nodes
@@ -249,6 +305,12 @@ const deleteFile = async (req, res) => {
     delete metadata[filename];
 
     fs.writeFileSync(METADATA_FILE, JSON.stringify(metadata, null, 2));
+
+    // purge from shared cache
+    const cachedPath = path.join(SHARED_FOLDER, filename);
+    if (fs.existsSync(cachedPath)) fs.unlinkSync(cachedPath);
+
+    io.emit("log", `[delete] ${filename} · removed from all nodes and cache`);
 
     res.json({ success: true });
   } catch (err) {
