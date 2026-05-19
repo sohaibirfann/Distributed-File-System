@@ -49,11 +49,12 @@ A local-network distributed file storage system that splits files into encrypted
 2. `coordinator.js` reads the file, splits it into 4 KB chunks, and generates a SHA-256 hash for each chunk.
 3. Each chunk is encrypted with AES-256-GCM (unique IV per chunk).
 4. Chunks are distributed round-robin across connected nodes with 2 replicas per chunk — chunk `n` goes to nodes `n % total` and `(n+1) % total`.
-5. Chunk metadata (chunk ID, hash, size, node assignments) plus the upload timestamp are saved to `metadata.json`.
+5. If both replicas of any chunk fail to store, all chunks sent so far are rolled back (deleted from nodes), the metadata entry is removed, and the temporary file is cleaned up. The client receives a specific error message.
+6. Chunk metadata (chunk ID, hash, size, node assignments) plus the upload timestamp are saved to `metadata.json` only after all chunks are successfully distributed.
 
 ### Download
 1. The backend checks the shared cache folder first. On a cache hit, the file is served directly and its last-accessed time is refreshed for LRU tracking.
-2. On a cache miss, the backend reads `metadata.json`, fetches each encrypted chunk from the assigned nodes, decrypts them, and concatenates the buffers.
+2. On a cache miss, the backend reads `metadata.json`, fetches each encrypted chunk from the assigned nodes, decrypts them, verifies the SHA-256 hash against the stored value, and concatenates the buffers. If a chunk fails its hash check, the next replica is tried automatically. If all replicas fail, the download is aborted with a specific error ("integrity check failed" vs "unavailable on all nodes").
 3. The assembled file is written to the cache (evicting oldest files if the 200 MB limit would be exceeded) and sent to the client.
 
 ### Node Registration
@@ -368,6 +369,8 @@ Chunks are encrypted with **AES-256-GCM** before being sent to nodes. The encryp
 
 The auth tag ensures integrity — a tampered chunk will fail decryption. The key never leaves the backend machine.
 
+After decryption, the backend recomputes a SHA-256 hash of the plaintext and compares it against the hash stored in `metadata.json` at upload time. If they differ, that replica is rejected and the next replica is tried automatically. If every replica of a chunk fails the hash check, the download is aborted with an error.
+
 ### LRU Download Cache
 Assembled files are written to a `shared/` folder on the backend. On a cache hit the file is served directly. The folder is capped at **200 MB** — when a new file would exceed the limit, the least recently accessed files are deleted first to make room.
 
@@ -380,7 +383,6 @@ Nodes send `POST /api/heartbeat` every **15 seconds**. The backend checks every 
 
 - **No HTTPS** — all traffic between frontend, backend, and nodes is plain HTTP. Acceptable on a trusted LAN but not suitable for the open internet.
 - **File-based metadata** — `metadata.json` is read/written on every operation. Not suitable for high concurrency or large numbers of files.
-- **No chunk integrity verification on download** — SHA-256 hashes are stored in metadata but not verified when chunks are reassembled.
 - **Single backend** — the backend is a single point of failure. If it goes down, uploads and downloads stop even if all nodes are healthy.
 - **Admin authentication** — the admin panel is protected only by a `localStorage` flag. It is not secure against a determined user on the same machine.
 - **Fixed replication factor** — always 2 replicas. Cannot be configured without code changes.
@@ -391,7 +393,6 @@ Nodes send `POST /api/heartbeat` every **15 seconds**. The backend checks every 
 
 - HTTPS / TLS for all traffic
 - Proper authentication with hashed passwords or tokens
-- Chunk integrity verification using stored SHA-256 hashes on every download
 - Configurable replication factor
 - Replace `metadata.json` with a proper database (SQLite or similar)
 - File versioning — keep previous versions when a file is re-uploaded

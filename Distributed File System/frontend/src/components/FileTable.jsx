@@ -114,7 +114,10 @@ export default function FileTable({ isAdmin = false }) {
     const id = notify.loading("Preparing download…");
     try {
       const res = await fetch(`${API}/api/files/download/${filename}`);
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Download failed");
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -123,9 +126,9 @@ export default function FileTable({ isAdmin = false }) {
       URL.revokeObjectURL(url);
       notify.dismiss(id);
       notify.success("Download complete");
-    } catch {
+    } catch (err) {
       notify.dismiss(id);
-      notify.error("Download failed");
+      notify.error(err.message || "Download failed");
     }
   }
 
@@ -142,7 +145,10 @@ export default function FileTable({ isAdmin = false }) {
     const id   = notify.loading("Loading preview…");
     try {
       const res = await fetch(`${API}/api/files/download/${filename}`);
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Preview failed");
+      }
       if (type === "image") {
         const blob = await res.blob();
         setPreviewUrl(URL.createObjectURL(blob));
@@ -152,9 +158,9 @@ export default function FileTable({ isAdmin = false }) {
       setPreviewType(type);
       setPreviewFile(filename);
       notify.dismiss(id);
-    } catch {
+    } catch (err) {
       notify.dismiss(id);
-      notify.error("Preview failed");
+      notify.error(err.message || "Preview failed");
     }
   }
 

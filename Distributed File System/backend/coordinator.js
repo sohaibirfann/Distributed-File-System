@@ -138,11 +138,15 @@ if (process.argv[2] === "upload") {
 
     metadata[filename] = { uploadedAt: new Date().toISOString(), chunks: [] };
 
+    const distributed = []; // { user, chunkId } — for rollback on failure
+
     for (const chunk of fileChunks) {
       const first = USERS[chunk.chunkId % USERS.length];
       const second = USERS[(chunk.chunkId + 1) % USERS.length];
 
       const replicaUsers = [first, second];
+
+      let storedCount = 0;
 
       for (const user of replicaUsers) {
         const nodeUrl = NODE_MAP[user];
@@ -160,10 +164,31 @@ if (process.argv[2] === "upload") {
             }),
           });
 
+          distributed.push({ user, chunkId: chunk.chunkId });
+          storedCount++;
           console.log(`Chunk ${chunk.chunkId} sent to ${user}`);
         } catch (err) {
           console.error(`Failed to send chunk ${chunk.chunkId} to ${user}`);
         }
+      }
+
+      if (storedCount === 0) {
+        console.error(`Upload failed: chunk ${chunk.chunkId} could not be stored on any node`);
+
+        for (const { user, chunkId } of distributed) {
+          try {
+            await fetch(`${NODE_MAP[user]}/delete-chunk`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ filename, chunkId }),
+            });
+          } catch {}
+        }
+
+        delete metadata[filename];
+        saveMetadata();
+        console.error("Rolled back all distributed chunks");
+        process.exit(1);
       }
 
       metadata[filename].chunks.push({
