@@ -110,31 +110,11 @@ if (process.argv[2] === "upload") {
       process.exit(1);
     }
 
-    // If file already exists, delete old chunks from nodes before overwriting
-    if (metadata[filename]) {
-      const oldChunks = Array.isArray(metadata[filename])
-        ? metadata[filename]
-        : (metadata[filename]?.chunks ?? []);
-
-      for (const chunk of oldChunks) {
-        for (const user of chunk.users) {
-          if (!NODE_MAP[user]) continue;
-          try {
-            await fetch(`${NODE_MAP[user]}/delete-chunk`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ filename, chunkId: chunk.chunkId }),
-            });
-          } catch {}
-        }
-      }
-
-      // Purge from shared cache
-      const cachedPath = path.join(__dirname, "shared", filename);
-      if (fs.existsSync(cachedPath)) fs.unlinkSync(cachedPath);
-
-      console.log("Replaced existing file — old chunks removed");
-    }
+    // Preserve old state — old chunks are only deleted after new ones are confirmed
+    const oldEntry  = metadata[filename] || null;
+    const oldChunks = oldEntry
+      ? (Array.isArray(oldEntry) ? oldEntry : (oldEntry?.chunks ?? []))
+      : [];
 
     metadata[filename] = { uploadedAt: new Date().toISOString(), chunks: [] };
 
@@ -187,7 +167,12 @@ if (process.argv[2] === "upload") {
           } catch {}
         }
 
-        delete metadata[filename];
+        // Restore old metadata so the original file remains intact
+        if (oldEntry) {
+          metadata[filename] = oldEntry;
+        } else {
+          delete metadata[filename];
+        }
         saveMetadata();
         console.error("Rolled back all distributed chunks");
         process.exit(1);
@@ -200,6 +185,26 @@ if (process.argv[2] === "upload") {
         users: replicaUsers,
       });
     }
+
+    // New chunks confirmed — now remove old ones
+    for (const chunk of oldChunks) {
+      for (const user of chunk.users) {
+        if (!NODE_MAP[user]) continue;
+        try {
+          await fetch(`${NODE_MAP[user]}/delete-chunk`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename, chunkId: chunk.chunkId }),
+            signal: AbortSignal.timeout(3000),
+          });
+        } catch {}
+      }
+    }
+
+    const cachedPath = path.join(__dirname, "shared", filename);
+    if (fs.existsSync(cachedPath)) fs.unlinkSync(cachedPath);
+
+    if (oldEntry) console.log("Replaced existing file — old chunks removed");
 
     saveMetadata();
     console.log("All chunks distributed successfully");

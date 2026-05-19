@@ -214,7 +214,14 @@ const downloadFile = async (req, res) => {
 
           const data = await response.json();
 
-          const decrypted = decrypt(data.data);
+          let decrypted;
+          try {
+            decrypted = decrypt(data.data);
+          } catch {
+            req.app.get("io").emit("log", `[integrity] chunk ${chunk.chunkId} from ${user} failed decryption — trying next replica`);
+            integrityFailed = true;
+            continue;
+          }
 
           const actualHash = crypto.createHash("sha256").update(decrypted).digest("hex");
           if (actualHash !== chunk.hash) {
@@ -302,6 +309,7 @@ const deleteFile = async (req, res) => {
               filename,
               chunkId: chunk.chunkId,
             }),
+            signal: AbortSignal.timeout(3000),
           });
         } catch (err) {
           console.log(`Failed to delete chunk ${chunk.chunkId} from ${user}`);
