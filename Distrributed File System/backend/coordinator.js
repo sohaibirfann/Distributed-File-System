@@ -1,5 +1,10 @@
 require("dotenv").config();
 
+if (!process.env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY.length !== 64) {
+  console.error("ERROR: ENCRYPTION_KEY missing or invalid in .env — must be a 64-char hex string");
+  process.exit(1);
+}
+
 const fs = require("fs");
 const crypto = require("crypto");
 const path = require("path");

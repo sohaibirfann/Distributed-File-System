@@ -1,5 +1,11 @@
 require("dotenv").config();
 
+if (!process.env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY.length !== 64) {
+  console.error("ERROR: ENCRYPTION_KEY missing or invalid in .env — must be a 64-char hex string");
+  console.error("Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"");
+  process.exit(1);
+}
+
 const express = require("express");
 const cors = require("cors");
 const http = require("http");

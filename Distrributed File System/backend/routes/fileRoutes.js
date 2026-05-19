@@ -21,10 +21,12 @@ function fmtBytes(b) {
   return `${(b / 1048576).toFixed(2)} MB`;
 }
 
-router.post(
-  "/upload",
-  upload.single("file"),
-  (req, res, next) => {
+router.post("/upload", (req, res, next) => {
+  upload.single("file")(req, res, (err) => {
+    if (err?.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({ success: false, message: "File too large (max 500 MB)" });
+    }
+    if (err) return next(err);
     if (req.file) {
       req.app.get("io").emit(
         "log",
@@ -32,9 +34,8 @@ router.post(
       );
     }
     next();
-  },
-  uploadFile
-);
+  });
+}, uploadFile);
 
 router.get("/", getFiles);
 
