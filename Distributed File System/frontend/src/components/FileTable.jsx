@@ -1,0 +1,459 @@
+import { useEffect, useState } from "react";
+import { useNotify } from "../context/NotificationContext";
+import {
+  Download, Eye, Trash2, Search, X, AlertTriangle, WifiOff,
+  FileText, Image, Film, Music, Archive, Code, File,
+  ChevronUp, ChevronDown, ChevronsUpDown,
+} from "lucide-react";
+
+const API = import.meta.env.VITE_API_URL;
+
+const TYPE_MAP = {
+  // images
+  jpg:  { icon: Image,    bg: "bg-sky-50 dark:bg-sky-950/40",       color: "text-sky-500"                          },
+  jpeg: { icon: Image,    bg: "bg-sky-50 dark:bg-sky-950/40",       color: "text-sky-500"                          },
+  png:  { icon: Image,    bg: "bg-sky-50 dark:bg-sky-950/40",       color: "text-sky-500"                          },
+  gif:  { icon: Image,    bg: "bg-pink-50 dark:bg-pink-950/40",     color: "text-pink-500"                         },
+  svg:  { icon: Image,    bg: "bg-orange-50 dark:bg-orange-950/40", color: "text-orange-500"                       },
+  webp: { icon: Image,    bg: "bg-sky-50 dark:bg-sky-950/40",       color: "text-sky-500"                          },
+  // video
+  mp4:  { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
+  mov:  { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
+  avi:  { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
+  mkv:  { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
+  // audio
+  mp3:  { icon: Music,    bg: "bg-emerald-50 dark:bg-emerald-950/40", color: "text-emerald-500"                    },
+  wav:  { icon: Music,    bg: "bg-emerald-50 dark:bg-emerald-950/40", color: "text-emerald-500"                    },
+  flac: { icon: Music,    bg: "bg-emerald-50 dark:bg-emerald-950/40", color: "text-emerald-500"                    },
+  // docs
+  pdf:  { icon: FileText, bg: "bg-red-50 dark:bg-red-950/40",       color: "text-red-500"                         },
+  doc:  { icon: FileText, bg: "bg-blue-50 dark:bg-blue-950/40",     color: "text-blue-500"                        },
+  docx: { icon: FileText, bg: "bg-blue-50 dark:bg-blue-950/40",     color: "text-blue-500"                        },
+  txt:  { icon: FileText, bg: "bg-gray-100 dark:bg-neutral-800",    color: "text-gray-500 dark:text-neutral-400"  },
+  // archives
+  zip:  { icon: Archive,  bg: "bg-amber-50 dark:bg-amber-950/40",   color: "text-amber-500"                       },
+  rar:  { icon: Archive,  bg: "bg-amber-50 dark:bg-amber-950/40",   color: "text-amber-500"                       },
+  "7z": { icon: Archive,  bg: "bg-amber-50 dark:bg-amber-950/40",   color: "text-amber-500"                       },
+  tar:  { icon: Archive,  bg: "bg-amber-50 dark:bg-amber-950/40",   color: "text-amber-500"                       },
+  // code
+  js:   { icon: Code,     bg: "bg-yellow-50 dark:bg-yellow-950/40", color: "text-yellow-500"                      },
+  ts:   { icon: Code,     bg: "bg-blue-50 dark:bg-blue-950/40",     color: "text-blue-500"                        },
+  py:   { icon: Code,     bg: "bg-blue-50 dark:bg-blue-950/40",     color: "text-blue-500"                        },
+  json: { icon: Code,     bg: "bg-yellow-50 dark:bg-yellow-950/40", color: "text-yellow-500"                      },
+  html: { icon: Code,     bg: "bg-orange-50 dark:bg-orange-950/40", color: "text-orange-500"                      },
+  css:  { icon: Code,     bg: "bg-sky-50 dark:bg-sky-950/40",       color: "text-sky-500"                         },
+};
+const DEFAULT_TYPE = { icon: File, bg: "bg-blue-50 dark:bg-[#FF6363]/10", color: "text-blue-500 dark:text-[#FF6363]" };
+
+function getType(filename) {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  return TYPE_MAP[ext] ?? DEFAULT_TYPE;
+}
+
+const TEXT_EXTENSIONS = new Set([
+  "txt","md","csv","log","json","xml","yaml","yml","toml","ini","env","conf",
+  "html","css","svg","js","ts","jsx","tsx","py","java","c","cpp","h","cs",
+  "go","rs","rb","php","swift","kt","sh","bash","zsh","ps1","bat","sql",
+]);
+const IMAGE_EXTENSIONS = new Set(["jpg","jpeg","png","gif","webp","svg"]);
+
+function getPreviewType(filename) {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  if (IMAGE_EXTENSIONS.has(ext)) return "image";
+  if (TEXT_EXTENSIONS.has(ext))  return "text";
+  return null;
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024)        return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function formatRelativeTime(iso) {
+  if (!iso) return "—";
+  const diff  = Date.now() - new Date(iso).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  if (diff  < 60000)  return "just now";
+  if (mins  < 60)     return `${mins}m ago`;
+  if (hours < 24)     return `${hours}h ago`;
+  if (days  < 7)      return `${days}d ago`;
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+export default function FileTable({ isAdmin = false }) {
+  const notify = useNotify();
+  const [files, setFiles]               = useState([]);
+  const [search, setSearch]             = useState("");
+  const [apiError, setApiError]         = useState(false);
+  const [fileToDelete, setFileToDelete]     = useState(null);
+  const [previewFile, setPreviewFile]       = useState(null);
+  const [previewType, setPreviewType]       = useState(null);
+  const [previewContent, setPreviewContent] = useState("");
+  const [previewUrl, setPreviewUrl]         = useState(null);
+
+  useEffect(() => {
+    fetchFiles();
+    const id = setInterval(fetchFiles, 3000);
+    return () => clearInterval(id);
+  }, []);
+
+  async function fetchFiles() {
+    try {
+      const res = await fetch(`${API}/api/files`);
+      setFiles(await res.json());
+      setApiError(false);
+    } catch {
+      setApiError(true);
+    }
+  }
+
+  async function handleDownload(filename) {
+    const id = notify.loading("Preparing download…");
+    try {
+      const res = await fetch(`${API}/api/files/download/${filename}`);
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      notify.dismiss(id);
+      notify.success("Download complete");
+    } catch {
+      notify.dismiss(id);
+      notify.error("Download failed");
+    }
+  }
+
+  function closePreview() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewFile(null);
+    setPreviewType(null);
+    setPreviewContent("");
+    setPreviewUrl(null);
+  }
+
+  async function handlePreview(filename) {
+    const type = getPreviewType(filename);
+    const id   = notify.loading("Loading preview…");
+    try {
+      const res = await fetch(`${API}/api/files/download/${filename}`);
+      if (!res.ok) throw new Error();
+      if (type === "image") {
+        const blob = await res.blob();
+        setPreviewUrl(URL.createObjectURL(blob));
+      } else {
+        setPreviewContent(await res.text());
+      }
+      setPreviewType(type);
+      setPreviewFile(filename);
+      notify.dismiss(id);
+    } catch {
+      notify.dismiss(id);
+      notify.error("Preview failed");
+    }
+  }
+
+  async function handleDelete(filename) {
+    try {
+      await fetch(`${API}/api/files/delete/${filename}`, { method: "DELETE" });
+      notify.success("File deleted");
+      setFileToDelete(null);
+      fetchFiles();
+    } catch {
+      notify.error("Delete failed");
+    }
+  }
+
+  const [sort, setSort] = useState({ col: "uploadedAt", dir: "desc" });
+
+  function handleSort(col) {
+    setSort((prev) => ({
+      col,
+      dir: prev.col === col && prev.dir === "asc" ? "desc" : "asc",
+    }));
+  }
+
+  function SortIcon({ col }) {
+    if (sort.col !== col) return <ChevronsUpDown size={11} className="text-gray-300 dark:text-neutral-600" />;
+    return sort.dir === "asc"
+      ? <ChevronUp   size={11} className="text-blue-500 dark:text-[#FF6363]" />
+      : <ChevronDown size={11} className="text-blue-500 dark:text-[#FF6363]" />;
+  }
+
+  const filtered = files.filter((f) =>
+    f.filename.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const sorted = [...filtered].sort((a, b) => {
+    let av, bv;
+    if      (sort.col === "filename")   { av = a.filename.toLowerCase();  bv = b.filename.toLowerCase(); }
+    else if (sort.col === "size")       { av = a.size;                    bv = b.size; }
+    else if (sort.col === "type")       { av = a.filename.split(".").pop()?.toLowerCase() ?? ""; bv = b.filename.split(".").pop()?.toLowerCase() ?? ""; }
+    else if (sort.col === "uploadedAt") { av = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0; bv = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0; }
+    else return 0;
+    if (av < bv) return sort.dir === "asc" ? -1 : 1;
+    if (av > bv) return sort.dir === "asc" ?  1 : -1;
+    return 0;
+  });
+
+  return (
+    <>
+      <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 overflow-hidden">
+        {/* Search + count */}
+        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-neutral-800">
+          <Search size={15} className="text-gray-400 dark:text-neutral-500 shrink-0" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search files…"
+            className="flex-1 text-sm bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors"
+            >
+              <X size={14} />
+            </button>
+          )}
+          <span className="text-xs text-gray-400 dark:text-neutral-500 shrink-0 border-l border-gray-100 dark:border-neutral-800 pl-3">
+            {sorted.length} {sorted.length === 1 ? "file" : "files"}
+          </span>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-white/40 dark:bg-neutral-800/40 border-b border-gray-100 dark:border-neutral-800">
+              <tr>
+                {[
+                  { label: "Name",   col: "filename",   cls: "" },
+                  { label: "Size",   col: "size",       cls: "hidden sm:table-cell" },
+                  { label: "Type",   col: "type",       cls: "hidden md:table-cell" },
+                  { label: "Added",  col: "uploadedAt", cls: "hidden lg:table-cell" },
+                ].map(({ label, col, cls }) => (
+                  <th
+                    key={col}
+                    onClick={() => handleSort(col)}
+                    className={`px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400 cursor-pointer select-none hover:text-gray-700 dark:hover:text-neutral-200 transition-colors ${cls}`}
+                  >
+                    <div className="flex items-center gap-1">
+                      {label}
+                      <SortIcon col={col} />
+                    </div>
+                  </th>
+                ))}
+                <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 dark:text-neutral-400">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50 dark:divide-neutral-800">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="px-5 py-16 text-center">
+                    {apiError && files.length === 0 ? (
+                      <>
+                        <WifiOff size={28} className="mx-auto mb-3 text-red-400 dark:text-[#FF6363]" />
+                        <p className="text-sm font-medium text-gray-400 dark:text-neutral-500">Can't reach server</p>
+                        <p className="text-xs text-gray-300 dark:text-neutral-600 mt-1">Make sure the backend is running</p>
+                      </>
+                    ) : (
+                      <>
+                        <File size={28} className="mx-auto mb-3 text-gray-200 dark:text-neutral-700" />
+                        <p className="text-sm font-medium text-gray-400 dark:text-neutral-500">
+                          {search ? "No files match your search" : "No files here yet"}
+                        </p>
+                        {!search && (
+                          <p className="text-xs text-gray-300 dark:text-neutral-600 mt-1">
+                            {isAdmin ? "Upload a file to get started" : "Check back later"}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ) : (
+                sorted.map((file, i) => {
+                  const { icon: Icon, bg, color } = getType(file.filename);
+                  return (
+                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
+                            <Icon size={15} className={color} />
+                          </div>
+                          <span className="font-medium text-gray-800 dark:text-neutral-100 truncate max-w-[200px] sm:max-w-none">
+                            {file.filename}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 hidden sm:table-cell">
+                        <span className="text-gray-500 dark:text-neutral-400 font-mono text-xs">
+                          {formatSize(file.size)}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 hidden md:table-cell">
+                        {(() => {
+                          const ext = file.filename.split(".").pop()?.toUpperCase() ?? "";
+                          const { bg, color } = getType(file.filename);
+                          return ext ? (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold font-mono ${bg} ${color}`}>
+                              {ext}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 dark:text-neutral-500 text-xs">—</span>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-5 py-3.5 hidden lg:table-cell">
+                        <span className="text-xs text-gray-500 dark:text-neutral-400">
+                          {formatRelativeTime(file.uploadedAt)}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleDownload(file.filename)}
+                            title="Download"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
+                          >
+                            <Download size={13} />
+                            <span className="hidden sm:inline">Download</span>
+                          </button>
+                          {getPreviewType(file.filename) && (
+                            <button
+                              onClick={() => handlePreview(file.filename)}
+                              title="Preview"
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-700 dark:hover:text-blue-400 transition-colors"
+                            >
+                              <Eye size={13} />
+                              <span className="hidden sm:inline">Preview</span>
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button
+                              onClick={() => setFileToDelete(file.filename)}
+                              title="Delete"
+                              className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-[#FF6363]/10 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Preview modal */}
+      {previewFile && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={closePreview}
+        >
+          <div
+            className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-3xl max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-neutral-800 shrink-0">
+              <div className="flex items-center gap-2.5">
+                {(() => { const { icon: Icon, bg, color } = getType(previewFile); return (
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${bg}`}>
+                    <Icon size={13} className={color} />
+                  </div>
+                ); })()}
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">{previewFile}</span>
+                {previewType === "text" && (
+                  <span className="text-xs text-gray-400 dark:text-neutral-500">
+                    {previewContent.split("\n").length} lines
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={closePreview}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Modal body */}
+            {previewType === "image" ? (
+              <div className="flex-1 overflow-auto p-6 flex items-center justify-center bg-[length:16px_16px] rounded-b-2xl"
+                style={{ background: "repeating-conic-gradient(#e5e7eb 0% 25%, transparent 0% 50%) 0 0 / 16px 16px" }}>
+                <img
+                  src={previewUrl}
+                  alt={previewFile}
+                  className="max-w-full max-h-full object-contain rounded-lg shadow-md"
+                />
+              </div>
+            ) : (
+              <div className="flex-1 overflow-auto rounded-b-2xl bg-white/30 dark:bg-black">
+                <table className="min-w-full border-collapse font-mono text-xs">
+                  <tbody>
+                    {previewContent.split("\n").map((line, i) => (
+                      <tr key={i} className="hover:bg-blue-50/40 dark:hover:bg-neutral-800/40">
+                        <td className="sticky left-0 select-none text-right pr-3 pl-4 py-px text-neutral-400 dark:text-neutral-600 bg-gray-50/90 dark:bg-neutral-900/90 border-r border-gray-100 dark:border-neutral-800 w-10 align-top leading-5">
+                          {i + 1}
+                        </td>
+                        <td className="pl-4 pr-6 py-px text-gray-700 dark:text-neutral-300 whitespace-pre-wrap break-all align-top leading-5">
+                          {line || " "}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete modal */}
+      {fileToDelete && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setFileToDelete(null)}
+        >
+          <div
+            className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-11 h-11 bg-red-50 dark:bg-[#FF6363]/10 rounded-xl flex items-center justify-center mb-4">
+              <AlertTriangle size={20} className="text-red-500" />
+            </div>
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Delete this file?</h3>
+            <p className="text-sm text-gray-500 dark:text-neutral-400 mb-5">
+              <span className="font-medium text-gray-800 dark:text-neutral-200 break-all">{fileToDelete}</span> will be permanently removed from all nodes. This can't be undone.
+            </p>
+            <div className="flex gap-2.5">
+              <button
+                onClick={() => setFileToDelete(null)}
+                className="flex-1 py-2.5 text-sm font-medium border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(fileToDelete)}
+                className="flex-1 py-2.5 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

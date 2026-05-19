@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@custom-variant dark (.dark &);
+
+html {
+  font-size: 107%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #ffffff;
+}
+
+.dark body {
+  background-color: #080808;
+}
+
+/* Fixed gradient — sits behind every glass element */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  /* Light: blue arc cresting just above the top edge */
+  background:
+    radial-gradient(ellipse 110% 60% at 50% -10%,
+      rgba(99, 165, 255, 0.50) 0%,
+      rgba(59, 130, 246, 0.14) 45%,
+      transparent 62%),
+    #f8faff;
+}
+
+.dark body::before {
+  /* Dark: red arc cresting just above the top edge — strong enough to glow through glass */
+  background:
+    radial-gradient(ellipse 110% 60% at 50% -10%,
+      rgba(255, 80, 80, 0.50) 0%,
+      rgba(160, 20, 20, 0.18) 45%,
+      transparent 62%),
+    #080808;
+}
+
+/* ── Glass ──────────────────────────────────────────────────── */
+.glass {
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  /* Light: soft lift shadow + barely-there blue-tinted border */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.90) inset,
+    0 2px 12px rgba(0, 0, 0, 0.06),
+    0 6px 32px rgba(59, 130, 246, 0.07);
+  border-color: rgba(180, 210, 255, 0.55);
+}
+
+.dark .glass {
+  /* Dark: luminous top-edge inset + deep drop shadow */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 4px 28px rgba(0, 0, 0, 0.55);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+/* ── Notifications ──────────────────────────────────────────── */
+/* View Transitions: cross-fade between themes */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.35s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Fallback for browsers without View Transitions: brief color fade */
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition: background-color 250ms ease, color 250ms ease,
+              border-color 250ms ease, box-shadow 250ms ease !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes tabEnter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+.tab-content {
+  animation: tabEnter 0.20s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes notificationEnter {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+.notification-enter {
+  animation: notificationEnter 0.15s ease-out forwards;
+}
