@@ -407,7 +407,7 @@ export default function FileTable({ isAdmin = false }) {
                         <td className="sticky left-0 select-none text-right pr-3 pl-4 py-px text-neutral-400 dark:text-neutral-600 bg-gray-50/90 dark:bg-neutral-900/90 border-r border-gray-100 dark:border-neutral-800 w-10 align-top leading-5">
                           {i + 1}
                         </td>
-                        <td className="pl-4 pr-6 py-px text-gray-700 dark:text-neutral-300 whitespace-pre align-top leading-5">
+                        <td className="pl-4 pr-6 py-px text-gray-700 dark:text-neutral-300 whitespace-pre-wrap break-all align-top leading-5">
                           {line || " "}
                         </td>
                       </tr>
