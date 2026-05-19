@@ -82,7 +82,7 @@ if (process.argv[2] === "upload") {
     const filename = path.basename(filePath);
     const fileChunks = chunkFile(filePath);
 
-    metadata[filename] = [];
+    metadata[filename] = { uploadedAt: new Date().toISOString(), chunks: [] };
 
     console.log("File:", filename);
     console.log("Total chunks:", fileChunks.length);
@@ -124,7 +124,7 @@ if (process.argv[2] === "upload") {
         }
       }
 
-      metadata[filename].push({
+      metadata[filename].chunks.push({
         chunkId: chunk.chunkId,
         hash: chunk.hash,
         size: chunk.size,

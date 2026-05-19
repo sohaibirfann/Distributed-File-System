@@ -27,6 +27,11 @@ function OverviewTab({ refresh }) {
 
   useEffect(() => { fetchAll(); }, [refresh]);
 
+  useEffect(() => {
+    const id = setInterval(fetchAll, 5000);
+    return () => clearInterval(id);
+  }, []);
+
   async function fetchAll() {
     try {
       const [h, n] = await Promise.all([
@@ -38,9 +43,9 @@ function OverviewTab({ refresh }) {
   }
 
   const cards = [
-    { label: "Nodes online",  value: stats.usersOnline, num: "text-emerald-600 dark:text-emerald-400" },
-    { label: "Files stored",  value: stats.files,        num: "text-blue-600 dark:text-[#FF6363]"        },
-    { label: "Total chunks",  value: stats.chunks,       num: "text-amber-600 dark:text-amber-400"     },
+    { label: "Nodes online",  value: nodes.filter((n) => n.status === "online").length, num: "text-emerald-600 dark:text-emerald-400" },
+    { label: "Files stored",  value: stats.files,   num: "text-blue-600 dark:text-[#FF6363]"    },
+    { label: "Total chunks",  value: stats.chunks,  num: "text-amber-600 dark:text-amber-400"   },
   ];
 
   return (
@@ -99,7 +104,11 @@ function OverviewTab({ refresh }) {
 
 // ── Files ─────────────────────────────────────────────────────
 function FilesTab({ refresh, onRefresh, droppedFile }) {
-  const [showUpload, setShowUpload] = useState(!!droppedFile);
+  const [showUpload, setShowUpload] = useState(false);
+
+  useEffect(() => {
+    if (droppedFile) setShowUpload(true);
+  }, [droppedFile]);
 
   return (
     <div className="space-y-4">
@@ -142,9 +151,10 @@ export default function Admin() {
   const [refresh, setRefresh] = useState(false);
   const [dragOver, setDragOver]     = useState(false);
   const [droppedFile, setDroppedFile] = useState(null);
-  const dragCount = useRef(0);
-  const tabRefs = useRef({});
-  const [ind, setInd] = useState({ left: 0, width: 0 });
+  const dragCount       = useRef(0);
+  const tabRefs         = useRef({});
+  const tabContentRefs  = useRef({});
+  const [ind, setInd]   = useState({ left: 0, width: 0 });
 
   useLayoutEffect(() => {
     const el = tabRefs.current[active];
@@ -154,6 +164,16 @@ export default function Admin() {
   useEffect(() => {
     if (active !== "files") setDroppedFile(null);
   }, [active]);
+
+  function handleTabSwitch(id) {
+    setActive(id);
+    const el = tabContentRefs.current[id];
+    if (el) {
+      el.classList.remove("tab-content");
+      void el.offsetWidth; // force reflow to restart CSS animation
+      el.classList.add("tab-content");
+    }
+  }
 
   function handleDragEnter(e) {
     if (!e.dataTransfer.types.includes("Files")) return;
@@ -176,7 +196,7 @@ export default function Admin() {
     const file = e.dataTransfer.files[0];
     if (!file) return;
     setDroppedFile(file);
-    setActive("files");
+    handleTabSwitch("files");
   }
 
   if (!localStorage.getItem("isAdmin")) return <Navigate to="/" replace />;
@@ -242,7 +262,7 @@ export default function Admin() {
               <button
                 key={id}
                 ref={(el) => { tabRefs.current[id] = el; }}
-                onClick={() => setActive(id)}
+                onClick={() => handleTabSwitch(id)}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors duration-150 ${
                   active === id
                     ? "text-blue-600 dark:text-[#FF6363]"
@@ -258,10 +278,13 @@ export default function Admin() {
       </header>
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-8">
-        <div key={active} className="tab-content">
-        {active === "overview" && <OverviewTab refresh={refresh} />}
-        {active === "files"    && <FilesTab    refresh={refresh} onRefresh={() => setRefresh((p) => !p)} droppedFile={droppedFile} />}
-        {active === "nodes"    && (
+        <div ref={(el) => { tabContentRefs.current["overview"] = el; }} className="tab-content" style={{ display: active === "overview" ? "" : "none" }}>
+          <OverviewTab refresh={refresh} />
+        </div>
+        <div ref={(el) => { tabContentRefs.current["files"] = el; }} className="tab-content" style={{ display: active === "files" ? "" : "none" }}>
+          <FilesTab refresh={refresh} onRefresh={() => setRefresh((p) => !p)} droppedFile={droppedFile} />
+        </div>
+        <div ref={(el) => { tabContentRefs.current["nodes"] = el; }} className="tab-content" style={{ display: active === "nodes" ? "" : "none" }}>
           <div className="space-y-4">
             <div>
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Storage nodes</h2>
@@ -269,8 +292,8 @@ export default function Admin() {
             </div>
             <NodesGrid refresh={refresh} />
           </div>
-        )}
-        {active === "logs" && (
+        </div>
+        <div ref={(el) => { tabContentRefs.current["logs"] = el; }} className="tab-content" style={{ display: active === "logs" ? "" : "none" }}>
           <div className="space-y-4">
             <div>
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Activity log</h2>
@@ -278,7 +301,6 @@ export default function Admin() {
             </div>
             <LogsPanel fullHeight />
           </div>
-        )}
         </div>
       </main>
 

@@ -50,9 +50,22 @@ function getType(filename) {
 }
 
 function formatSize(bytes) {
-  if (bytes < 1024)             return `${bytes} B`;
-  if (bytes < 1024 * 1024)      return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024)        return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function formatRelativeTime(iso) {
+  if (!iso) return "—";
+  const diff  = Date.now() - new Date(iso).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  if (diff  < 60000)  return "just now";
+  if (mins  < 60)     return `${mins}m ago`;
+  if (hours < 24)     return `${hours}h ago`;
+  if (days  < 7)      return `${days}d ago`;
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export default function FileTable({ isAdmin = false }) {
@@ -160,14 +173,15 @@ export default function FileTable({ isAdmin = false }) {
               <tr>
                 <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400">Name</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400 hidden sm:table-cell">Size</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400 hidden md:table-cell">Status</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400 hidden md:table-cell">Type</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400 hidden lg:table-cell">Added</th>
                 <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 dark:text-neutral-400">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-neutral-800">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="px-5 py-16 text-center">
+                  <td colSpan="5" className="px-5 py-16 text-center">
                     {apiError && files.length === 0 ? (
                       <>
                         <WifiOff size={28} className="mx-auto mb-3 text-red-400 dark:text-[#FF6363]" />
@@ -210,9 +224,21 @@ export default function FileTable({ isAdmin = false }) {
                         </span>
                       </td>
                       <td className="px-5 py-3.5 hidden md:table-cell">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          Distributed
+                        {(() => {
+                          const ext = file.filename.split(".").pop()?.toUpperCase() ?? "";
+                          const { bg, color } = getType(file.filename);
+                          return ext ? (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold font-mono ${bg} ${color}`}>
+                              {ext}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 dark:text-neutral-500 text-xs">—</span>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-5 py-3.5 hidden lg:table-cell">
+                        <span className="text-xs text-gray-500 dark:text-neutral-400">
+                          {formatRelativeTime(file.uploadedAt)}
                         </span>
                       </td>
                       <td className="px-5 py-3.5">

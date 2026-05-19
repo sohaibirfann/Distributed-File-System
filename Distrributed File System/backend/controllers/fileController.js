@@ -11,6 +11,11 @@ function clientIP(req) {
   return (req.ip || "").replace(/^::ffff:/, "") || "unknown";
 }
 
+// Supports both old format (plain array) and new format ({ uploadedAt, chunks })
+function getChunks(entry) {
+  return Array.isArray(entry) ? entry : (entry?.chunks ?? []);
+}
+
 /*
 |--------------------------------------------------------------------------
 | Helper: Evict oldest cached files until there is room for incomingBytes
@@ -131,17 +136,15 @@ const getFiles = (req, res) => {
     const metadata = JSON.parse(fs.readFileSync(METADATA_FILE, "utf8"));
 
     const files = Object.keys(metadata).map((filename) => {
-      const fileChunks = metadata[filename];
-
-      const totalSize = fileChunks.reduce(
-        (sum, chunk) => sum + (chunk.size || 0),
-        0,
-      );
+      const entry      = metadata[filename];
+      const fileChunks = getChunks(entry);
+      const totalSize  = fileChunks.reduce((sum, chunk) => sum + (chunk.size || 0), 0);
 
       return {
         filename,
-        chunks: fileChunks.length,
-        size: totalSize,
+        chunks:     fileChunks.length,
+        size:       totalSize,
+        uploadedAt: entry?.uploadedAt ?? null,
       };
     });
 
@@ -189,15 +192,14 @@ const downloadFile = async (req, res) => {
 
     const metadata = JSON.parse(fs.readFileSync(METADATA_FILE, "utf8"));
 
-    const chunks = metadata[filename];
-
-    if (!chunks) {
+    if (!metadata[filename]) {
       return res.status(404).json({
         success: false,
         message: "File not found",
       });
     }
 
+    const chunks   = getChunks(metadata[filename]);
     const NODE_MAP = await getNodeMap();
 
     const buffers = [];
@@ -270,11 +272,11 @@ const deleteFile = async (req, res) => {
 
     let metadata = JSON.parse(fs.readFileSync(METADATA_FILE, "utf8"));
 
-    const fileChunks = metadata[filename];
-
-    if (!fileChunks) {
+    if (!metadata[filename]) {
       return res.status(404).json({ message: "File not found" });
     }
+
+    const fileChunks = getChunks(metadata[filename]);
 
     const io = req.app.get("io");
     io.emit("log", `[delete] ${filename} · requested by ${clientIP(req)}`);
