@@ -1,6 +1,22 @@
+require("dotenv").config({ path: require("path").join(__dirname, "../.env") });
+
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { exec } = require("child_process");
+
+const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, "hex");
+
+// AES-256-GCM: input is base64(iv[12] + authTag[16] + ciphertext)
+function decrypt(b64) {
+  const buf     = Buffer.from(b64, "base64");
+  const iv      = buf.slice(0, 12);
+  const authTag = buf.slice(12, 28);
+  const enc     = buf.slice(28);
+  const decipher = crypto.createDecipheriv("aes-256-gcm", ENCRYPTION_KEY, iv);
+  decipher.setAuthTag(authTag);
+  return Buffer.concat([decipher.update(enc), decipher.final()]);
+}
 
 const SHARED_FOLDER   = path.join(__dirname, "../shared");
 const METADATA_FILE   = path.join(__dirname, "../metadata.json");
@@ -191,7 +207,7 @@ const downloadFile = async (req, res) => {
 
           const data = await response.json();
 
-          chunkBuffer = Buffer.from(data.data, "base64");
+          chunkBuffer = decrypt(data.data);
 
           break;
         } catch {

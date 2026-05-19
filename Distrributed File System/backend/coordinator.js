@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const fs = require("fs");
 const crypto = require("crypto");
 const path = require("path");
@@ -7,6 +9,16 @@ const CHUNK_SIZE = 4 * 1024;
 const METADATA_FILE = path.join(__dirname, "metadata.json");
 
 const BACKEND_URL = "http://localhost:5000";
+
+const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, "hex");
+
+// AES-256-GCM: output is base64(iv[12] + authTag[16] + ciphertext)
+function encrypt(buffer) {
+  const iv     = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", ENCRYPTION_KEY, iv);
+  const enc    = Buffer.concat([cipher.update(buffer), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), enc]).toString("base64");
+}
 
 // Load metadata
 
@@ -139,7 +151,7 @@ if (process.argv[2] === "upload") {
             body: JSON.stringify({
               filename,
               chunkId: chunk.chunkId,
-              data: chunk.data.toString("base64"),
+              data: encrypt(chunk.data),
             }),
           });
 

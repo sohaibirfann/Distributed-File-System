@@ -226,7 +226,7 @@
     ]
   },
   "test.txt": {
-    "uploadedAt": "2026-05-19T10:40:15.576Z",
+    "uploadedAt": "2026-05-19T10:45:58.563Z",
     "chunks": [
       {
         "chunkId": 0,
@@ -298,6 +298,20 @@
         "users": [
           "user2",
           "user1"
+        ]
+      }
+    ]
+  },
+  "variables.py": {
+    "uploadedAt": "2026-05-19T10:46:25.276Z",
+    "chunks": [
+      {
+        "chunkId": 0,
+        "hash": "b170e9c66ed6d0e01bd707502b463fc20603dead3724acf1924cb30b37907a05",
+        "size": 192,
+        "users": [
+          "user1",
+          "user2"
         ]
       }
     ]
