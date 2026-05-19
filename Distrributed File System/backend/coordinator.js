@@ -82,12 +82,9 @@ if (process.argv[2] === "upload") {
     const filename = path.basename(filePath);
     const fileChunks = chunkFile(filePath);
 
-    metadata[filename] = { uploadedAt: new Date().toISOString(), chunks: [] };
-
     console.log("File:", filename);
     console.log("Total chunks:", fileChunks.length);
 
-    // // Node mapping
     const NODE_MAP = await getNodes();
     const USERS = Object.keys(NODE_MAP);
 
@@ -95,6 +92,34 @@ if (process.argv[2] === "upload") {
       console.log("No nodes available");
       process.exit(1);
     }
+
+    // If file already exists, delete old chunks from nodes before overwriting
+    if (metadata[filename]) {
+      const oldChunks = Array.isArray(metadata[filename])
+        ? metadata[filename]
+        : (metadata[filename]?.chunks ?? []);
+
+      for (const chunk of oldChunks) {
+        for (const user of chunk.users) {
+          if (!NODE_MAP[user]) continue;
+          try {
+            await fetch(`${NODE_MAP[user]}/delete-chunk`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ filename, chunkId: chunk.chunkId }),
+            });
+          } catch {}
+        }
+      }
+
+      // Purge from shared cache
+      const cachedPath = path.join(__dirname, "shared", filename);
+      if (fs.existsSync(cachedPath)) fs.unlinkSync(cachedPath);
+
+      console.log("Replaced existing file — old chunks removed");
+    }
+
+    metadata[filename] = { uploadedAt: new Date().toISOString(), chunks: [] };
 
     for (const chunk of fileChunks) {
       const first = USERS[chunk.chunkId % USERS.length];
