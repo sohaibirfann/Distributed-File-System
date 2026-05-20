@@ -368,7 +368,7 @@ export default function FileTable({ isAdmin = false }) {
           onClick={closePreview}
         >
           <div
-            className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-3xl max-h-[80vh] flex flex-col"
+            className={`glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 flex flex-col ${previewType === "image" ? "max-w-[90vw]" : "w-full max-w-3xl max-h-[80vh]"}`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal header */}
@@ -396,16 +396,16 @@ export default function FileTable({ isAdmin = false }) {
 
             {/* Modal body */}
             {previewType === "image" ? (
-              <div className="flex-1 overflow-auto p-6 flex items-center justify-center bg-[length:16px_16px] rounded-b-2xl"
-                style={{ background: "repeating-conic-gradient(#e5e7eb 0% 25%, transparent 0% 50%) 0 0 / 16px 16px" }}>
+              <div className="p-4 rounded-b-2xl"
+                style={{ background: "repeating-conic-gradient(rgba(0,0,0,0.06) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px" }}>
                 <img
                   src={previewUrl}
                   alt={previewFile}
-                  className="max-w-full max-h-full object-contain rounded-lg shadow-md"
+                  className="block max-w-full max-h-[75vh] object-contain rounded-lg shadow-md"
                 />
               </div>
             ) : (
-              <div className="flex-1 overflow-auto rounded-b-2xl bg-white/30 dark:bg-black">
+              <div className="flex-1 overflow-auto rounded-b-2xl bg-white/30 dark:bg-black [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-600">
                 <table className="min-w-full border-collapse font-mono text-xs">
                   <tbody>
                     {previewContent.split("\n").map((line, i) => (
