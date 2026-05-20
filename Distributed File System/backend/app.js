@@ -110,4 +110,3 @@ server.listen(PORT, () => {
   }, 30_000);
 });
 
-module.exports = io;

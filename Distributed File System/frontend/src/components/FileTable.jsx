@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNotify } from "../context/NotificationContext";
 import {
   Download, Eye, Trash2, Search, X, AlertTriangle, WifiOff,
-  FileText, Image, Film, Music, Archive, Code, File,
+  FileText, Image, Film, Music, Archive, Code, File, HardDrive,
   ChevronUp, ChevronDown, ChevronsUpDown,
 } from "lucide-react";
 
@@ -89,6 +89,7 @@ export default function FileTable({ isAdmin = false }) {
   const [search, setSearch]             = useState("");
   const [apiError, setApiError]         = useState(false);
   const [fileToDelete, setFileToDelete]     = useState(null);
+  const [deleting, setDeleting]             = useState(false);
   const [previewFile, setPreviewFile]       = useState(null);
   const [previewType, setPreviewType]       = useState(null);
   const [previewContent, setPreviewContent] = useState("");
@@ -165,14 +166,17 @@ export default function FileTable({ isAdmin = false }) {
   }
 
   async function handleDelete(filename) {
+    setDeleting(true);
     try {
-      await fetch(`${API}/api/files/delete/${filename}`, { method: "DELETE" });
+      const res = await fetch(`${API}/api/files/delete/${filename}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
       notify.success("File deleted");
       setFileToDelete(null);
       fetchFiles();
     } catch {
       notify.error("Delete failed");
     }
+    setDeleting(false);
   }
 
   const [sort, setSort] = useState({ col: "uploadedAt", dir: "desc" });
@@ -234,7 +238,7 @@ export default function FileTable({ isAdmin = false }) {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
+        <div className="overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-white/40 dark:bg-neutral-800/40 border-b border-gray-100 dark:border-neutral-800">
               <tr>
@@ -288,18 +292,24 @@ export default function FileTable({ isAdmin = false }) {
                   const { icon: Icon, bg, color } = getType(file.filename);
                   return (
                     <tr key={i} className="hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
+                      <td className="px-5 py-3.5 max-w-0 w-full">
+                        <div className="flex items-center gap-3 min-w-0">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
                             <Icon size={15} className={color} />
                           </div>
-                          <span className="font-medium text-gray-800 dark:text-neutral-100 truncate max-w-[200px] sm:max-w-none">
+                          <span className="font-medium text-gray-800 dark:text-neutral-100 truncate min-w-0" title={file.filename}>
                             {file.filename}
                           </span>
+                          {file.cached && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-200/70 dark:border-teal-500/20 shrink-0">
+                              <HardDrive size={9} />
+                              cached
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-5 py-3.5 hidden sm:table-cell">
-                        <span className="text-gray-500 dark:text-neutral-400 font-mono text-xs">
+                        <span className="text-gray-500 dark:text-neutral-400 font-mono text-xs whitespace-nowrap">
                           {formatSize(file.size)}
                         </span>
                       </td>
@@ -430,7 +440,7 @@ export default function FileTable({ isAdmin = false }) {
       {fileToDelete && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={() => setFileToDelete(null)}
+          onClick={() => !deleting && setFileToDelete(null)}
         >
           <div
             className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6"
@@ -443,18 +453,26 @@ export default function FileTable({ isAdmin = false }) {
             <p className="text-sm text-gray-500 dark:text-neutral-400 mb-5">
               <span className="font-medium text-gray-800 dark:text-neutral-200 break-all">{fileToDelete}</span> will be permanently removed from all nodes. This can't be undone.
             </p>
+            {deleting && (
+              <p className="text-xs text-gray-400 dark:text-neutral-500 mb-4 flex items-center gap-2">
+                <span className="inline-block w-3 h-3 rounded-full border-2 border-red-400 border-t-transparent animate-spin shrink-0" />
+                Removing chunks from all nodes… this may take a moment for large files.
+              </p>
+            )}
             <div className="flex gap-2.5">
               <button
                 onClick={() => setFileToDelete(null)}
-                className="flex-1 py-2.5 text-sm font-medium border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
+                disabled={deleting}
+                className="flex-1 py-2.5 text-sm font-medium border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40 disabled:pointer-events-none"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDelete(fileToDelete)}
-                className="flex-1 py-2.5 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors"
+                disabled={deleting}
+                className="flex-1 py-2.5 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors disabled:opacity-60 disabled:pointer-events-none"
               >
-                Delete
+                {deleting ? "Deleting…" : "Delete"}
               </button>
             </div>
           </div>

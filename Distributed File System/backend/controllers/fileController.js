@@ -3,7 +3,7 @@ require("dotenv").config({ path: require("path").join(__dirname, "../.env") });
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { exec } = require("child_process");
+const { spawn } = require("child_process");
 
 const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, "hex");
 
@@ -73,41 +73,67 @@ const uploadFile = (req, res) => {
     }
 
     const io = req.app.get("io");
-
-    io.emit("log", `File uploaded: ${req.file.originalname}`);
-
     const filePath = req.file.path;
+    const originalName = req.file.originalname;
 
-    exec(
-      `node coordinator.js upload "${filePath}"`,
-      {
-        cwd: path.join(__dirname, ".."),
-      },
-      (error, stdout, stderr) => {
-        if (error) {
-          // Remove the file from shared/ so it doesn't linger as a bad cache entry
-          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    const proc = spawn("node", ["coordinator.js", "upload", filePath], {
+      cwd: path.join(__dirname, ".."),
+    });
 
-          const rawErr = (stderr || error.message || "").trim();
-          const firstLine = rawErr.split("\n").find((l) => l.trim()) || "Upload failed — could not distribute chunks";
-          io.emit("log", `[upload] failed: ${req.file.originalname} — ${firstLine}`);
-          return res.status(500).json({
-            success: false,
-            message: firstLine,
-          });
-        }
+    let totalChunks = 0;
+    const seenChunks = new Set();
+    let stdoutBuf = "";
+    let stderrBuf = "";
+    let responded = false;
 
-        const chunkLine = stdout.match(/Total chunks:\s*(\d+)/);
-        const chunkCount = chunkLine ? chunkLine[1] : "?";
-        io.emit("log", `[replication] ${req.file.originalname} · ${chunkCount} chunks distributed`);
+    proc.stdout.on("data", (chunk) => {
+      const text = chunk.toString();
+      stdoutBuf += text;
 
-        res.json({
-          success: true,
-          message: "File uploaded successfully",
-          output: stdout,
-        });
-      },
-    );
+      if (totalChunks === 0) {
+        const m = stdoutBuf.match(/Total chunks:\s*(\d+)/);
+        if (m) totalChunks = parseInt(m[1]);
+      }
+
+      for (const m of text.matchAll(/Chunk (\d+) sent to/g)) {
+        seenChunks.add(parseInt(m[1]));
+      }
+
+      if (totalChunks > 0) {
+        const percent = Math.min(99, Math.round((seenChunks.size / totalChunks) * 100));
+        io.emit("upload-progress", { filename: originalName, percent, distributed: seenChunks.size, total: totalChunks });
+      }
+    });
+
+    proc.stderr.on("data", (chunk) => { stderrBuf += chunk.toString(); });
+
+    proc.on("error", (err) => {
+      if (responded) return;
+      responded = true;
+      io.emit("upload-progress", { filename: originalName, error: err.message });
+      res.status(500).json({ success: false, message: err.message });
+    });
+
+    proc.on("close", (code) => {
+      if (responded) return;
+      responded = true;
+
+      if (code !== 0) {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        const rawErr = (stderrBuf || "").trim();
+        const firstLine = rawErr.split("\n").find((l) => l.trim()) || "Upload failed — could not distribute chunks";
+        io.emit("log", `[upload] failed: ${originalName} — ${firstLine}`);
+        io.emit("upload-progress", { filename: originalName, error: firstLine });
+        return res.status(500).json({ success: false, message: firstLine });
+      }
+
+      const chunkLine = stdoutBuf.match(/Total chunks:\s*(\d+)/);
+      const chunkCount = chunkLine ? chunkLine[1] : "?";
+      io.emit("log", `[replication] ${originalName} · ${chunkCount} chunks distributed`);
+      io.emit("upload-progress", { filename: originalName, percent: 100, done: true });
+
+      res.json({ success: true, message: "File uploaded successfully", output: stdoutBuf });
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -128,7 +154,10 @@ const getFiles = (req, res) => {
       return res.json([]);
     }
 
-    const metadata = JSON.parse(fs.readFileSync(METADATA_FILE, "utf8"));
+    const metadata   = JSON.parse(fs.readFileSync(METADATA_FILE, "utf8"));
+    const cachedSet  = new Set(
+      fs.existsSync(SHARED_FOLDER) ? fs.readdirSync(SHARED_FOLDER) : []
+    );
 
     const files = Object.keys(metadata).map((filename) => {
       const entry      = metadata[filename];
@@ -140,6 +169,7 @@ const getFiles = (req, res) => {
         chunks:     fileChunks.length,
         size:       totalSize,
         uploadedAt: entry?.uploadedAt ?? null,
+        cached:     cachedSet.has(filename),
       };
     });
 
@@ -151,6 +181,35 @@ const getFiles = (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+/*
+|--------------------------------------------------------------------------
+| Clear Cache
+|--------------------------------------------------------------------------
+*/
+
+const clearCache = (req, res) => {
+  try {
+    if (!fs.existsSync(SHARED_FOLDER)) {
+      return res.json({ success: true, cleared: 0 });
+    }
+
+    const files   = fs.readdirSync(SHARED_FOLDER);
+    let   cleared = 0;
+
+    for (const f of files) {
+      try {
+        fs.unlinkSync(path.join(SHARED_FOLDER, f));
+        cleared++;
+      } catch {}
+    }
+
+    req.app.get("io").emit("log", `[cache] cleared ${cleared} cached file${cleared !== 1 ? "s" : ""} by admin`);
+    res.json({ success: true, cleared });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -232,9 +291,7 @@ const downloadFile = async (req, res) => {
 
           chunkBuffer = decrypted;
           break;
-        } catch {
-          console.log(`Retrying chunk ${chunk.chunkId}`);
-        }
+        } catch {}
       }
 
       if (!chunkBuffer) {
@@ -250,10 +307,15 @@ const downloadFile = async (req, res) => {
 
     const finalBuffer = Buffer.concat(buffers);
 
-    // Write to shared cache (evict oldest entries if over limit)
-    evictCache(finalBuffer.length);
-    fs.writeFileSync(cachedPath, finalBuffer);
-    req.app.get("io").emit("log", `[cached] ${filename} · ready for future requests`);
+    // Only cache if the file fits within the cache limit — skip caching for files
+    // larger than the cap so existing cached files are not evicted pointlessly
+    if (finalBuffer.length <= CACHE_MAX_BYTES) {
+      evictCache(finalBuffer.length);
+      fs.writeFileSync(cachedPath, finalBuffer);
+      req.app.get("io").emit("log", `[cached] ${filename} · ready for future requests`);
+    } else {
+      req.app.get("io").emit("log", `[skip cache] ${filename} · file too large to cache (${(finalBuffer.length / 1048576).toFixed(0)} MB)`);
+    }
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/octet-stream");
@@ -340,4 +402,5 @@ module.exports = {
   getFiles,
   downloadFile,
   deleteFile,
+  clearCache,
 };

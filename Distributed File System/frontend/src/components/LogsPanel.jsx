@@ -10,8 +10,6 @@ export default function LogsPanel({ fullHeight = false }) {
   useEffect(() => {
     const socket = io(import.meta.env.VITE_API_URL);
 
-    if (socket.connected) setConnected(true);
-
     socket.on("connect",    () => setConnected(true));
     socket.on("disconnect", () => setConnected(false));
     socket.on("log", (msg) => {

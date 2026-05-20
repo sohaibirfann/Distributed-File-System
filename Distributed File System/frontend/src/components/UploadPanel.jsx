@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { io } from "socket.io-client";
 import { useNotify } from "../context/NotificationContext";
 import { Upload, X, FileIcon, CheckCircle } from "lucide-react";
 
@@ -12,24 +13,48 @@ function formatSize(bytes) {
 
 export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
   const notify = useNotify();
-  const [file, setFile]         = useState(initialFile);
-  const [progress, setProgress] = useState(0);
-  const [done, setDone]         = useState(false);
-  const [drag, setDrag]         = useState(false);
+  const [file, setFile]                       = useState(initialFile);
+  const [progress, setProgress]               = useState(0);
+  const [uploading, setUploading]             = useState(false);
+  const [distributing, setDistributing]       = useState(false);
+  const [distributeProgress, setDistributeProgress] = useState(0);
+  const [done, setDone]                       = useState(false);
+  const [drag, setDrag]                       = useState(false);
+  const socketRef                             = useRef(null);
+
+  useEffect(() => () => socketRef.current?.disconnect(), []);
 
   function pick(f) {
     if (!f) return;
     setFile(f);
     setProgress(0);
+    setUploading(false);
+    setDistributing(false);
+    setDistributeProgress(0);
     setDone(false);
   }
 
   async function upload() {
     if (!file) return notify.error("Select a file first");
     if (file.size > 500 * 1024 * 1024) return notify.error("File too large (max 500 MB)");
+
     const id = notify.loading("Uploading…");
     const form = new FormData();
     form.append("file", file);
+    const filename = file.name;
+
+    setUploading(true);
+    setProgress(0);
+    setDistributing(false);
+    setDistributeProgress(0);
+
+    // Connect socket early so we don't miss the first progress events
+    const socket = io(API);
+    socketRef.current = socket;
+    socket.on("upload-progress", ({ filename: fn, percent }) => {
+      if (fn !== filename) return;
+      setDistributeProgress(percent);
+    });
 
     try {
       await new Promise((resolve, reject) => {
@@ -40,16 +65,17 @@ export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
           if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
         });
 
+        // Transfer complete — switch to distribution phase
+        xhr.upload.addEventListener("load", () => {
+          setUploading(false);
+          setDistributing(true);
+        });
+
         xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            try {
-              const body = JSON.parse(xhr.responseText);
-              reject(new Error(body.message || "Upload failed"));
-            } catch {
-              reject(new Error("Upload failed"));
-            }
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else {
+            try { reject(new Error(JSON.parse(xhr.responseText).message || "Upload failed")); }
+            catch { reject(new Error("Upload failed")); }
           }
         });
         xhr.addEventListener("error", () => reject(new Error("Upload failed")));
@@ -57,6 +83,9 @@ export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
         xhr.send(form);
       });
 
+      socket.disconnect();
+      socketRef.current = null;
+      setDistributing(false);
       setDone(true);
       notify.dismiss(id);
       notify.success("File uploaded successfully");
@@ -64,12 +93,18 @@ export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
         onUploadSuccess?.();
         setFile(null);
         setProgress(0);
+        setDistributeProgress(0);
         setDone(false);
       }, 800);
     } catch (err) {
+      socket.disconnect();
+      socketRef.current = null;
       notify.dismiss(id);
       notify.error(err.message || "Upload failed");
+      setUploading(false);
+      setDistributing(false);
       setProgress(0);
+      setDistributeProgress(0);
     }
   }
 
@@ -108,7 +143,7 @@ export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
               <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{file.name}</p>
               <p className="text-xs text-gray-400 dark:text-neutral-500 font-mono">{formatSize(file.size)}</p>
             </div>
-            {!done && progress === 0 && (
+            {!done && !uploading && (
               <button
                 onClick={() => setFile(null)}
                 className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors shrink-0"
@@ -118,17 +153,35 @@ export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
             )}
           </div>
 
-          {progress > 0 && (
+          {(uploading || distributing || done) && (
             <div>
               <div className="h-1.5 bg-gray-100 dark:bg-neutral-700 rounded-full overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all duration-200 ${done ? "bg-emerald-500" : "bg-blue-500 dark:bg-[#FF6363]"}`}
-                  style={{ width: `${progress}%` }}
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    done         ? "bg-emerald-500" :
+                    "bg-blue-500 dark:bg-[#FF6363]"
+                  }`}
+                  style={{
+                    width: done        ? "100%"
+                         : distributing ? `${Math.max(2, distributeProgress)}%`
+                         : progress === 0 ? "4%"
+                         : `${progress}%`,
+                  }}
                 />
               </div>
-              <p className="text-xs text-gray-400 dark:text-neutral-500 mt-1.5 font-mono">
-                {done ? "Done!" : progress === 100 ? "Distributing…" : `${progress}%`}
-              </p>
+              <div className="flex items-center justify-between mt-1.5">
+                <p className="text-xs text-gray-400 dark:text-neutral-500 font-mono">
+                  {done         ? "Done!" :
+                   distributing ? "Distributing across nodes…" :
+                   progress > 0 ? `Uploading ${progress}%` :
+                                  "Uploading…"}
+                </p>
+                {distributing && distributeProgress > 0 && (
+                  <p className="text-xs font-semibold font-mono text-blue-500 dark:text-[#FF6363]">
+                    {distributeProgress}%
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -136,7 +189,7 @@ export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
 
       <button
         onClick={upload}
-        disabled={!file || progress > 0}
+        disabled={!file || uploading || done}
         className="mt-4 w-full py-2.5 bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 disabled:hover:translate-y-0"
       >
         Upload to network
