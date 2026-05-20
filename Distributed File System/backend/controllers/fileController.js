@@ -85,10 +85,15 @@ const uploadFile = (req, res) => {
       },
       (error, stdout, stderr) => {
         if (error) {
-          io.emit("log", `[upload] failed: ${req.file.originalname} — ${stderr || error.message}`);
+          // Remove the file from shared/ so it doesn't linger as a bad cache entry
+          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+          const rawErr = (stderr || error.message || "").trim();
+          const firstLine = rawErr.split("\n").find((l) => l.trim()) || "Upload failed — could not distribute chunks";
+          io.emit("log", `[upload] failed: ${req.file.originalname} — ${firstLine}`);
           return res.status(500).json({
             success: false,
-            message: stderr || error.message,
+            message: firstLine,
           });
         }
 
@@ -196,19 +201,36 @@ const downloadFile = async (req, res) => {
 
     for (const chunk of chunks) {
       let chunkBuffer = null;
+      let integrityFailed = false;
 
       for (const user of chunk.users) {
         try {
           const response = await fetch(
             `${NODE_MAP[user]}/get-chunk?filename=${filename}&chunkId=${chunk.chunkId}`,
+            { signal: AbortSignal.timeout(3000) },
           );
 
           if (!response.ok) throw new Error();
 
           const data = await response.json();
 
-          chunkBuffer = decrypt(data.data);
+          let decrypted;
+          try {
+            decrypted = decrypt(data.data);
+          } catch {
+            req.app.get("io").emit("log", `[integrity] chunk ${chunk.chunkId} from ${user} failed decryption — trying next replica`);
+            integrityFailed = true;
+            continue;
+          }
 
+          const actualHash = crypto.createHash("sha256").update(decrypted).digest("hex");
+          if (actualHash !== chunk.hash) {
+            req.app.get("io").emit("log", `[integrity] chunk ${chunk.chunkId} from ${user} failed hash check — trying next replica`);
+            integrityFailed = true;
+            continue;
+          }
+
+          chunkBuffer = decrypted;
           break;
         } catch {
           console.log(`Retrying chunk ${chunk.chunkId}`);
@@ -216,10 +238,11 @@ const downloadFile = async (req, res) => {
       }
 
       if (!chunkBuffer) {
-        return res.status(500).json({
-          success: false,
-          message: `Missing chunk ${chunk.chunkId}`,
-        });
+        const message = integrityFailed
+          ? `Chunk ${chunk.chunkId} failed integrity check on all replicas — file may be corrupted`
+          : `Chunk ${chunk.chunkId} is unavailable on all nodes`;
+        req.app.get("io").emit("log", `[error] ${filename} · ${message}`);
+        return res.status(500).json({ success: false, message });
       }
 
       buffers.push(chunkBuffer);
@@ -286,6 +309,7 @@ const deleteFile = async (req, res) => {
               filename,
               chunkId: chunk.chunkId,
             }),
+            signal: AbortSignal.timeout(3000),
           });
         } catch (err) {
           console.log(`Failed to delete chunk ${chunk.chunkId} from ${user}`);

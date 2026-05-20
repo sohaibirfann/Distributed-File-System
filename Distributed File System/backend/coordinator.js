@@ -110,39 +110,23 @@ if (process.argv[2] === "upload") {
       process.exit(1);
     }
 
-    // If file already exists, delete old chunks from nodes before overwriting
-    if (metadata[filename]) {
-      const oldChunks = Array.isArray(metadata[filename])
-        ? metadata[filename]
-        : (metadata[filename]?.chunks ?? []);
-
-      for (const chunk of oldChunks) {
-        for (const user of chunk.users) {
-          if (!NODE_MAP[user]) continue;
-          try {
-            await fetch(`${NODE_MAP[user]}/delete-chunk`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ filename, chunkId: chunk.chunkId }),
-            });
-          } catch {}
-        }
-      }
-
-      // Purge from shared cache
-      const cachedPath = path.join(__dirname, "shared", filename);
-      if (fs.existsSync(cachedPath)) fs.unlinkSync(cachedPath);
-
-      console.log("Replaced existing file — old chunks removed");
-    }
+    // Preserve old state — old chunks are only deleted after new ones are confirmed
+    const oldEntry  = metadata[filename] || null;
+    const oldChunks = oldEntry
+      ? (Array.isArray(oldEntry) ? oldEntry : (oldEntry?.chunks ?? []))
+      : [];
 
     metadata[filename] = { uploadedAt: new Date().toISOString(), chunks: [] };
+
+    const distributed = []; // { user, chunkId } — for rollback on failure
 
     for (const chunk of fileChunks) {
       const first = USERS[chunk.chunkId % USERS.length];
       const second = USERS[(chunk.chunkId + 1) % USERS.length];
 
       const replicaUsers = [first, second];
+
+      let storedCount = 0;
 
       for (const user of replicaUsers) {
         const nodeUrl = NODE_MAP[user];
@@ -158,12 +142,40 @@ if (process.argv[2] === "upload") {
               chunkId: chunk.chunkId,
               data: encrypt(chunk.data),
             }),
+            signal: AbortSignal.timeout(5000),
           });
 
+          distributed.push({ user, chunkId: chunk.chunkId });
+          storedCount++;
           console.log(`Chunk ${chunk.chunkId} sent to ${user}`);
         } catch (err) {
           console.error(`Failed to send chunk ${chunk.chunkId} to ${user}`);
         }
+      }
+
+      if (storedCount === 0) {
+        console.error(`Upload failed: chunk ${chunk.chunkId} could not be stored on any node`);
+
+        for (const { user, chunkId } of distributed) {
+          try {
+            await fetch(`${NODE_MAP[user]}/delete-chunk`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ filename, chunkId }),
+              signal: AbortSignal.timeout(3000),
+            });
+          } catch {}
+        }
+
+        // Restore old metadata so the original file remains intact
+        if (oldEntry) {
+          metadata[filename] = oldEntry;
+        } else {
+          delete metadata[filename];
+        }
+        saveMetadata();
+        console.error("Rolled back all distributed chunks");
+        process.exit(1);
       }
 
       metadata[filename].chunks.push({
@@ -173,6 +185,26 @@ if (process.argv[2] === "upload") {
         users: replicaUsers,
       });
     }
+
+    // New chunks confirmed — now remove old ones
+    for (const chunk of oldChunks) {
+      for (const user of chunk.users) {
+        if (!NODE_MAP[user]) continue;
+        try {
+          await fetch(`${NODE_MAP[user]}/delete-chunk`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename, chunkId: chunk.chunkId }),
+            signal: AbortSignal.timeout(3000),
+          });
+        } catch {}
+      }
+    }
+
+    const cachedPath = path.join(__dirname, "shared", filename);
+    if (fs.existsSync(cachedPath)) fs.unlinkSync(cachedPath);
+
+    if (oldEntry) console.log("Replaced existing file — old chunks removed");
 
     saveMetadata();
     console.log("All chunks distributed successfully");

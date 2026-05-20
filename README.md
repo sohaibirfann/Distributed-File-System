@@ -17,6 +17,7 @@ A local-network distributed file storage system that splits files into encrypted
   - [Frontend](#frontend)
 - [Environment Variables](#environment-variables)
 - [Running the System](#running-the-system)
+- [Demo / Quick-Start Checklist](#demo--quick-start-checklist)
 - [API Endpoints](#api-endpoints)
 - [Key Concepts](#key-concepts)
 - [Limitations](#limitations)
@@ -49,11 +50,12 @@ A local-network distributed file storage system that splits files into encrypted
 2. `coordinator.js` reads the file, splits it into 4 KB chunks, and generates a SHA-256 hash for each chunk.
 3. Each chunk is encrypted with AES-256-GCM (unique IV per chunk).
 4. Chunks are distributed round-robin across connected nodes with 2 replicas per chunk — chunk `n` goes to nodes `n % total` and `(n+1) % total`.
-5. Chunk metadata (chunk ID, hash, size, node assignments) plus the upload timestamp are saved to `metadata.json`.
+5. If both replicas of any chunk fail to store, all chunks sent so far are rolled back (deleted from nodes), the metadata entry is removed, and the temporary file is cleaned up. The client receives a specific error message.
+6. Chunk metadata (chunk ID, hash, size, node assignments) plus the upload timestamp are saved to `metadata.json` only after all chunks are successfully distributed.
 
 ### Download
 1. The backend checks the shared cache folder first. On a cache hit, the file is served directly and its last-accessed time is refreshed for LRU tracking.
-2. On a cache miss, the backend reads `metadata.json`, fetches each encrypted chunk from the assigned nodes, decrypts them, and concatenates the buffers.
+2. On a cache miss, the backend reads `metadata.json`, fetches each encrypted chunk from the assigned nodes, decrypts them, verifies the SHA-256 hash against the stored value, and concatenates the buffers. If a chunk fails its hash check, the next replica is tried automatically. If all replicas fail, the download is aborted with a specific error ("integrity check failed" vs "unavailable on all nodes").
 3. The assembled file is written to the cache (evicting oldest files if the 200 MB limit would be exceeded) and sent to the client.
 
 ### Node Registration
@@ -81,6 +83,7 @@ A local-network distributed file storage system that splits files into encrypted
 | Node.js + Express | Lightweight HTTP server |
 | cors | Cross-origin request handling |
 | axios | Registration and heartbeat requests to backend |
+| dotenv | Environment variable loading |
 
 ### Frontend
 | Package | Purpose |
@@ -90,7 +93,7 @@ A local-network distributed file storage system that splits files into encrypted
 | React Router v7 | Client-side routing |
 | Socket.io client | Real-time log subscription |
 | lucide-react | Icons |
-| react-hot-toast | Toast notifications |
+| Custom NotificationContext | In-app toast banners (success, error, loading) |
 
 ---
 
@@ -132,6 +135,7 @@ Distributed File System/
 │   │   │   └── User.jsx          # Public file browser (download only)
 │   │   └── main.jsx
 │   ├── .env                      # VITE_API_URL (git-ignored)
+│   ├── .env.example              # Template for .env
 │   └── package.json
 ```
 
@@ -202,13 +206,14 @@ node_modules/   (after npm install)
 
 1. **Copy `nodeServer.js` and `package.json` to the node machine**
 
-   The node server requires three dependencies: `express`, `cors`, `axios`. You can use the backend `package.json` as-is or create a minimal one:
+   The node server requires four dependencies: `express`, `cors`, `axios`, `dotenv`. You can use the backend `package.json` as-is or create a minimal one:
    ```json
    {
      "dependencies": {
        "express": "^5.1.0",
        "cors": "^2.8.5",
-       "axios": "^1.16.1"
+       "axios": "^1.16.1",
+       "dotenv": "^16.0.0"
      }
    }
    ```
@@ -218,12 +223,14 @@ node_modules/   (after npm install)
    npm install
    ```
 
-3. **Update the backend URL**
+3. **Create the environment file**
 
-   Open `nodeServer.js` and set `BACKEND_URL` to the IP address of the machine running the backend:
-   ```js
-   const BACKEND_URL = "http://<backend-machine-ip>:5000";
+   Create a `.env` file in the same folder as `nodeServer.js`:
    ```
+   BACKEND_URL=http://<backend-machine-ip>:5000
+   ```
+
+   Replace `<backend-machine-ip>` with the local IP of the machine running the backend. On Windows, find it with `ipconfig`.
 
 4. **Start the node server**
    ```bash
@@ -244,6 +251,8 @@ node_modules/   (after npm install)
    - Register itself with the backend
    - Begin sending heartbeats every 15 seconds
 
+   If registration fails (e.g. backend not yet running), the node logs the error and continues. It will not appear in the dashboard or receive any chunks until a successful registration. Restart the node once the backend is up.
+
    You can run multiple nodes on the same machine using different usernames and ports.
 
 ---
@@ -262,7 +271,12 @@ node_modules/   (after npm install)
 
 3. **Create the environment file**
 
-   Create `frontend/.env`:
+   Copy the example file:
+   ```bash
+   cp .env.example .env
+   ```
+
+   Then set the backend IP in `frontend/.env`:
    ```
    VITE_API_URL=http://<backend-machine-ip>:5000
    ```
@@ -292,6 +306,12 @@ node_modules/   (after npm install)
 
 The backend will refuse to start with a missing or malformed key.
 
+### Node Server — `.env` (alongside `nodeServer.js`)
+
+| Variable | Description | Example |
+|---|---|---|
+| `BACKEND_URL` | Full URL of the backend server that this node should register with. | `http://192.168.1.10:5000` |
+
 ### Frontend — `frontend/.env`
 
 | Variable | Description | Example |
@@ -307,10 +327,36 @@ Minimum setup to get files uploading and downloading:
 1. Start the backend on one machine
 2. Start at least one node server (on any machine on the network)
 3. Start the frontend
-4. Open the frontend in a browser, go to **Admin** (password: `admin`)
+4. Open the frontend in a browser **on the backend machine** and go to **Admin** (password: `admin`) — admin access is restricted to `localhost` / `127.0.0.1` and will be blocked from any other device
 5. Upload a file — it will be chunked, encrypted, and distributed to connected nodes
 
 The system works with one node but there is no redundancy until there are at least two nodes (each chunk needs two replicas).
+
+---
+
+## Demo / Quick-Start Checklist
+
+Use this order every time — starting nodes before the backend means registration will fail.
+
+**1. Backend machine**
+- [ ] `cd "Distributed File System/backend" && node app.js`
+- [ ] Confirm: `Backend running on port 5000`
+
+**2. Each node machine** (repeat for every device)
+- [ ] Ensure `.env` has the correct `BACKEND_URL`
+- [ ] `node nodeServer.js <username> <port>` (e.g. `node nodeServer.js user1 7001`)
+- [ ] Confirm: `<username> node running on port <port>` and `Registered: <username> → http://...`
+
+**3. Frontend** (run on the backend machine for admin access)
+- [ ] `cd "Distributed File System/frontend" && npm run dev`
+- [ ] Open `http://localhost:5173` in a browser
+- [ ] **Admin** tab: verify all nodes appear as online in the Nodes view
+
+**Demonstrating fault tolerance**
+- Upload a file with all nodes online
+- Stop one node process (Ctrl+C)
+- Wait a few seconds, then download the same file — it should still succeed
+- The Logs tab will show the node deregistering after ~60 seconds
 
 ---
 
@@ -356,7 +402,9 @@ Chunks are encrypted with **AES-256-GCM** before being sent to nodes. The encryp
 [ IV (12 bytes) ][ Auth Tag (16 bytes) ][ Ciphertext ]
 ```
 
-The auth tag ensures integrity — a tampered chunk will fail decryption. The key never leaves the backend machine.
+This buffer is then **base64-encoded** for transmission. The auth tag ensures integrity — a tampered chunk will fail decryption. The key never leaves the backend machine.
+
+After decryption, the backend recomputes a SHA-256 hash of the plaintext and compares it against the hash stored in `metadata.json` at upload time. If they differ, that replica is rejected and the next replica is tried automatically. If every replica of a chunk fails the hash check, the download is aborted with an error.
 
 ### LRU Download Cache
 Assembled files are written to a `shared/` folder on the backend. On a cache hit the file is served directly. The folder is capped at **200 MB** — when a new file would exceed the limit, the least recently accessed files are deleted first to make room.
@@ -369,11 +417,11 @@ Nodes send `POST /api/heartbeat` every **15 seconds**. The backend checks every 
 ## Limitations
 
 - **No HTTPS** — all traffic between frontend, backend, and nodes is plain HTTP. Acceptable on a trusted LAN but not suitable for the open internet.
-- **Hardcoded backend IP** — `nodeServer.js` has `BACKEND_URL` hardcoded. It must be manually edited when deploying to a different machine.
 - **File-based metadata** — `metadata.json` is read/written on every operation. Not suitable for high concurrency or large numbers of files.
-- **No chunk integrity verification on download** — SHA-256 hashes are stored in metadata but not verified when chunks are reassembled.
 - **Single backend** — the backend is a single point of failure. If it goes down, uploads and downloads stop even if all nodes are healthy.
 - **Admin authentication** — the admin panel is protected only by a `localStorage` flag. It is not secure against a determined user on the same machine.
+- **Admin is localhost-only** — the admin panel is blocked on any browser not running on the backend machine itself. The guest (read-only) view is accessible from any device.
+- **Dead-node deregistration window** — when a node goes offline it takes up to 60 seconds to be deregistered. During that window it is still attempted as a replica source, but each fetch is capped at a **3-second timeout** before falling back to the next replica, so downloads remain responsive.
 - **Fixed replication factor** — always 2 replicas. Cannot be configured without code changes.
 
 ---
@@ -382,8 +430,6 @@ Nodes send `POST /api/heartbeat` every **15 seconds**. The backend checks every 
 
 - HTTPS / TLS for all traffic
 - Proper authentication with hashed passwords or tokens
-- Dynamic backend URL via CLI argument for node servers
-- Chunk integrity verification using stored SHA-256 hashes on every download
 - Configurable replication factor
 - Replace `metadata.json` with a proper database (SQLite or similar)
 - File versioning — keep previous versions when a file is re-uploaded

@@ -2,14 +2,14 @@ import { useEffect, useState, useRef } from "react";
 import { io } from "socket.io-client";
 import { Terminal, Trash2, Download } from "lucide-react";
 
-const socket = io(import.meta.env.VITE_API_URL);
-
 export default function LogsPanel({ fullHeight = false }) {
   const [logs, setLogs]           = useState([]);
   const [connected, setConnected] = useState(false);
   const bottomRef                 = useRef(null);
 
   useEffect(() => {
+    const socket = io(import.meta.env.VITE_API_URL);
+
     if (socket.connected) setConnected(true);
 
     socket.on("connect",    () => setConnected(true));
@@ -19,10 +19,9 @@ export default function LogsPanel({ fullHeight = false }) {
         [...prev, { time: new Date().toLocaleTimeString(), msg }].slice(-100)
       );
     });
+
     return () => {
-      socket.off("connect");
-      socket.off("disconnect");
-      socket.off("log");
+      socket.disconnect();
     };
   }, []);
 
