@@ -29,16 +29,17 @@ A local-network distributed file storage system that splits files into encrypted
 
 - **Chunked file distribution** — files are split into 4 KB chunks and distributed across connected storage nodes with 2-replica redundancy
 - **AES-256-GCM encryption** — every chunk is encrypted before leaving the backend; nodes store only ciphertext
-- **Download cache** — assembled files are cached in a shared folder (200 MB LRU limit) so repeated downloads skip reassembly
+- **Download cache** — assembled files are cached in a shared folder (200 MB LRU limit) so repeated downloads skip reassembly; files larger than the cache cap are served directly without evicting existing entries
 - **Duplicate upload handling** — re-uploading a file with the same name cleanly removes old chunks from all nodes before distributing the new version
 - **Node heartbeat system** — nodes send a heartbeat every 15 seconds; the backend automatically deregisters any node silent for more than 60 seconds
 - **Real-time latency monitoring** — the backend pings each node on every status poll and reports live latency
 - **Live activity log** — all system events streamed to the UI via Socket.io with log export
 - **Admin dashboard** with four tabs: Overview, Files, Nodes, Logs
-- **File table** with search, column sorting, file type badges, and relative upload timestamps
+- **Overview tab** — stat cards (nodes, files, chunks), last-uploaded file, distributed storage size, cache usage bar (color-coded), and a "Clear cache" button
+- **File table** with search, column sorting, file type badges, relative upload timestamps, and a "cached" badge on files currently in the LRU cache
 - **File preview** — line-numbered text preview and image preview (inline, no download required)
-- **Drag & drop upload** with real XHR progress bar
-- **500 MB file size limit** enforced on both client and server
+- **Two-phase upload progress** — separate bars for HTTP transfer and chunk distribution across nodes (streamed in real time via Socket.io)
+- **500 MB file size limit** enforced across all peers
 - **Dark / light theme**
 
 ---
@@ -56,7 +57,7 @@ A local-network distributed file storage system that splits files into encrypted
 ### Download
 1. The backend checks the shared cache folder first. On a cache hit, the file is served directly and its last-accessed time is refreshed for LRU tracking.
 2. On a cache miss, the backend reads `metadata.json`, fetches each encrypted chunk from the assigned nodes, decrypts them, verifies the SHA-256 hash against the stored value, and concatenates the buffers. If a chunk fails its hash check, the next replica is tried automatically. If all replicas fail, the download is aborted with a specific error ("integrity check failed" vs "unavailable on all nodes").
-3. The assembled file is written to the cache (evicting oldest files if the 200 MB limit would be exceeded) and sent to the client.
+3. If the assembled file fits within the 200 MB cache cap, it is written to the cache (evicting oldest files first if necessary) and then sent to the client. Files larger than the cap are sent directly without touching the cache.
 
 ### Node Registration
 - When a node server starts, it registers its name and URL with the backend (`POST /api/register-node`).
@@ -367,14 +368,15 @@ Use this order every time — starting nodes before the backend means registrati
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/` | Server status check |
-| `GET` | `/api/health` | Total files, chunks, and online node count |
+| `GET` | `/api/health` | Files, chunks, node count, distributed bytes, cache usage, cached file list, and last uploaded file |
 | `GET` | `/api/nodes` | All registered nodes with status, latency (ms), and chunk count |
 | `POST` | `/api/register-node` | Register a new node `{ name, url }` |
 | `POST` | `/api/heartbeat` | Node heartbeat `{ name }` |
 | `POST` | `/api/files/upload` | Upload a file (multipart/form-data, field: `file`, max 500 MB) |
-| `GET` | `/api/files/` | List all files with size, chunk count, and upload timestamp |
+| `GET` | `/api/files/` | List all files with size, chunk count, upload timestamp, and cache status |
 | `GET` | `/api/files/download/:filename` | Download a file (served from cache or assembled from nodes) |
 | `DELETE` | `/api/files/delete/:filename` | Delete a file and remove all its chunks from every node |
+| `DELETE` | `/api/files/cache` | Clear all files from the download cache |
 
 ### Node Server (`http://<node-ip>:<port>`)
 
@@ -407,7 +409,7 @@ This buffer is then **base64-encoded** for transmission. The auth tag ensures in
 After decryption, the backend recomputes a SHA-256 hash of the plaintext and compares it against the hash stored in `metadata.json` at upload time. If they differ, that replica is rejected and the next replica is tried automatically. If every replica of a chunk fails the hash check, the download is aborted with an error.
 
 ### LRU Download Cache
-Assembled files are written to a `shared/` folder on the backend. On a cache hit the file is served directly. The folder is capped at **200 MB** — when a new file would exceed the limit, the least recently accessed files are deleted first to make room.
+Assembled files are written to a `shared/` folder on the backend. On a cache hit the file is served directly. The folder is capped at **200 MB** — when a new file would exceed the limit, the least recently accessed files are deleted first to make room. Files larger than the 200 MB cap are served directly and never written to the cache, so they cannot evict smaller files that are already cached. The admin Overview tab shows current cache usage and a "Clear cache" button to wipe it on demand.
 
 ### Heartbeat and Node Deregistration
 Nodes send `POST /api/heartbeat` every **15 seconds**. The backend checks every **30 seconds** and removes any node not heard from in over **60 seconds**. Deregistered nodes emit a log event visible in the Logs tab.

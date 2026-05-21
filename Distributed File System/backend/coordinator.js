@@ -40,7 +40,7 @@ async function getNodes() {
     });
 
     return map;
-  } catch (err) {
+  } catch {
     console.error("Failed to fetch nodes");
     return {};
   }

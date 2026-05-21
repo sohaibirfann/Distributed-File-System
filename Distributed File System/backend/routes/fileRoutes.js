@@ -9,6 +9,7 @@ const {
   getFiles,
   downloadFile,
   deleteFile,
+  clearCache,
 } = require("../controllers/fileController");
 
 function clientIP(req) {
@@ -52,5 +53,6 @@ router.get(
 );
 
 router.delete("/delete/:filename", deleteFile);
+router.delete("/cache", clearCache);
 
 module.exports = router;
