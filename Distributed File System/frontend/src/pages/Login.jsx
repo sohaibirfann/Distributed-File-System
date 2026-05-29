@@ -1,30 +1,44 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
-import { Database, FolderOpen, ShieldCheck, ArrowRight, Eye, EyeOff, Sun, Moon, ServerOff } from "lucide-react";
+import { useAuth }  from "../context/AuthContext";
+import { Database, Sun, Moon, Eye, EyeOff } from "lucide-react";
 
-const ADMIN_PASSWORD = "admin";
-const isAdminMachine = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+const API = import.meta.env.VITE_API_URL;
 
 export default function Login() {
   const { isDark, toggleTheme } = useTheme();
-  const navigate = useNavigate();
-  const [screen, setScreen] = useState("home");
+  const { login, user }         = useAuth();
+  const navigate                = useNavigate();
+
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [error,    setError]    = useState("");
+  const [loading,  setLoading]  = useState(false);
 
-  async function handleAdminLogin(e) {
+  // Already logged in — redirect
+  if (user) {
+    navigate(user.role === "admin" ? "/admin" : "/user", { replace: true });
+    return null;
+  }
+
+  async function handleLogin(e) {
     e.preventDefault();
     setLoading(true);
     setError("");
-    await new Promise((r) => setTimeout(r, 350));
-    if (password === ADMIN_PASSWORD) {
-      localStorage.setItem("isAdmin", "true");
-      navigate("/admin");
-    } else {
-      setError("Wrong password. Try again.");
+    try {
+      const res  = await fetch(`${API}/api/auth/login`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Login failed"); setLoading(false); return; }
+      login(data.token);
+      navigate(data.role === "admin" ? "/admin" : "/user", { replace: true });
+    } catch {
+      setError("Could not reach server. Make sure the backend is running.");
       setLoading(false);
     }
   }
@@ -47,106 +61,54 @@ export default function Login() {
           Distributed File System
         </h1>
         <p className="text-sm text-gray-500 dark:text-neutral-400 mb-8">
-          Encrypted storage across your local network
+          Sign in to access your files
         </p>
 
         <div className="glass w-full max-w-[340px] bg-white/60 dark:bg-white/[0.05] rounded-2xl border border-gray-100 dark:border-neutral-800 p-6">
-          {screen === "home" && (
-            <div className="space-y-3">
-              <button
-                onClick={() => navigate("/user")}
-                className="w-full flex items-center justify-between px-4 py-3.5 bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] text-white rounded-xl font-medium text-sm transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <FolderOpen size={16} />
-                  <span>Browse Files</span>
-                </div>
-                <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform duration-150" />
-              </button>
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">Sign in</h2>
+          <p className="text-xs text-gray-500 dark:text-neutral-400 mb-4">
+            Enter your username and password
+          </p>
 
+          <form onSubmit={handleLogin} className="space-y-3">
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => { setUsername(e.target.value); setError(""); }}
+              placeholder="Username"
+              autoFocus
+              autoComplete="username"
+              className="w-full px-4 py-3 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[#FF6363] focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-[#FF6363]/20 transition-all"
+            />
+
+            <div className="relative">
+              <input
+                type={showPass ? "text" : "password"}
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                placeholder="Password"
+                autoComplete="current-password"
+                className="w-full px-4 py-3 pr-10 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[#FF6363] focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-[#FF6363]/20 transition-all"
+              />
               <button
-                onClick={() => setScreen("admin")}
-                className="w-full flex items-center justify-between px-4 py-3.5 bg-white/70 hover:bg-white dark:bg-neutral-800/60 dark:hover:bg-neutral-700/70 border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-200 rounded-xl font-medium text-sm transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 group"
+                type="button"
+                onClick={() => setShowPass((s) => !s)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-neutral-200 transition-colors"
               >
-                <div className="flex items-center gap-2.5">
-                  <ShieldCheck size={16} />
-                  <span>Admin</span>
-                </div>
-                <ArrowRight size={15} className="opacity-40 group-hover:opacity-80 group-hover:translate-x-0.5 transition-all duration-150" />
+                {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
-          )}
 
-          {screen === "admin" && (
-            <div>
-              {!isAdminMachine ? (
-                <div className="text-center py-2">
-                  <div className="w-11 h-11 bg-amber-50 dark:bg-amber-950/40 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <ServerOff size={20} className="text-amber-500" />
-                  </div>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                    Admin not available here
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-neutral-400 mb-4 leading-relaxed">
-                    Admin access is only available on the machine running the backend server.
-                  </p>
-                  <button
-                    onClick={() => setScreen("home")}
-                    className="w-full py-2 text-sm text-gray-400 dark:text-neutral-500 hover:text-gray-700 dark:hover:text-neutral-200 transition-colors"
-                  >
-                    ← Back
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
-                    Admin sign in
-                  </h2>
-                  <p className="text-xs text-gray-500 dark:text-neutral-400 mb-4">
-                    Enter your admin password to continue
-                  </p>
+            {error && <p className="text-xs text-red-500">{error}</p>}
 
-                  <form onSubmit={handleAdminLogin} className="space-y-3">
-                    <div className="relative">
-                      <input
-                        type={showPass ? "text" : "password"}
-                        value={password}
-                        onChange={(e) => { setPassword(e.target.value); setError(""); }}
-                        placeholder="Password"
-                        autoFocus
-                        className="w-full px-4 py-3 pr-10 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[#FF6363] focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-[#FF6363]/20 transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPass((s) => !s)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-neutral-200 transition-colors"
-                      >
-                        {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
-                    </div>
-
-                    {error && <p className="text-xs text-red-500">{error}</p>}
-
-                    <button
-                      type="submit"
-                      disabled={loading || !password}
-                      className="w-full py-3 bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-medium text-sm transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 disabled:hover:translate-y-0"
-                    >
-                      {loading ? "Signing in…" : "Sign In"}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => { setScreen("home"); setPassword(""); setError(""); }}
-                      className="w-full py-2 text-sm text-gray-400 dark:text-neutral-500 hover:text-gray-700 dark:hover:text-neutral-200 transition-colors"
-                    >
-                      ← Back
-                    </button>
-                  </form>
-                </>
-              )}
-            </div>
-          )}
+            <button
+              type="submit"
+              disabled={loading || !username || !password}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-medium text-sm transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 disabled:hover:translate-y-0"
+            >
+              {loading ? "Signing in…" : "Sign In"}
+            </button>
+          </form>
         </div>
 
         <p className="mt-6 text-xs text-gray-400 dark:text-neutral-600">

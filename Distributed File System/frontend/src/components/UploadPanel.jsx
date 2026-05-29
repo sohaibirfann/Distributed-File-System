@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { io } from "socket.io-client";
 import { useNotify } from "../context/NotificationContext";
+import { useAuth }   from "../context/AuthContext";
 import { Upload, X, FileIcon, CheckCircle } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
@@ -13,6 +14,7 @@ function formatSize(bytes) {
 
 export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
   const notify = useNotify();
+  const { token } = useAuth();
   const [file, setFile]                       = useState(initialFile);
   const [progress, setProgress]               = useState(0);
   const [uploading, setUploading]             = useState(false);
@@ -60,6 +62,7 @@ export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", `${API}/api/files/upload`);
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
         xhr.upload.addEventListener("progress", (e) => {
           if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));

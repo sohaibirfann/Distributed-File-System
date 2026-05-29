@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useNotify } from "../context/NotificationContext";
+import { useAuth } from "../context/AuthContext";
 import {
   LayoutDashboard, Files, Server, Terminal,
   Moon, Sun, LogOut, Database, Upload,
@@ -45,6 +46,7 @@ const TABS = [
 // ── Overview ──────────────────────────────────────────────────
 function OverviewTab({ refresh, nodes }) {
   const notify = useNotify();
+  const { authFetch } = useAuth();
   const [stats, setStats] = useState({
     files: 0, chunks: 0, usersOnline: 0,
     distributedBytes: 0, cacheUsed: 0, cacheMax: 209715200,
@@ -62,7 +64,7 @@ function OverviewTab({ refresh, nodes }) {
 
   async function fetchStats() {
     try {
-      const h = await fetch(`${API}/api/health`).then((r) => r.json());
+      const h = await authFetch(`${API}/api/health`).then((r) => r.json());
       setStats(h);
     } catch {}
   }
@@ -70,7 +72,7 @@ function OverviewTab({ refresh, nodes }) {
   async function handleClearCache() {
     setClearing(true);
     try {
-      const res  = await fetch(`${API}/api/files/cache`, { method: "DELETE" });
+      const res  = await authFetch(`${API}/api/files/cache`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
         notify.success(`Cleared ${data.cleared} cached file${data.cleared !== 1 ? "s" : ""}`);
@@ -326,6 +328,7 @@ function FilesTab({ refresh, onRefresh, droppedFile }) {
 // ── Admin page ────────────────────────────────────────────────
 export default function Admin() {
   const { isDark, toggleTheme } = useTheme();
+  const { logout, authFetch }   = useAuth();
   const navigate    = useNavigate();
   const apiStatus   = useApiStatus();
   const [active, setActive]   = useState("overview");
@@ -351,7 +354,7 @@ export default function Admin() {
   useEffect(() => {
     async function fetchNodes() {
       try {
-        const res = await fetch(`${API}/api/nodes`);
+        const res = await authFetch(`${API}/api/nodes`);
         setNodes(await res.json());
         setNodesError(false);
       } catch {
@@ -397,10 +400,8 @@ export default function Admin() {
     handleTabSwitch("files");
   }
 
-  if (!localStorage.getItem("isAdmin")) return <Navigate to="/" replace />;
-
   function handleExit() {
-    localStorage.removeItem("isAdmin");
+    logout();
     navigate("/");
   }
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNotify } from "../context/NotificationContext";
+import { useAuth }   from "../context/AuthContext";
 import {
   Download, Eye, Trash2, Search, X, AlertTriangle, WifiOff,
   FileText, Image, Film, Music, Archive, Code, File, HardDrive,
@@ -85,6 +86,7 @@ function formatRelativeTime(iso) {
 
 export default function FileTable({ isAdmin = false }) {
   const notify = useNotify();
+  const { authFetch } = useAuth();
   const [files, setFiles]               = useState([]);
   const [search, setSearch]             = useState("");
   const [apiError, setApiError]         = useState(false);
@@ -103,7 +105,7 @@ export default function FileTable({ isAdmin = false }) {
 
   async function fetchFiles() {
     try {
-      const res = await fetch(`${API}/api/files`);
+      const res = await authFetch(`${API}/api/files`);
       setFiles(await res.json());
       setApiError(false);
     } catch {
@@ -114,7 +116,7 @@ export default function FileTable({ isAdmin = false }) {
   async function handleDownload(filename) {
     const id = notify.loading("Preparing download…");
     try {
-      const res = await fetch(`${API}/api/files/download/${filename}`);
+      const res = await authFetch(`${API}/api/files/download/${filename}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || "Download failed");
@@ -145,7 +147,7 @@ export default function FileTable({ isAdmin = false }) {
     const type = getPreviewType(filename);
     const id   = notify.loading("Loading preview…");
     try {
-      const res = await fetch(`${API}/api/files/download/${filename}`);
+      const res = await authFetch(`${API}/api/files/download/${filename}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || "Preview failed");
@@ -168,7 +170,7 @@ export default function FileTable({ isAdmin = false }) {
   async function handleDelete(filename) {
     setDeleting(true);
     try {
-      const res = await fetch(`${API}/api/files/delete/${filename}`, { method: "DELETE" });
+      const res = await authFetch(`${API}/api/files/delete/${filename}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
       notify.success("File deleted");
       setFileToDelete(null);

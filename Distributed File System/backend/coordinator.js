@@ -1,23 +1,14 @@
 require("dotenv").config();
 
-if (!process.env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY.length !== 64) {
-  console.error("ERROR: ENCRYPTION_KEY missing or invalid in .env — must be a 64-char hex string");
-  process.exit(1);
-}
-
-const fs = require("fs");
+const fs     = require("fs");
 const crypto = require("crypto");
-const path = require("path");
-const axios = require("axios");
+const path   = require("path");
 
-const CHUNK_SIZE = 4 * 1024;
-const METADATA_FILE = path.join(__dirname, "metadata.json");
+const { saveFile, getFileWithChunks, getNodeMap } = require("./db");
 
-const BACKEND_URL = "http://localhost:5000";
-
+const CHUNK_SIZE     = 512 * 1024; // 512 KB
 const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, "hex");
 
-// AES-256-GCM: output is base64(iv[12] + authTag[16] + ciphertext)
 function encrypt(buffer) {
   const iv     = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", ENCRYPTION_KEY, iv);
@@ -25,188 +16,124 @@ function encrypt(buffer) {
   return Buffer.concat([iv, cipher.getAuthTag(), enc]).toString("base64");
 }
 
-// Load metadata
-
-async function getNodes() {
-  try {
-    const res = await axios.get(`${BACKEND_URL}/api/nodes`);
-
-    const nodes = res.data;
-
-    const map = {};
-
-    nodes.forEach((node) => {
-      map[node.name] = node.url;
-    });
-
-    return map;
-  } catch {
-    console.error("Failed to fetch nodes");
-    return {};
-  }
-}
-
-let metadata = {};
-
-if (fs.existsSync(METADATA_FILE)) {
-  metadata = JSON.parse(fs.readFileSync(METADATA_FILE, "utf8"));
-}
-
-function saveMetadata() {
-  fs.writeFileSync(METADATA_FILE, JSON.stringify(metadata, null, 2));
-}
-
-// Split file into chunks
 function chunkFile(filePath) {
-  const data = fs.readFileSync(filePath);
+  const data   = fs.readFileSync(filePath);
   const chunks = [];
-
-  let offset = 0;
-  let chunkId = 0;
+  let offset = 0, chunkId = 0;
 
   while (offset < data.length) {
     const slice = data.slice(offset, offset + CHUNK_SIZE);
-
-    const hash = crypto.createHash("sha256").update(slice).digest("hex");
-
     chunks.push({
       chunkId,
-      data: slice,
-      hash,
-      size: slice.length,
+      data:  slice,
+      hash:  crypto.createHash("sha256").update(slice).digest("hex"),
+      size:  slice.length,
     });
-
     offset += CHUNK_SIZE;
     chunkId++;
   }
-
   return chunks;
 }
 
-// ----------------------------
-// 🚀 UPLOAD (DISTRIBUTED)
-// ----------------------------
+/*
+|--------------------------------------------------------------------------
+| distributeFile — called in-process from fileController
+|--------------------------------------------------------------------------
+*/
 
-if (process.argv[2] === "upload") {
-  (async () => {
-    const filePath = process.argv[3];
+async function distributeFile(filePath, filename, io) {
+  if (!fs.existsSync(filePath)) throw new Error("Uploaded file not found on disk");
 
-    if (!fs.existsSync(filePath)) {
-      console.log("File not found");
-      process.exit(1);
+  const fileChunks = chunkFile(filePath);
+  const NODE_MAP   = getNodeMap();
+  const USERS      = Object.keys(NODE_MAP);
+
+  if (USERS.length === 0) {
+    throw new Error("No nodes available — start at least one node before uploading");
+  }
+
+  io.emit("upload-progress", { filename, percent: 0, distributed: 0, total: fileChunks.length });
+
+  // Preserve old chunks for cleanup after successful re-upload
+  const oldRecord = getFileWithChunks(filename);
+  const oldChunks = oldRecord?.chunks ?? [];
+
+  const distributed = []; // for rollback on failure
+  const newChunks   = [];
+  const seenIds     = new Set();
+
+  for (const chunk of fileChunks) {
+    const first  = USERS[chunk.chunkId % USERS.length];
+    const second = USERS[(chunk.chunkId + 1) % USERS.length];
+    const replicaUsers = first === second ? [first] : [first, second];
+
+    let storedCount = 0;
+    const encrypted = encrypt(chunk.data);
+
+    for (const user of replicaUsers) {
+      try {
+        const res = await fetch(`${NODE_MAP[user]}/store-chunk`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ filename, chunkId: chunk.chunkId, data: encrypted }),
+          signal:  AbortSignal.timeout(5000),
+        });
+        if (!res.ok) throw new Error(`Node responded ${res.status}`);
+        distributed.push({ user, chunkId: chunk.chunkId });
+        storedCount++;
+      } catch (err) {
+        console.error(`Failed to send chunk ${chunk.chunkId} to ${user}: ${err.message}`);
+      }
     }
 
-    const filename = path.basename(filePath);
-    const fileChunks = chunkFile(filePath);
-
-    console.log("File:", filename);
-    console.log("Total chunks:", fileChunks.length);
-
-    const NODE_MAP = await getNodes();
-    const USERS = Object.keys(NODE_MAP);
-
-    if (USERS.length === 0) {
-      console.error("No nodes available — start at least one node before uploading");
-      process.exit(1);
+    if (storedCount === 0) {
+      // Rollback all distributed chunks
+      await Promise.allSettled(distributed.map(({ user, chunkId }) =>
+        fetch(`${NODE_MAP[user]}/delete-chunk`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ filename, chunkId }),
+          signal:  AbortSignal.timeout(3000),
+        }),
+      ));
+      throw new Error(`Chunk ${chunk.chunkId} could not be stored on any node — upload rolled back`);
     }
 
-    // Preserve old state — old chunks are only deleted after new ones are confirmed
-    const oldEntry  = metadata[filename] || null;
-    const oldChunks = oldEntry
-      ? (Array.isArray(oldEntry) ? oldEntry : (oldEntry?.chunks ?? []))
-      : [];
+    seenIds.add(chunk.chunkId);
+    newChunks.push({ chunkId: chunk.chunkId, hash: chunk.hash, size: chunk.size, users: replicaUsers });
 
-    metadata[filename] = { uploadedAt: new Date().toISOString(), chunks: [] };
+    const percent = Math.min(99, Math.round((seenIds.size / fileChunks.length) * 100));
+    io.emit("upload-progress", { filename, percent, distributed: seenIds.size, total: fileChunks.length });
+  }
 
-    const distributed = []; // { user, chunkId } — for rollback on failure
+  // Persist to DB (replaces old record atomically via transaction in db.js)
+  saveFile(filename, new Date().toISOString(), newChunks);
 
-    for (const chunk of fileChunks) {
-      const first = USERS[chunk.chunkId % USERS.length];
-      const second = USERS[(chunk.chunkId + 1) % USERS.length];
-
-      const replicaUsers = [first, second];
-
-      let storedCount = 0;
-
-      for (const user of replicaUsers) {
+  // Remove old chunks from nodes now that new ones are confirmed
+  await Promise.allSettled(
+    oldChunks.flatMap((chunk) =>
+      chunk.users.map((user) => {
         const nodeUrl = NODE_MAP[user];
+        if (!nodeUrl) return Promise.resolve();
+        return fetch(`${nodeUrl}/delete-chunk`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ filename, chunkId: chunk.chunkId }),
+          signal:  AbortSignal.timeout(3000),
+        });
+      }),
+    ),
+  );
 
-        try {
-          await fetch(`${nodeUrl}/store-chunk`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              filename,
-              chunkId: chunk.chunkId,
-              data: encrypt(chunk.data),
-            }),
-            signal: AbortSignal.timeout(5000),
-          });
+  // Bust the download cache for this file
+  const cachedPath = path.join(__dirname, "shared", filename);
+  if (fs.existsSync(cachedPath)) fs.unlinkSync(cachedPath);
 
-          distributed.push({ user, chunkId: chunk.chunkId });
-          storedCount++;
-          console.log(`Chunk ${chunk.chunkId} sent to ${user}`);
-        } catch (err) {
-          console.error(`Failed to send chunk ${chunk.chunkId} to ${user}`);
-        }
-      }
+  // Clean up the temp upload file
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 
-      if (storedCount === 0) {
-        console.error(`Upload failed: chunk ${chunk.chunkId} could not be stored on any node`);
-
-        for (const { user, chunkId } of distributed) {
-          try {
-            await fetch(`${NODE_MAP[user]}/delete-chunk`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ filename, chunkId }),
-              signal: AbortSignal.timeout(3000),
-            });
-          } catch {}
-        }
-
-        // Restore old metadata so the original file remains intact
-        if (oldEntry) {
-          metadata[filename] = oldEntry;
-        } else {
-          delete metadata[filename];
-        }
-        saveMetadata();
-        console.error("Rolled back all distributed chunks");
-        process.exit(1);
-      }
-
-      metadata[filename].chunks.push({
-        chunkId: chunk.chunkId,
-        hash: chunk.hash,
-        size: chunk.size,
-        users: replicaUsers,
-      });
-    }
-
-    // New chunks confirmed — now remove old ones
-    for (const chunk of oldChunks) {
-      for (const user of chunk.users) {
-        if (!NODE_MAP[user]) continue;
-        try {
-          await fetch(`${NODE_MAP[user]}/delete-chunk`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ filename, chunkId: chunk.chunkId }),
-            signal: AbortSignal.timeout(3000),
-          });
-        } catch {}
-      }
-    }
-
-    const cachedPath = path.join(__dirname, "shared", filename);
-    if (fs.existsSync(cachedPath)) fs.unlinkSync(cachedPath);
-
-    if (oldEntry) console.log("Replaced existing file — old chunks removed");
-
-    saveMetadata();
-    console.log("All chunks distributed successfully");
-  })();
+  io.emit("upload-progress", { filename, percent: 100, done: true });
+  io.emit("log", `[replication] ${filename} · ${newChunks.length} chunks distributed`);
 }
+
+module.exports = { distributeFile };

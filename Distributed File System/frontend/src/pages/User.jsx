@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
-import { Moon, Sun, Database, ShieldCheck } from "lucide-react";
+import { useAuth }  from "../context/AuthContext";
+import { Moon, Sun, Database, LogOut } from "lucide-react";
 import { useApiStatus } from "../hooks/useApiStatus";
 import FileTable from "../components/FileTable";
 
@@ -9,12 +10,13 @@ const API = import.meta.env.VITE_API_URL;
 
 export default function User() {
   const { isDark, toggleTheme } = useTheme();
+  const { logout, authFetch, user } = useAuth();
   const navigate    = useNavigate();
   const apiStatus   = useApiStatus();
   const [stats, setStats] = useState({ files: 0, usersOnline: 0 });
 
   useEffect(() => {
-    fetch(`${API}/api/health`)
+    authFetch(`${API}/api/health`)
       .then((r) => r.json())
       .then(setStats)
       .catch(() => {});
@@ -58,11 +60,11 @@ export default function User() {
               {isDark ? <Sun size={15} /> : <Moon size={15} />}
             </button>
             <button
-              onClick={() => navigate("/")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-blue-50 dark:hover:bg-[#FF6363]/10 hover:text-blue-700 dark:hover:text-[#FF6363] border border-gray-200 dark:border-neutral-700 hover:border-blue-200 dark:hover:border-[#FF6363]/40 transition-colors"
+              onClick={() => { logout(); navigate("/"); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-500 dark:text-neutral-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-[#FF6363]/10 border border-gray-200 dark:border-neutral-700 hover:border-red-200 dark:hover:border-red-500/40 transition-colors"
             >
-              <ShieldCheck size={13} />
-              Admin
+              <LogOut size={13} />
+              Sign out
             </button>
           </div>
         </div>
