@@ -1,7 +1,6 @@
 const express = require("express");
-const axios   = require("axios");
 
-const { registerNode, heartbeatNode, getNodeMap } = require("../db");
+const { registerNode, heartbeatNode } = require("../db");
 
 const router = express.Router();
 
@@ -26,25 +25,6 @@ router.post("/heartbeat", (req, res) => {
   if (secret !== NODE_SECRET) return res.status(401).json({ error: "invalid node secret" });
   heartbeatNode(name);
   res.json({ ok: true });
-});
-
-// GET /api/nodes
-router.get("/", async (req, res) => {
-  const NODE_MAP = getNodeMap();
-
-  const results = await Promise.all(
-    Object.entries(NODE_MAP).map(async ([name, url]) => {
-      try {
-        const start    = Date.now();
-        const { data } = await axios.get(`${url}/stats`, { timeout: 5000 });
-        return { name, url, status: "online",  chunks: data.chunks || 0, latency: Date.now() - start };
-      } catch {
-        return { name, url, status: "offline", chunks: 0, latency: null };
-      }
-    }),
-  );
-
-  res.json(results);
 });
 
 module.exports = router;

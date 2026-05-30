@@ -2,14 +2,11 @@ const express  = require("express");
 const bcrypt   = require("bcryptjs");
 const jwt      = require("jsonwebtoken");
 
-const { createUser, getUserByUsername, adminExists } = require("../db");
+const { createUser, getUserByUsername } = require("../db");
 
 const router = express.Router();
 
-// POST /api/auth/register
-// First user ever becomes admin; subsequent users are role=user.
-// After the first admin exists, only admins can create new users (handled on the
-// frontend by gating the form, and on sensitive ops by requireAdmin middleware).
+// POST /api/auth/register — anyone can sign up; all users are equal peers.
 router.post("/register", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -20,10 +17,9 @@ router.post("/register", async (req, res) => {
     }
 
     const hash = await bcrypt.hash(password, 12);
-    const role = adminExists() ? "user" : "admin";
-    createUser(username, hash, role);
+    createUser(username, hash);
 
-    res.status(201).json({ success: true, role });
+    res.status(201).json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -43,12 +39,12 @@ router.post("/login", async (req, res) => {
     if (!ok)  return res.status(401).json({ error: "Invalid credentials" });
 
     const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role },
+      { id: user.id, username: user.username },
       process.env.JWT_SECRET,
       { expiresIn: "7d" },
     );
 
-    res.json({ token, role: user.role, username: user.username });
+    res.json({ token, username: user.username });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

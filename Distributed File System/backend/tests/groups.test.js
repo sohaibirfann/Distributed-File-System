@@ -17,7 +17,7 @@ function check(label, cond) {
 
 try {
   // Seed users
-  db.createUser("alice", "hash", "admin");
+  db.createUser("alice", "hash");
   db.createUser("bob",   "hash");
   const alice = db.getUserByUsername("alice");
   const bob   = db.getUserByUsername("bob");

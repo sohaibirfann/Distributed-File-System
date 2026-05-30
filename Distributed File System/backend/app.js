@@ -24,13 +24,9 @@ const {
 } = require("./db");
 
 const fileRoutes   = require("./routes/fileRoutes");
-const healthRoutes = require("./routes/healthRoutes");
 const authRoutes   = require("./routes/authRoutes");
 const nodeRoutes   = require("./routes/nodeRoutes");
 const groupRoutes  = require("./routes/groupRoutes");
-
-const { requireAdmin } = require("./middleware/auth");
-const { clearCache }   = require("./controllers/fileController");
 
 const app    = express();
 const server = http.createServer(app);
@@ -48,13 +44,9 @@ app.use(express.urlencoded({ extended: true }));
 // Group-scoped file operations (nested so :groupId is available).
 app.use("/api/groups/:groupId/files", fileRoutes);
 
-app.use("/api",        healthRoutes);
 app.use("/api/auth",   authRoutes);
 app.use("/api/nodes",  nodeRoutes);
 app.use("/api/groups", groupRoutes);
-
-// Global download cache is shared disk, not group-specific.
-app.delete("/api/cache", requireAdmin, clearCache);
 
 app.get("/", (req, res) => res.json({ message: "Distributed File System API" }));
 

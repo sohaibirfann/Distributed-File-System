@@ -4,14 +4,14 @@ import { useTheme }  from "../context/ThemeContext";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import {
-  Database, Moon, Sun, LogOut, Users, Plus, LogIn, LayoutDashboard,
+  Database, Moon, Sun, LogOut, Users, Plus, LogIn,
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
 
 export default function Groups() {
   const { isDark, toggleTheme }     = useTheme();
-  const { logout, authFetch, user } = useAuth();
+  const { logout, authFetch } = useAuth();
   const notify                      = useNotify();
   const navigate                    = useNavigate();
 
@@ -92,14 +92,6 @@ export default function Groups() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {user?.role === "admin" && (
-              <button
-                onClick={() => navigate("/admin")}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 border border-gray-200 dark:border-neutral-700 transition-colors"
-              >
-                <LayoutDashboard size={13} /> Admin
-              </button>
-            )}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:text-neutral-500 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"

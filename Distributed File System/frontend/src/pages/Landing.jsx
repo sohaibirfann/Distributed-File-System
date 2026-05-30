@@ -64,8 +64,7 @@ export default function Landing() {
   const navigate                = useNavigate();
 
   function handleOpen() {
-    if (user) navigate(user.role === "admin" ? "/admin" : "/groups");
-    else navigate("/login");
+    navigate(user ? "/groups" : "/login");
   }
 
   return (

@@ -19,7 +19,6 @@ db.exec(`
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     username      TEXT    UNIQUE NOT NULL,
     password_hash TEXT    NOT NULL,
-    role          TEXT    NOT NULL DEFAULT 'user',
     created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -110,9 +109,8 @@ const stmts = {
   getChunkNodes:   db.prepare(`SELECT node_name FROM chunk_nodes WHERE chunk_pk = ?`),
 
   // Users
-  createUser:       db.prepare(`INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)`),
+  createUser:       db.prepare(`INSERT INTO users (username, password_hash) VALUES (?, ?)`),
   getUserByName:    db.prepare(`SELECT * FROM users WHERE username = ?`),
-  countAdmins:      db.prepare(`SELECT COUNT(*) as n FROM users WHERE role = 'admin'`),
 
   // Groups
   insertGroup:      db.prepare(`INSERT INTO groups (id, name, created_by, replication) VALUES (?, ?, ?, ?)`),
@@ -207,16 +205,12 @@ function deleteFileRecord(fileId) {
 
 // ── User helpers ──────────────────────────────────────────────────────────────
 
-function createUser(username, passwordHash, role = "user") {
-  stmts.createUser.run(username, passwordHash, role);
+function createUser(username, passwordHash) {
+  stmts.createUser.run(username, passwordHash);
 }
 
 function getUserByUsername(username) {
   return stmts.getUserByName.get(username);
-}
-
-function adminExists() {
-  return stmts.countAdmins.get().n > 0;
 }
 
 // ── Group helpers ─────────────────────────────────────────────────────────────
@@ -295,7 +289,6 @@ module.exports = {
   deleteFileRecord,
   createUser,
   getUserByUsername,
-  adminExists,
   // groups
   createGroup,
   getGroup,

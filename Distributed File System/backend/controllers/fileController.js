@@ -243,27 +243,4 @@ const deleteFile = async (req, res) => {
   }
 };
 
-/*
-|--------------------------------------------------------------------------
-| Clear Cache (global, admin) — cache is shared disk, not group-specific
-|--------------------------------------------------------------------------
-*/
-
-const clearCache = (req, res) => {
-  try {
-    if (!fs.existsSync(SHARED_FOLDER)) return res.json({ success: true, cleared: 0 });
-
-    const files   = fs.readdirSync(SHARED_FOLDER);
-    let   cleared = 0;
-    for (const f of files) {
-      try { fs.unlinkSync(path.join(SHARED_FOLDER, f)); cleared++; } catch {}
-    }
-
-    req.app.get("io").emit("log", `[cache] cleared ${cleared} cached file${cleared !== 1 ? "s" : ""} by admin`);
-    res.json({ success: true, cleared });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
-
-module.exports = { uploadFile, getFiles, downloadFile, deleteFile, clearCache };
+module.exports = { uploadFile, getFiles, downloadFile, deleteFile };
