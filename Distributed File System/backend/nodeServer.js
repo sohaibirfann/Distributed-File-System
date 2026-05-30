@@ -33,9 +33,9 @@ if (!fs.existsSync(STORAGE)) fs.mkdirSync(STORAGE, { recursive: true });
 
 app.post("/store-chunk", (req, res) => {
   try {
-    const { filename, chunkId, data } = req.body;
-    fs.writeFileSync(path.join(STORAGE, `${filename}_chunk_${chunkId}`), Buffer.from(data, "base64"));
-    console.log(`Stored chunk ${chunkId} for ${filename}`);
+    const { fileId, chunkId, data } = req.body;
+    fs.writeFileSync(path.join(STORAGE, `${fileId}_chunk_${chunkId}`), Buffer.from(data, "base64"));
+    console.log(`Stored chunk ${chunkId} for ${fileId}`);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -44,8 +44,8 @@ app.post("/store-chunk", (req, res) => {
 
 app.get("/get-chunk", (req, res) => {
   try {
-    const { filename, chunkId } = req.query;
-    const filePath = path.join(STORAGE, `${filename}_chunk_${chunkId}`);
+    const { fileId, chunkId } = req.query;
+    const filePath = path.join(STORAGE, `${fileId}_chunk_${chunkId}`);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Chunk not found" });
     res.json({ data: fs.readFileSync(filePath).toString("base64") });
   } catch (err) {
@@ -60,8 +60,8 @@ app.get("/stats", (req, res) => {
 
 app.post("/delete-chunk", (req, res) => {
   try {
-    const { filename, chunkId } = req.body;
-    const filePath = path.join(STORAGE, `${filename}_chunk_${chunkId}`);
+    const { fileId, chunkId } = req.body;
+    const filePath = path.join(STORAGE, `${fileId}_chunk_${chunkId}`);
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     res.json({ success: true });
   } catch (err) {

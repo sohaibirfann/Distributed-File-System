@@ -5,11 +5,13 @@ const path   = require("path");
 const crypto = require("crypto");
 
 const {
-  getFileWithChunks,
-  getAllFilesWithChunks,
+  getGroupFiles,
+  getGroupFileByName,
   deleteFileRecord,
   getNodeMap,
 } = require("../db");
+
+const { distributeFile } = require("../coordinator");
 
 const ENCRYPTION_KEY  = Buffer.from(process.env.ENCRYPTION_KEY, "hex");
 const SHARED_FOLDER   = path.join(__dirname, "../shared");
@@ -49,27 +51,21 @@ function evictCache(incomingBytes) {
 
 /*
 |--------------------------------------------------------------------------
-| Upload File — delegates to in-process coordinator
+| Upload File (group-scoped)
 |--------------------------------------------------------------------------
 */
 
 const uploadFile = (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: "No file uploaded" });
-    }
+    if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded" });
 
     const io           = req.app.get("io");
+    const groupId      = req.params.groupId;
     const filePath     = req.file.path;
     const originalName = req.file.originalname;
 
-    // Import here to avoid circular dep issues at module load time
-    const { distributeFile } = require("../coordinator");
-
-    distributeFile(filePath, originalName, io)
-      .then(() => {
-        res.json({ success: true, message: "File uploaded successfully" });
-      })
+    distributeFile(filePath, originalName, groupId, req.user.id, io)
+      .then(() => res.json({ success: true, message: "File uploaded successfully" }))
       .catch((err) => {
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         io.emit("upload-progress", { filename: originalName, error: err.message });
@@ -82,22 +78,20 @@ const uploadFile = (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
-| Get Files
+| List a group's files
 |--------------------------------------------------------------------------
 */
 
 const getFiles = (req, res) => {
   try {
-    const cachedSet = new Set(
-      fs.existsSync(SHARED_FOLDER) ? fs.readdirSync(SHARED_FOLDER) : [],
-    );
+    const cachedSet = new Set(fs.existsSync(SHARED_FOLDER) ? fs.readdirSync(SHARED_FOLDER) : []);
 
-    const files = getAllFilesWithChunks().map(({ filename, uploaded_at, total_size, chunks }) => ({
-      filename,
-      chunks:     chunks.length,
-      size:       total_size,
-      uploadedAt: uploaded_at,
-      cached:     cachedSet.has(filename),
+    const files = getGroupFiles(req.params.groupId).map((f) => ({
+      filename:   f.filename,
+      chunks:     f.chunk_count,
+      size:       f.total_size,
+      uploadedAt: f.uploaded_at,
+      cached:     cachedSet.has(f.id),
     }));
 
     res.json(files);
@@ -115,8 +109,12 @@ const getFiles = (req, res) => {
 
 const downloadFile = async (req, res) => {
   try {
-    const filename   = req.params.filename;
-    const cachedPath = path.join(SHARED_FOLDER, filename);
+    const { groupId, filename } = req.params;
+
+    const record = getGroupFileByName(groupId, filename);
+    if (!record) return res.status(404).json({ success: false, message: "File not found" });
+
+    const cachedPath = path.join(SHARED_FOLDER, record.id);
 
     if (fs.existsSync(cachedPath)) {
       const now = new Date();
@@ -127,15 +125,11 @@ const downloadFile = async (req, res) => {
       return fs.createReadStream(cachedPath).pipe(res);
     }
 
-    req.app.get("io").emit("log", `[cache miss] ${filename} · assembling from nodes`);
-
-    const record = getFileWithChunks(filename);
-    if (!record) return res.status(404).json({ success: false, message: "File not found" });
+    const io = req.app.get("io");
+    io.emit("log", `[cache miss] ${filename} · assembling from nodes`);
 
     const NODE_MAP = getNodeMap();
-    const io       = req.app.get("io");
 
-    // Fetch all chunks in parallel
     const chunkBuffers = await Promise.all(
       record.chunks.map(async (chunk) => {
         let integrityFailed = false;
@@ -146,7 +140,7 @@ const downloadFile = async (req, res) => {
 
           try {
             const response = await fetch(
-              `${nodeUrl}/get-chunk?filename=${filename}&chunkId=${chunk.chunkId}`,
+              `${nodeUrl}/get-chunk?fileId=${record.id}&chunkId=${chunk.chunkId}`,
               { signal: AbortSignal.timeout(3000) },
             );
             if (!response.ok) throw new Error();
@@ -209,8 +203,8 @@ const downloadFile = async (req, res) => {
 
 const deleteFile = async (req, res) => {
   try {
-    const filename = req.params.filename;
-    const record   = getFileWithChunks(filename);
+    const { groupId, filename } = req.params;
+    const record = getGroupFileByName(groupId, filename);
     if (!record) return res.status(404).json({ message: "File not found" });
 
     const NODE_MAP = getNodeMap();
@@ -226,7 +220,7 @@ const deleteFile = async (req, res) => {
             await fetch(`${nodeUrl}/delete-chunk`, {
               method:  "POST",
               headers: { "Content-Type": "application/json" },
-              body:    JSON.stringify({ filename, chunkId: chunk.chunkId }),
+              body:    JSON.stringify({ fileId: record.id, chunkId: chunk.chunkId }),
               signal:  AbortSignal.timeout(3000),
             });
           } catch {
@@ -236,9 +230,9 @@ const deleteFile = async (req, res) => {
       ),
     );
 
-    deleteFileRecord(filename);
+    deleteFileRecord(record.id);
 
-    const cachedPath = path.join(SHARED_FOLDER, filename);
+    const cachedPath = path.join(SHARED_FOLDER, record.id);
     if (fs.existsSync(cachedPath)) fs.unlinkSync(cachedPath);
 
     io.emit("log", `[delete] ${filename} · removed from all nodes and cache`);
@@ -251,7 +245,7 @@ const deleteFile = async (req, res) => {
 
 /*
 |--------------------------------------------------------------------------
-| Clear Cache
+| Clear Cache (global, admin) — cache is shared disk, not group-specific
 |--------------------------------------------------------------------------
 */
 

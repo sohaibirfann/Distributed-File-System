@@ -6,6 +6,7 @@ const { requireAuth } = require("../middleware/auth");
 const {
   createGroup,
   getGroup,
+  setGroupReplication,
   getUserGroups,
   isMember,
   getGroupMembers,
@@ -31,8 +32,15 @@ function requireMember(req, res, next) {
 router.post("/", (req, res) => {
   const name = (req.body.name || "").trim();
   if (!name) return res.status(400).json({ error: "name required" });
-  const group = createGroup(name, req.user.id);
+  const group = createGroup(name, req.user.id, req.body.replication);
   res.status(201).json(group);
+});
+
+// PATCH /api/groups/:id/replication — change the group's replication preset
+router.patch("/:id/replication", requireMember, (req, res) => {
+  const ok = setGroupReplication(req.params.id, req.body.replication);
+  if (!ok) return res.status(400).json({ error: "Invalid replication preset" });
+  res.json({ success: true, replication: req.body.replication });
 });
 
 // GET /api/groups — list the groups the current user belongs to

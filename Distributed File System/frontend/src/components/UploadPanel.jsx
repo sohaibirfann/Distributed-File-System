@@ -12,7 +12,7 @@ function formatSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
+export default function UploadPanel({ groupId, onUploadSuccess, initialFile = null }) {
   const notify = useNotify();
   const { token } = useAuth();
   const [file, setFile]                       = useState(initialFile);
@@ -61,7 +61,7 @@ export default function UploadPanel({ onUploadSuccess, initialFile = null }) {
     try {
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", `${API}/api/files/upload`);
+        xhr.open("POST", `${API}/api/groups/${groupId}/files/upload`);
         xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
         xhr.upload.addEventListener("progress", (e) => {

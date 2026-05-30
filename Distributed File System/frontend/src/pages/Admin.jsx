@@ -4,12 +4,10 @@ import { useTheme } from "../context/ThemeContext";
 import { useNotify } from "../context/NotificationContext";
 import { useAuth } from "../context/AuthContext";
 import {
-  LayoutDashboard, Files, Server, Terminal,
-  Moon, Sun, LogOut, Database, Upload,
+  LayoutDashboard, Server, Terminal,
+  Moon, Sun, LogOut, Database,
   HardDrive, Trash2, AlertTriangle, File, Users,
 } from "lucide-react";
-import FileTable from "../components/FileTable";
-import UploadPanel from "../components/UploadPanel";
 import NodesGrid from "../components/NodesGrid";
 import LogsPanel from "../components/LogsPanel";
 import { useApiStatus } from "../hooks/useApiStatus";
@@ -38,7 +36,6 @@ function fmtRelative(iso) {
 
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "files",    label: "Files",    icon: Files           },
   { id: "nodes",    label: "Nodes",    icon: Server          },
   { id: "logs",     label: "Logs",     icon: Terminal        },
 ];
@@ -285,46 +282,6 @@ function OverviewTab({ refresh, nodes }) {
   );
 }
 
-// ── Files ─────────────────────────────────────────────────────
-function FilesTab({ refresh, onRefresh, droppedFile }) {
-  const [showUpload, setShowUpload] = useState(false);
-
-  useEffect(() => {
-    if (droppedFile) setShowUpload(true);
-  }, [droppedFile]);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">All files</h2>
-          <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Upload, preview, download, or delete files</p>
-        </div>
-        <button
-          onClick={() => setShowUpload((v) => !v)}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
-            showUpload
-              ? "bg-white/60 dark:bg-neutral-800/60 text-gray-700 dark:text-neutral-300"
-              : "bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] text-white hover:-translate-y-0.5 active:translate-y-0"
-          }`}
-        >
-          <Upload size={14} />
-          {showUpload ? "Cancel" : "Upload file"}
-        </button>
-      </div>
-
-      {showUpload && (
-        <UploadPanel
-          initialFile={droppedFile}
-          onUploadSuccess={() => { onRefresh(); setShowUpload(false); }}
-        />
-      )}
-
-      <FileTable isAdmin={true} />
-    </div>
-  );
-}
-
 // ── Admin page ────────────────────────────────────────────────
 export default function Admin() {
   const { isDark, toggleTheme } = useTheme();
@@ -333,11 +290,8 @@ export default function Admin() {
   const apiStatus   = useApiStatus();
   const [active, setActive]   = useState("overview");
   const [refresh, setRefresh] = useState(false);
-  const [dragOver, setDragOver]       = useState(false);
-  const [droppedFile, setDroppedFile] = useState(null);
   const [nodes, setNodes]       = useState([]);
   const [nodesError, setNodesError] = useState(false);
-  const dragCount       = useRef(0);
   const tabRefs         = useRef({});
   const tabContentRefs  = useRef({});
   const [ind, setInd]   = useState({ left: 0, width: 0 });
@@ -345,10 +299,6 @@ export default function Admin() {
   useLayoutEffect(() => {
     const el = tabRefs.current[active];
     if (el) setInd({ left: el.offsetLeft, width: el.offsetWidth });
-  }, [active]);
-
-  useEffect(() => {
-    if (active !== "files") setDroppedFile(null);
   }, [active]);
 
   useEffect(() => {
@@ -376,43 +326,13 @@ export default function Admin() {
     }
   }
 
-  function handleDragEnter(e) {
-    if (!e.dataTransfer.types.includes("Files")) return;
-    e.preventDefault();
-    dragCount.current++;
-    setDragOver(true);
-  }
-  function handleDragOver(e) {
-    if (!e.dataTransfer.types.includes("Files")) return;
-    e.preventDefault();
-  }
-  function handleDragLeave(e) {
-    dragCount.current--;
-    if (dragCount.current === 0) setDragOver(false);
-  }
-  function handleDrop(e) {
-    e.preventDefault();
-    dragCount.current = 0;
-    setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
-    setDroppedFile(file);
-    handleTabSwitch("files");
-  }
-
   function handleExit() {
     logout();
     navigate("/");
   }
 
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      onDragEnter={handleDragEnter}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
+    <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-40 glass bg-white/40 dark:bg-neutral-950/45 border-b border-blue-100/60 dark:border-white/[0.06]">
         <div className="max-w-5xl mx-auto px-6">
           <div className="flex items-center justify-between" style={{ height: 56 }}>
@@ -487,9 +407,6 @@ export default function Admin() {
         <div ref={(el) => { tabContentRefs.current["overview"] = el; }} className="tab-content" style={{ display: active === "overview" ? "" : "none" }}>
           <OverviewTab refresh={refresh} nodes={nodes} />
         </div>
-        <div ref={(el) => { tabContentRefs.current["files"] = el; }} className="tab-content" style={{ display: active === "files" ? "" : "none" }}>
-          <FilesTab refresh={refresh} onRefresh={() => setRefresh((p) => !p)} droppedFile={droppedFile} />
-        </div>
         <div ref={(el) => { tabContentRefs.current["nodes"] = el; }} className="tab-content" style={{ display: active === "nodes" ? "" : "none" }}>
           <div className="space-y-4">
             <div>
@@ -509,19 +426,6 @@ export default function Admin() {
           </div>
         </div>
       </main>
-
-      {dragOver && (
-        <div className="fixed inset-0 z-50 pointer-events-none flex flex-col items-center justify-center gap-4
-          bg-blue-500/10 dark:bg-[#FF6363]/10 backdrop-blur-sm
-          border-4 border-dashed border-blue-400/70 dark:border-[#FF6363]/70
-          animate-[fadeIn_0.15s_ease-out]">
-          <div className="w-20 h-20 rounded-3xl bg-blue-100 dark:bg-[#FF6363]/15 flex items-center justify-center">
-            <Upload size={36} className="text-blue-500 dark:text-[#FF6363]" />
-          </div>
-          <p className="text-lg font-semibold text-blue-600 dark:text-[#FF6363]">Drop to upload</p>
-          <p className="text-sm text-blue-500/70 dark:text-[#FF6363]/60">The file dropped will be set up for upload.</p>
-        </div>
-      )}
     </div>
   );
 }

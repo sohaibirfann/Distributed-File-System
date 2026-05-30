@@ -23,19 +23,26 @@ db.exec(`
     created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
   );
 
+  -- Files belong to a group. Identified by a unique id (so same-name files in
+  -- different groups never collide), with a UNIQUE(group_id, filename) so a name
+  -- is unique *within* a group.
   CREATE TABLE IF NOT EXISTS files (
-    filename    TEXT PRIMARY KEY,
+    id          TEXT PRIMARY KEY,
+    group_id    TEXT    NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    filename    TEXT    NOT NULL,
     uploaded_at TEXT    NOT NULL DEFAULT (datetime('now')),
-    total_size  INTEGER NOT NULL DEFAULT 0
+    total_size  INTEGER NOT NULL DEFAULT 0,
+    uploaded_by INTEGER REFERENCES users(id),
+    UNIQUE(group_id, filename)
   );
 
   CREATE TABLE IF NOT EXISTS chunks (
     id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    filename TEXT    NOT NULL REFERENCES files(filename) ON DELETE CASCADE,
+    file_id  TEXT    NOT NULL REFERENCES files(id) ON DELETE CASCADE,
     chunk_id INTEGER NOT NULL,
     hash     TEXT    NOT NULL,
     size     INTEGER NOT NULL DEFAULT 0,
-    UNIQUE(filename, chunk_id)
+    UNIQUE(file_id, chunk_id)
   );
 
   CREATE TABLE IF NOT EXISTS chunk_nodes (
@@ -49,10 +56,11 @@ db.exec(`
   -- NO encryption-key column: the group key lives only on members' devices
   -- (carried via the invite). The coordinator never stores it.
   CREATE TABLE IF NOT EXISTS groups (
-    id         TEXT PRIMARY KEY,
-    name       TEXT    NOT NULL,
-    created_by INTEGER REFERENCES users(id),
-    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    id          TEXT PRIMARY KEY,
+    name        TEXT    NOT NULL,
+    created_by  INTEGER REFERENCES users(id),
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    replication TEXT    NOT NULL DEFAULT 'balanced'
   );
 
   CREATE TABLE IF NOT EXISTS group_members (
@@ -83,17 +91,19 @@ const stmts = {
   deleteNode:   db.prepare(`DELETE FROM nodes WHERE name = ?`),
   staleNodes:   db.prepare(`SELECT name FROM nodes WHERE last_seen < unixepoch() - ?`),
 
-  // Files
-  upsertFile:   db.prepare(`INSERT INTO files (filename, uploaded_at, total_size) VALUES (?, ?, ?)
-                             ON CONFLICT(filename) DO UPDATE SET uploaded_at = excluded.uploaded_at, total_size = excluded.total_size`),
-  getFile:      db.prepare(`SELECT * FROM files WHERE filename = ?`),
-  getAllFiles:  db.prepare(`SELECT * FROM files ORDER BY uploaded_at DESC`),
-  deleteFile:   db.prepare(`DELETE FROM files WHERE filename = ?`),
+  // Files (group-scoped, unique id)
+  insertFile:       db.prepare(`INSERT INTO files (id, group_id, filename, uploaded_at, total_size, uploaded_by) VALUES (?, ?, ?, ?, ?, ?)`),
+  deleteFileByName: db.prepare(`DELETE FROM files WHERE group_id = ? AND filename = ?`),
+  deleteFileById:   db.prepare(`DELETE FROM files WHERE id = ?`),
+  getFileByName:    db.prepare(`SELECT * FROM files WHERE group_id = ? AND filename = ?`),
+  groupFiles:       db.prepare(`SELECT f.*, (SELECT COUNT(*) FROM chunks c WHERE c.file_id = f.id) AS chunk_count
+                                  FROM files f WHERE f.group_id = ? ORDER BY f.uploaded_at DESC`),
+  allFiles:         db.prepare(`SELECT * FROM files ORDER BY uploaded_at DESC`),
 
   // Chunks
-  insertChunk:  db.prepare(`INSERT OR REPLACE INTO chunks (filename, chunk_id, hash, size) VALUES (?, ?, ?, ?)`),
-  getChunks:    db.prepare(`SELECT id, chunk_id, hash, size FROM chunks WHERE filename = ? ORDER BY chunk_id ASC`),
-  deleteChunks: db.prepare(`DELETE FROM chunks WHERE filename = ?`),
+  insertChunk:  db.prepare(`INSERT OR REPLACE INTO chunks (file_id, chunk_id, hash, size) VALUES (?, ?, ?, ?)`),
+  getChunks:    db.prepare(`SELECT id, chunk_id, hash, size FROM chunks WHERE file_id = ? ORDER BY chunk_id ASC`),
+  getChunkPk:   db.prepare(`SELECT id FROM chunks WHERE file_id = ? AND chunk_id = ?`),
 
   // Chunk nodes
   insertChunkNode: db.prepare(`INSERT OR IGNORE INTO chunk_nodes (chunk_pk, node_name) VALUES (?, ?)`),
@@ -105,9 +115,10 @@ const stmts = {
   countAdmins:      db.prepare(`SELECT COUNT(*) as n FROM users WHERE role = 'admin'`),
 
   // Groups
-  insertGroup:      db.prepare(`INSERT INTO groups (id, name, created_by) VALUES (?, ?, ?)`),
+  insertGroup:      db.prepare(`INSERT INTO groups (id, name, created_by, replication) VALUES (?, ?, ?, ?)`),
   getGroupById:     db.prepare(`SELECT * FROM groups WHERE id = ?`),
   deleteGroupById:  db.prepare(`DELETE FROM groups WHERE id = ?`),
+  setReplication:   db.prepare(`UPDATE groups SET replication = ? WHERE id = ?`),
   userGroups:       db.prepare(`SELECT g.* FROM groups g
                                   JOIN group_members m ON m.group_id = g.id
                                  WHERE m.user_id = ?
@@ -149,48 +160,49 @@ function deregisterStaleNodes(timeoutSeconds) {
 
 // ── File helpers ──────────────────────────────────────────────────────────────
 
-// chunks: [{ chunkId, hash, size, users: [nodeName, ...] }]
-const saveFile = db.transaction((filename, uploadedAt, chunks) => {
-  const totalSize = chunks.reduce((s, c) => s + c.size, 0);
-  stmts.upsertFile.run(filename, uploadedAt, totalSize);
-  stmts.deleteChunks.run(filename);
-
-  for (const chunk of chunks) {
-    stmts.insertChunk.run(filename, chunk.chunkId, chunk.hash, chunk.size);
-    const row = db.prepare(`SELECT id FROM chunks WHERE filename = ? AND chunk_id = ?`).get(filename, chunk.chunkId);
-    for (const nodeName of chunk.users) {
-      stmts.insertChunkNode.run(row.id, nodeName);
-    }
-  }
-});
-
-function getFileWithChunks(filename) {
-  const file = stmts.getFile.get(filename);
-  if (!file) return null;
-  const chunks = stmts.getChunks.all(filename).map((c) => ({
+function chunksOf(fileId) {
+  return stmts.getChunks.all(fileId).map((c) => ({
     chunkId: c.chunk_id,
     hash:    c.hash,
     size:    c.size,
     users:   stmts.getChunkNodes.all(c.id).map((r) => r.node_name),
   }));
-  return { ...file, chunks };
 }
 
+// Persists a file under a group. Replaces any existing file with the same name
+// in that group (cascade clears its old chunk rows). chunks: [{ chunkId, hash,
+// size, users: [nodeName, ...] }]
+const saveFile = db.transaction((fileId, groupId, filename, uploadedBy, uploadedAt, chunks) => {
+  const totalSize = chunks.reduce((s, c) => s + c.size, 0);
+  stmts.deleteFileByName.run(groupId, filename);
+  stmts.insertFile.run(fileId, groupId, filename, uploadedAt, totalSize, uploadedBy);
+
+  for (const chunk of chunks) {
+    stmts.insertChunk.run(fileId, chunk.chunkId, chunk.hash, chunk.size);
+    const row = stmts.getChunkPk.get(fileId, chunk.chunkId);
+    for (const nodeName of chunk.users) stmts.insertChunkNode.run(row.id, nodeName);
+  }
+});
+
+// Files in a group, with chunk_count, for listing.
+function getGroupFiles(groupId) {
+  return stmts.groupFiles.all(groupId);
+}
+
+// A single file in a group (by name) with its full chunk → node map.
+function getGroupFileByName(groupId, filename) {
+  const file = stmts.getFileByName.get(groupId, filename);
+  if (!file) return null;
+  return { ...file, chunks: chunksOf(file.id) };
+}
+
+// All files across all groups with chunks — used by the global health endpoint.
 function getAllFilesWithChunks() {
-  const files = stmts.getAllFiles.all();
-  return files.map((f) => {
-    const chunks = stmts.getChunks.all(f.filename).map((c) => ({
-      chunkId: c.chunk_id,
-      hash:    c.hash,
-      size:    c.size,
-      users:   stmts.getChunkNodes.all(c.id).map((r) => r.node_name),
-    }));
-    return { ...f, chunks };
-  });
+  return stmts.allFiles.all().map((f) => ({ ...f, chunks: chunksOf(f.id) }));
 }
 
-function deleteFileRecord(filename) {
-  stmts.deleteFile.run(filename); // cascades to chunks + chunk_nodes
+function deleteFileRecord(fileId) {
+  stmts.deleteFileById.run(fileId); // cascades to chunks + chunk_nodes
 }
 
 // ── User helpers ──────────────────────────────────────────────────────────────
@@ -209,16 +221,25 @@ function adminExists() {
 
 // ── Group helpers ─────────────────────────────────────────────────────────────
 
+const REPLICATION_PRESETS = ["minimal", "balanced", "max"];
+
 // Creates a group and adds its creator as the 'owner' member, atomically.
-const createGroup = db.transaction((name, createdByUserId) => {
+const createGroup = db.transaction((name, createdByUserId, replication = "balanced") => {
+  const preset = REPLICATION_PRESETS.includes(replication) ? replication : "balanced";
   const id = crypto.randomUUID();
-  stmts.insertGroup.run(id, name, createdByUserId);
+  stmts.insertGroup.run(id, name, createdByUserId, preset);
   stmts.addMember.run(id, createdByUserId, "owner");
-  return { id, name, created_by: createdByUserId };
+  return { id, name, created_by: createdByUserId, replication: preset };
 });
 
 function getGroup(id) {
   return stmts.getGroupById.get(id) || null;
+}
+
+function setGroupReplication(groupId, replication) {
+  if (!REPLICATION_PRESETS.includes(replication)) return false;
+  stmts.setReplication.run(replication, groupId);
+  return true;
 }
 
 function getUserGroups(userId) {
@@ -268,7 +289,8 @@ module.exports = {
   getNodeMap,
   deregisterStaleNodes,
   saveFile,
-  getFileWithChunks,
+  getGroupFiles,
+  getGroupFileByName,
   getAllFilesWithChunks,
   deleteFileRecord,
   createUser,
@@ -277,6 +299,7 @@ module.exports = {
   // groups
   createGroup,
   getGroup,
+  setGroupReplication,
   getUserGroups,
   isMember,
   addMember,

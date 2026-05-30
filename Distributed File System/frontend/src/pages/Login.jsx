@@ -18,7 +18,7 @@ export default function Login() {
   const [loading,  setLoading]  = useState(false);
 
   useEffect(() => {
-    if (user) navigate(user.role === "admin" ? "/admin" : "/user", { replace: true });
+    if (user) navigate(user.role === "admin" ? "/admin" : "/groups", { replace: true });
   }, [user]);
 
   function handleBack() {
@@ -38,7 +38,7 @@ export default function Login() {
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Login failed"); setLoading(false); return; }
       login(data.token);
-      navigate(data.role === "admin" ? "/admin" : "/user", { replace: true });
+      navigate(data.role === "admin" ? "/admin" : "/groups", { replace: true });
     } catch {
       setError("Could not reach server. Make sure the backend is running.");
       setLoading(false);

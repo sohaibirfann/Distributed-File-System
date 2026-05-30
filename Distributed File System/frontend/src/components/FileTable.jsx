@@ -84,7 +84,7 @@ function formatRelativeTime(iso) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export default function FileTable({ isAdmin = false }) {
+export default function FileTable({ groupId, canManage = false }) {
   const notify = useNotify();
   const { authFetch } = useAuth();
   const [files, setFiles]               = useState([]);
@@ -97,15 +97,18 @@ export default function FileTable({ isAdmin = false }) {
   const [previewContent, setPreviewContent] = useState("");
   const [previewUrl, setPreviewUrl]         = useState(null);
 
+  const base = `${API}/api/groups/${groupId}/files`;
+
   useEffect(() => {
+    if (!groupId) return;
     fetchFiles();
     const id = setInterval(fetchFiles, 3000);
     return () => clearInterval(id);
-  }, []);
+  }, [groupId]);
 
   async function fetchFiles() {
     try {
-      const res = await authFetch(`${API}/api/files`);
+      const res = await authFetch(base);
       setFiles(await res.json());
       setApiError(false);
     } catch {
@@ -116,7 +119,7 @@ export default function FileTable({ isAdmin = false }) {
   async function handleDownload(filename) {
     const id = notify.loading("Preparing download…");
     try {
-      const res = await authFetch(`${API}/api/files/download/${filename}`);
+      const res = await authFetch(`${base}/download/${encodeURIComponent(filename)}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || "Download failed");
@@ -147,7 +150,7 @@ export default function FileTable({ isAdmin = false }) {
     const type = getPreviewType(filename);
     const id   = notify.loading("Loading preview…");
     try {
-      const res = await authFetch(`${API}/api/files/download/${filename}`);
+      const res = await authFetch(`${base}/download/${encodeURIComponent(filename)}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || "Preview failed");
@@ -170,7 +173,7 @@ export default function FileTable({ isAdmin = false }) {
   async function handleDelete(filename) {
     setDeleting(true);
     try {
-      const res = await authFetch(`${API}/api/files/delete/${filename}`, { method: "DELETE" });
+      const res = await authFetch(`${base}/delete/${encodeURIComponent(filename)}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
       notify.success("File deleted");
       setFileToDelete(null);
@@ -282,7 +285,7 @@ export default function FileTable({ isAdmin = false }) {
                         </p>
                         {!search && (
                           <p className="text-xs text-gray-300 dark:text-neutral-600 mt-1">
-                            {isAdmin ? "Upload a file to get started" : "Check back later"}
+                            {canManage ? "Upload a file to get started" : "Check back later"}
                           </p>
                         )}
                       </>
@@ -353,7 +356,7 @@ export default function FileTable({ isAdmin = false }) {
                               <span className="hidden sm:inline">Preview</span>
                             </button>
                           )}
-                          {isAdmin && (
+                          {canManage && (
                             <button
                               onClick={() => setFileToDelete(file.filename)}
                               title="Delete"
