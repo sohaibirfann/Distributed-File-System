@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import {
   LayoutDashboard, Files, Server, Terminal,
   Moon, Sun, LogOut, Database, Upload,
-  HardDrive, Trash2, AlertTriangle, File,
+  HardDrive, Trash2, AlertTriangle, File, Users,
 } from "lucide-react";
 import FileTable from "../components/FileTable";
 import UploadPanel from "../components/UploadPanel";
@@ -435,6 +435,13 @@ export default function Admin() {
             </div>
 
             <div className="flex items-center gap-1">
+              <button
+                onClick={() => navigate("/groups")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-blue-50 dark:hover:bg-[#FF6363]/10 hover:text-blue-700 dark:hover:text-[#FF6363] transition-colors"
+              >
+                <Users size={13} />
+                Groups
+              </button>
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:text-neutral-500 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"

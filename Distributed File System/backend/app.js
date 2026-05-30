@@ -27,6 +27,7 @@ const fileRoutes   = require("./routes/fileRoutes");
 const healthRoutes = require("./routes/healthRoutes");
 const authRoutes   = require("./routes/authRoutes");
 const nodeRoutes   = require("./routes/nodeRoutes");
+const groupRoutes  = require("./routes/groupRoutes");
 
 const app    = express();
 const server = http.createServer(app);
@@ -45,6 +46,7 @@ app.use("/api/files",  fileRoutes);
 app.use("/api",        healthRoutes);
 app.use("/api/auth",   authRoutes);
 app.use("/api/nodes",  nodeRoutes);
+app.use("/api/groups", groupRoutes);
 
 app.get("/", (req, res) => res.json({ message: "Distributed File System API" }));
 

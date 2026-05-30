@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth }  from "../context/AuthContext";
-import { Moon, Sun, Database, LogOut } from "lucide-react";
+import { Moon, Sun, Database, LogOut, Users } from "lucide-react";
 import { useApiStatus } from "../hooks/useApiStatus";
 import FileTable from "../components/FileTable";
 
@@ -53,6 +53,13 @@ export default function User() {
                 <span className="font-semibold text-gray-800 dark:text-neutral-200">{stats.usersOnline}</span> nodes
               </span>
             </div>
+            <button
+              onClick={() => navigate("/groups")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-blue-50 dark:hover:bg-[#FF6363]/10 hover:text-blue-700 dark:hover:text-[#FF6363] border border-gray-200 dark:border-neutral-700 transition-colors"
+            >
+              <Users size={13} />
+              Groups
+            </button>
             <button
               onClick={toggleTheme}
               className="p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:text-neutral-500 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"

@@ -6,6 +6,7 @@ import Landing from "./pages/Landing";
 import Login   from "./pages/Login";
 import Admin   from "./pages/Admin";
 import User    from "./pages/User";
+import Groups  from "./pages/Groups";
 
 function RequireAuth({ children }) {
   const { token } = useAuth();
@@ -29,6 +30,7 @@ function App() {
             <Route path="/login"  element={<Login />} />
             <Route path="/admin"  element={<RequireAdmin><Admin /></RequireAdmin>} />
             <Route path="/user"   element={<RequireAuth><User /></RequireAuth>} />
+            <Route path="/groups" element={<RequireAuth><Groups /></RequireAuth>} />
             <Route path="*"       element={<Navigate to="/" replace />} />
           </Routes>
         </AuthProvider>
