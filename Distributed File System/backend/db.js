@@ -1,7 +1,9 @@
 const Database = require("better-sqlite3");
 const path     = require("path");
+const crypto   = require("crypto");
 
-const db = new Database(path.join(__dirname, "dfs.db"));
+const DB_PATH = process.env.DFS_DB_PATH || path.join(__dirname, "dfs.db");
+const db = new Database(DB_PATH);
 
 db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
@@ -41,6 +43,34 @@ db.exec(`
     node_name TEXT    NOT NULL,
     PRIMARY KEY (chunk_pk, node_name)
   );
+
+  -- ── Groups ──────────────────────────────────────────────────────────────
+  -- A group is a private, isolated namespace of members + files. Deliberately
+  -- NO encryption-key column: the group key lives only on members' devices
+  -- (carried via the invite). The coordinator never stores it.
+  CREATE TABLE IF NOT EXISTS groups (
+    id         TEXT PRIMARY KEY,
+    name       TEXT    NOT NULL,
+    created_by INTEGER REFERENCES users(id),
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS group_members (
+    group_id  TEXT    NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    user_id   INTEGER NOT NULL REFERENCES users(id)  ON DELETE CASCADE,
+    role      TEXT    NOT NULL DEFAULT 'member',
+    joined_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (group_id, user_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS invites (
+    code       TEXT PRIMARY KEY,
+    group_id   TEXT    NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    created_by INTEGER REFERENCES users(id),
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    expires_at TEXT,
+    revoked    INTEGER NOT NULL DEFAULT 0
+  );
 `);
 
 // ── Nodes ─────────────────────────────────────────────────────────────────────
@@ -73,6 +103,27 @@ const stmts = {
   createUser:       db.prepare(`INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)`),
   getUserByName:    db.prepare(`SELECT * FROM users WHERE username = ?`),
   countAdmins:      db.prepare(`SELECT COUNT(*) as n FROM users WHERE role = 'admin'`),
+
+  // Groups
+  insertGroup:      db.prepare(`INSERT INTO groups (id, name, created_by) VALUES (?, ?, ?)`),
+  getGroupById:     db.prepare(`SELECT * FROM groups WHERE id = ?`),
+  deleteGroupById:  db.prepare(`DELETE FROM groups WHERE id = ?`),
+  userGroups:       db.prepare(`SELECT g.* FROM groups g
+                                  JOIN group_members m ON m.group_id = g.id
+                                 WHERE m.user_id = ?
+                                 ORDER BY g.created_at`),
+
+  // Group members
+  addMember:        db.prepare(`INSERT OR IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)`),
+  getMember:        db.prepare(`SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?`),
+  listMembers:      db.prepare(`SELECT m.user_id, m.role, m.joined_at, u.username
+                                  FROM group_members m JOIN users u ON u.id = m.user_id
+                                 WHERE m.group_id = ? ORDER BY m.joined_at`),
+
+  // Invites
+  insertInvite:     db.prepare(`INSERT INTO invites (code, group_id, created_by, expires_at) VALUES (?, ?, ?, ?)`),
+  getInviteByCode:  db.prepare(`SELECT * FROM invites WHERE code = ?`),
+  revokeInviteCode: db.prepare(`UPDATE invites SET revoked = 1 WHERE code = ?`),
 };
 
 // ── Node helpers ──────────────────────────────────────────────────────────────
@@ -156,6 +207,60 @@ function adminExists() {
   return stmts.countAdmins.get().n > 0;
 }
 
+// ── Group helpers ─────────────────────────────────────────────────────────────
+
+// Creates a group and adds its creator as the 'owner' member, atomically.
+const createGroup = db.transaction((name, createdByUserId) => {
+  const id = crypto.randomUUID();
+  stmts.insertGroup.run(id, name, createdByUserId);
+  stmts.addMember.run(id, createdByUserId, "owner");
+  return { id, name, created_by: createdByUserId };
+});
+
+function getGroup(id) {
+  return stmts.getGroupById.get(id) || null;
+}
+
+function getUserGroups(userId) {
+  return stmts.userGroups.all(userId);
+}
+
+function isMember(groupId, userId) {
+  return !!stmts.getMember.get(groupId, userId);
+}
+
+function addMember(groupId, userId, role = "member") {
+  stmts.addMember.run(groupId, userId, role);
+}
+
+function getGroupMembers(groupId) {
+  return stmts.listMembers.all(groupId);
+}
+
+function deleteGroup(id) {
+  stmts.deleteGroupById.run(id); // cascades to members, invites
+}
+
+// ── Invite helpers ────────────────────────────────────────────────────────────
+
+function createInvite(groupId, createdByUserId, expiresAt = null) {
+  const code = crypto.randomBytes(9).toString("base64url"); // ~12 url-safe chars
+  stmts.insertInvite.run(code, groupId, createdByUserId, expiresAt);
+  return code;
+}
+
+// Returns the invite row only if it exists, is not revoked, and not expired.
+function getValidInvite(code) {
+  const row = stmts.getInviteByCode.get(code);
+  if (!row || row.revoked) return null;
+  if (row.expires_at && new Date(row.expires_at) < new Date()) return null;
+  return row;
+}
+
+function revokeInvite(code) {
+  stmts.revokeInviteCode.run(code);
+}
+
 module.exports = {
   db,
   registerNode,
@@ -169,4 +274,16 @@ module.exports = {
   createUser,
   getUserByUsername,
   adminExists,
+  // groups
+  createGroup,
+  getGroup,
+  getUserGroups,
+  isMember,
+  addMember,
+  getGroupMembers,
+  deleteGroup,
+  // invites
+  createInvite,
+  getValidInvite,
+  revokeInvite,
 };
