@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, shell, dialog } = require("electron");
 const path = require("path");
 const fs   = require("fs");
 
@@ -70,6 +70,43 @@ ipcMain.on("win:toggle-maximize", (e) => {
 });
 ipcMain.on("win:close",   (e) => BrowserWindow.fromWebContents(e.sender)?.close());
 ipcMain.handle("win:is-maximized", (e) => BrowserWindow.fromWebContents(e.sender)?.isMaximized() ?? false);
+
+// ── Settings store (JSON in userData) ───────────────────────────────────────
+function settingsFile() {
+  return path.join(app.getPath("userData"), "settings.json");
+}
+function defaultSettings() {
+  return {
+    contribute: false,
+    storageDir: path.join(app.getPath("userData"), "storage"),
+    quotaGB: 5,
+  };
+}
+function readSettings() {
+  try { return { ...defaultSettings(), ...JSON.parse(fs.readFileSync(settingsFile(), "utf8")) }; }
+  catch { return defaultSettings(); }
+}
+function writeSettings(next) {
+  const merged = { ...readSettings(), ...next };
+  try { fs.writeFileSync(settingsFile(), JSON.stringify(merged, null, 2)); } catch { /* ignore */ }
+  return merged;
+}
+
+ipcMain.handle("settings:get", () => readSettings());
+ipcMain.handle("settings:set", (_e, partial) => writeSettings(partial || {}));
+
+ipcMain.handle("dialog:pick-folder", async (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const res = await dialog.showOpenDialog(win, { properties: ["openDirectory", "createDirectory"] });
+  return res.canceled ? null : res.filePaths[0];
+});
+
+// Start-with-OS is managed by Electron's login-item settings, not our JSON.
+ipcMain.handle("startup:get", () => app.getLoginItemSettings().openAtLogin);
+ipcMain.handle("startup:set", (_e, enabled) => {
+  app.setLoginItemSettings({ openAtLogin: !!enabled });
+  return app.getLoginItemSettings().openAtLogin;
+});
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null); // no default OS menu — chrome is fully custom

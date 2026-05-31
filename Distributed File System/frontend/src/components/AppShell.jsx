@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { Outlet, useNavigate, useParams } from "react-router-dom";
+import { Outlet, useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTheme }  from "../context/ThemeContext";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { createKeyForGroup, storeKeyB64, parseInvite } from "../lib/groupKeys";
 import {
-  Database, Users, Plus, LogIn, Moon, Sun, LogOut, X,
+  Database, Users, Plus, LogIn, Moon, Sun, LogOut, X, Settings,
   PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 
@@ -25,6 +25,8 @@ export default function AppShell() {
   const notify                      = useNotify();
   const navigate                    = useNavigate();
   const { id: activeId }            = useParams();
+  const location                    = useLocation();
+  const onSettings                  = location.pathname === "/settings";
 
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("dfs_sidebar_collapsed") === "1",
@@ -156,6 +158,18 @@ export default function AppShell() {
               Signed in as <span className="font-semibold text-gray-600 dark:text-neutral-300">{user.username}</span>
             </div>
           )}
+          <button
+            onClick={() => navigate("/settings")}
+            title={collapsed ? "Settings" : undefined}
+            className={`w-full flex items-center gap-2.5 rounded-xl transition-colors ${collapsed ? "justify-center p-2" : "px-2.5 py-2"} ${
+              onSettings
+                ? "bg-blue-100/70 dark:bg-[#FF6363]/15 text-blue-700 dark:text-[#FF6363]"
+                : "text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800/70"
+            }`}
+          >
+            <div className="w-7 h-7 flex items-center justify-center shrink-0"><Settings size={15} /></div>
+            {!collapsed && <span className="text-sm font-medium">Settings</span>}
+          </button>
           <button
             onClick={toggleTheme}
             title={collapsed ? "Theme" : undefined}

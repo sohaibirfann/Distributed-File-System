@@ -7,6 +7,7 @@ import Login      from "./pages/Login";
 import AppShell   from "./components/AppShell";
 import GroupsHome from "./pages/GroupsHome";
 import GroupView  from "./pages/GroupView";
+import Settings   from "./pages/Settings";
 import TitleBar   from "./components/TitleBar";
 import { isDesktop } from "./lib/platform";
 
@@ -38,6 +39,7 @@ function App() {
             <Route element={<RequireApp><RequireAuth><AppShell /></RequireAuth></RequireApp>}>
               <Route path="/groups"     element={<GroupsHome />} />
               <Route path="/groups/:id" element={<GroupView />} />
+              <Route path="/settings"   element={<Settings />} />
             </Route>
             <Route path="/admin"      element={<Navigate to="/groups" replace />} />
             <Route path="/user"       element={<Navigate to="/groups" replace />} />

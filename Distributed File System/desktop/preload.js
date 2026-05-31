@@ -16,4 +16,11 @@ contextBridge.exposeInMainWorld("dfsDesktop", {
       return () => ipcRenderer.removeListener("win:maximized", handler);
     },
   },
+  settings: {
+    get:        ()        => ipcRenderer.invoke("settings:get"),
+    set:        (partial) => ipcRenderer.invoke("settings:set", partial),
+    pickFolder: ()        => ipcRenderer.invoke("dialog:pick-folder"),
+    getStartup: ()        => ipcRenderer.invoke("startup:get"),
+    setStartup: (enabled) => ipcRenderer.invoke("startup:set", enabled),
+  },
 });

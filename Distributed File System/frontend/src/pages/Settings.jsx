@@ -1,0 +1,170 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTheme }  from "../context/ThemeContext";
+import { useAuth }   from "../context/AuthContext";
+import { useNotify } from "../context/NotificationContext";
+import { isDesktop } from "../lib/platform";
+import {
+  SlidersHorizontal, User, Power, HardDrive, Server, FolderOpen, LogOut,
+} from "lucide-react";
+
+const API     = import.meta.env.VITE_API_URL;
+const desktop = isDesktop();
+const settingsApi = () => window.dfsDesktop?.settings;
+
+function Switch({ checked, onChange, disabled }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative w-10 h-6 rounded-full transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${
+        checked ? "bg-blue-600 dark:bg-[#FF6363]" : "bg-gray-300 dark:bg-neutral-700"
+      }`}
+    >
+      <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-4" : ""}`} />
+    </button>
+  );
+}
+
+function Section({ icon: Icon, title, children }) {
+  return (
+    <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 p-5">
+      <div className="flex items-center gap-2 mb-4 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-neutral-400">
+        <Icon size={13} /> {title}
+      </div>
+      <div className="space-y-4">{children}</div>
+    </div>
+  );
+}
+
+function Row({ label, hint, children }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-gray-800 dark:text-neutral-200">{label}</p>
+        {hint && <p className="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">{hint}</p>}
+      </div>
+      <div className="shrink-0">{children}</div>
+    </div>
+  );
+}
+
+export default function Settings() {
+  const { isDark, toggleTheme } = useTheme();
+  const { user, logout }        = useAuth();
+  const notify                  = useNotify();
+  const navigate                = useNavigate();
+
+  const [cfg, setCfg]         = useState(null);   // desktop settings
+  const [startup, setStartup] = useState(false);
+
+  useEffect(() => {
+    const s = settingsApi();
+    if (!s) return;
+    s.get().then(setCfg).catch(() => {});
+    s.getStartup().then(setStartup).catch(() => {});
+  }, []);
+
+  async function patch(partial) {
+    const s = settingsApi();
+    if (!s) return;
+    const next = await s.set(partial);
+    setCfg(next);
+  }
+
+  async function toggleStartup(val) {
+    const s = settingsApi();
+    if (!s) return;
+    setStartup(await s.setStartup(val));
+  }
+
+  async function changeFolder() {
+    const s = settingsApi();
+    if (!s) return;
+    const dir = await s.pickFolder();
+    if (dir) { await patch({ storageDir: dir }); notify.success("Storage folder updated"); }
+  }
+
+  return (
+    <div className="max-w-3xl w-full mx-auto px-6 py-8 space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
+
+      {/* Appearance */}
+      <Section icon={SlidersHorizontal} title="Appearance">
+        <Row label="Dark mode" hint="Switch between light and dark themes">
+          <Switch checked={isDark} onChange={toggleTheme} />
+        </Row>
+      </Section>
+
+      {/* Account */}
+      <Section icon={User} title="Account">
+        <Row label="Signed in as" hint="Your username on this coordinator">
+          <span className="text-sm font-semibold text-gray-800 dark:text-neutral-200">{user?.username ?? "—"}</span>
+        </Row>
+        <Row label="Sign out" hint="Return to the login screen">
+          <button
+            onClick={() => { logout(); navigate("/"); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-[#FF6363]/10 border border-gray-200 dark:border-neutral-700 transition-colors"
+          >
+            <LogOut size={13} /> Sign out
+          </button>
+        </Row>
+      </Section>
+
+      {/* Startup (desktop only) */}
+      <Section icon={Power} title="Startup">
+        <Row label="Start DFS when I sign in" hint={desktop ? "Launch the app automatically on login" : "Available in the desktop app"}>
+          <Switch checked={startup} onChange={toggleStartup} disabled={!desktop} />
+        </Row>
+      </Section>
+
+      {/* Storage contribution (desktop only) */}
+      <Section icon={HardDrive} title="Storage contribution">
+        <Row label="Contribute storage" hint={desktop ? "Let this device hold encrypted chunks for your groups" : "Available in the desktop app"}>
+          <Switch checked={!!cfg?.contribute} onChange={(v) => patch({ contribute: v })} disabled={!desktop} />
+        </Row>
+        <Row label="Storage folder" hint={cfg?.storageDir ?? "Where chunks are stored on this device"}>
+          <button
+            onClick={changeFolder}
+            disabled={!desktop}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 border border-gray-200 dark:border-neutral-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <FolderOpen size={13} /> Change…
+          </button>
+        </Row>
+        <Row label="Space to contribute" hint="Maximum disk this device will use">
+          <div className="flex items-center gap-2">
+            <input
+              type="number" min="1" max="500"
+              value={cfg?.quotaGB ?? 5}
+              disabled={!desktop}
+              onChange={(e) => setCfg((c) => ({ ...c, quotaGB: Number(e.target.value) }))}
+              onBlur={(e) => patch({ quotaGB: Number(e.target.value) })}
+              className="w-20 px-2.5 py-1.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-lg text-sm text-right text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[#FF6363] disabled:opacity-40"
+            />
+            <span className="text-sm text-gray-400 dark:text-neutral-500">GB</span>
+          </div>
+        </Row>
+        {desktop && (
+          <p className="text-xs text-amber-600/90 dark:text-amber-400/80 bg-amber-50 dark:bg-amber-500/10 rounded-lg px-3 py-2">
+            Your node starts contributing once peer-to-peer networking ships — these preferences are saved and ready.
+          </p>
+        )}
+      </Section>
+
+      {/* Coordinator */}
+      <Section icon={Server} title="Coordinator">
+        <Row label="Server" hint="The coordinator this app connects to">
+          <span className="text-xs font-mono text-gray-600 dark:text-neutral-300 truncate max-w-[200px]">{API}</span>
+        </Row>
+      </Section>
+
+      {desktop && window.dfsDesktop?.version && (
+        <p className="text-center text-xs text-gray-400 dark:text-neutral-600">DFS desktop v{window.dfsDesktop.version}</p>
+      )}
+    </div>
+  );
+}
