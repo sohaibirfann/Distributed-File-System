@@ -11,6 +11,14 @@ import {
 
 const API = import.meta.env.VITE_API_URL;
 
+// Deterministic per-group color so each group keeps a stable visual identity.
+const PALETTE = ["#6366f1", "#10b981", "#f59e0b", "#f43f5e", "#0ea5e9", "#8b5cf6", "#14b8a6", "#f97316", "#ec4899", "#84cc16"];
+function colorFor(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return PALETTE[h % PALETTE.length];
+}
+
 export default function AppShell() {
   const { isDark, toggleTheme }     = useTheme();
   const { logout, authFetch, user } = useAuth();
@@ -39,6 +47,18 @@ export default function AppShell() {
       return !c;
     });
   }
+
+  // Ctrl/Cmd+B toggles the sidebar.
+  useEffect(() => {
+    function onKey(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleCollapsed();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -83,15 +103,19 @@ export default function AppShell() {
                   key={g.id}
                   onClick={() => navigate(`/groups/${g.id}`)}
                   title={collapsed ? g.name : undefined}
-                  className={`w-full flex items-center gap-2.5 rounded-xl transition-colors ${collapsed ? "justify-center p-2" : "px-2.5 py-2"} ${
+                  className={`relative w-full flex items-center gap-2.5 rounded-xl transition-colors ${collapsed ? "justify-center p-2" : "px-2.5 py-2"} ${
                     active
                       ? "bg-blue-100/70 dark:bg-[#FF6363]/15 text-blue-700 dark:text-[#FF6363]"
                       : "text-gray-600 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800/70"
                   }`}
                 >
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${
-                    active ? "bg-blue-600 dark:bg-[#FF6363] text-white" : "bg-gray-200/70 dark:bg-neutral-800 text-gray-500 dark:text-neutral-400"
-                  }`}>
+                  {active && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-blue-600 dark:bg-[#FF6363]" />
+                  )}
+                  <div
+                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold text-white"
+                    style={{ backgroundColor: colorFor(g.id) }}
+                  >
                     {g.name.slice(0, 1).toUpperCase()}
                   </div>
                   {!collapsed && <span className="text-sm font-medium truncate">{g.name}</span>}
