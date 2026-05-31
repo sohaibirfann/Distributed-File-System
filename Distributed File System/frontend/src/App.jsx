@@ -6,6 +6,7 @@ import Landing   from "./pages/Landing";
 import Login     from "./pages/Login";
 import Groups    from "./pages/Groups";
 import GroupView from "./pages/GroupView";
+import { isDesktop } from "./lib/platform";
 
 function RequireAuth({ children }) {
   const { token } = useAuth();
@@ -18,7 +19,7 @@ function App() {
       <NotificationProvider>
         <AuthProvider>
           <Routes>
-            <Route path="/"       element={<Landing />} />
+            <Route path="/"       element={isDesktop() ? <Navigate to="/login" replace /> : <Landing />} />
             <Route path="/login"  element={<Login />} />
             <Route path="/groups"     element={<RequireAuth><Groups /></RequireAuth>} />
             <Route path="/groups/:id" element={<RequireAuth><GroupView /></RequireAuth>} />

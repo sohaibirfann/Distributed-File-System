@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth }  from "../context/AuthContext";
 import { Database, Sun, Moon, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { isDesktop } from "../lib/platform";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -78,13 +79,15 @@ export default function Login() {
 
   return (
     <div className="relative min-h-screen flex flex-col">
-      <button
-        onClick={() => navigate("/")}
-        className="absolute top-4 left-4 z-10 flex items-center gap-1.5 p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors text-xs font-medium"
-      >
-        <ArrowLeft size={14} />
-        Back
-      </button>
+      {!isDesktop() && (
+        <button
+          onClick={() => navigate("/")}
+          className="absolute top-4 left-4 z-10 flex items-center gap-1.5 p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors text-xs font-medium"
+        >
+          <ArrowLeft size={14} />
+          Back
+        </button>
+      )}
       <button
         onClick={toggleTheme}
         className="absolute top-4 right-4 z-10 p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
