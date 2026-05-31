@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNotify } from "../context/NotificationContext";
 import { useAuth }   from "../context/AuthContext";
+import { loadKey }     from "../lib/groupKeys";
+import { decryptBytes } from "../lib/crypto";
 import {
   Download, Eye, Trash2, Search, X, AlertTriangle, WifiOff,
   FileText, Image, Film, Music, Archive, Code, File, HardDrive,
@@ -117,15 +119,25 @@ export default function FileTable({ groupId, canManage = false }) {
   }
 
   async function handleDownload(filename) {
-    const id = notify.loading("Preparing download…");
+    const id = notify.loading("Downloading…");
     try {
+      const key = await loadKey(groupId);
+      if (!key) throw new Error("This device doesn't hold this group's key");
+
       const res = await authFetch(`${base}/download/${encodeURIComponent(filename)}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || "Download failed");
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+
+      let plain;
+      try {
+        plain = await decryptBytes(key, await res.arrayBuffer());
+      } catch {
+        throw new Error("Could not decrypt — wrong or missing key");
+      }
+
+      const url = URL.createObjectURL(new Blob([plain]));
       const a = document.createElement("a");
       a.href = url; a.download = filename;
       document.body.appendChild(a); a.click(); a.remove();
@@ -150,16 +162,26 @@ export default function FileTable({ groupId, canManage = false }) {
     const type = getPreviewType(filename);
     const id   = notify.loading("Loading preview…");
     try {
+      const key = await loadKey(groupId);
+      if (!key) throw new Error("This device doesn't hold this group's key");
+
       const res = await authFetch(`${base}/download/${encodeURIComponent(filename)}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || "Preview failed");
       }
+
+      let plain;
+      try {
+        plain = await decryptBytes(key, await res.arrayBuffer());
+      } catch {
+        throw new Error("Could not decrypt — wrong or missing key");
+      }
+
       if (type === "image") {
-        const blob = await res.blob();
-        setPreviewUrl(URL.createObjectURL(blob));
+        setPreviewUrl(URL.createObjectURL(new Blob([plain])));
       } else {
-        setPreviewContent(await res.text());
+        setPreviewContent(new TextDecoder().decode(plain));
       }
       setPreviewType(type);
       setPreviewFile(filename);

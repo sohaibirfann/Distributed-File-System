@@ -5,6 +5,7 @@ import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import FileTable   from "../components/FileTable";
 import UploadPanel from "../components/UploadPanel";
+import { buildInvite, getKeyB64 } from "../lib/groupKeys";
 import {
   Database, Moon, Sun, ArrowLeft, Users, Crown, UserPlus,
   Copy, Check, Upload, Shield,
@@ -45,13 +46,20 @@ export default function GroupView() {
   }
 
   async function mintInvite() {
+    const keyB64 = getKeyB64(id);
+    if (!keyB64) {
+      notify.error("This device doesn't hold this group's key, so it can't create an invite");
+      return;
+    }
     try {
       const res  = await authFetch(`${API}/api/groups/${id}/invites`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
       });
       const data = await res.json();
       if (!res.ok) throw new Error();
-      setInviteCode(data.code);
+      // The shareable invite carries the group key after '#'; the join flow keeps
+      // it client-side and only sends the join code to the server.
+      setInviteCode(buildInvite(data.code, keyB64));
       setCopied(false);
     } catch { notify.error("Couldn't create invite"); }
   }

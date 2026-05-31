@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { io } from "socket.io-client";
 import { useNotify } from "../context/NotificationContext";
 import { useAuth }   from "../context/AuthContext";
+import { loadKey }     from "../lib/groupKeys";
+import { encryptBytes } from "../lib/crypto";
 import { Upload, X, FileIcon, CheckCircle } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
@@ -40,10 +42,23 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFile = nu
     if (!file) return notify.error("Select a file first");
     if (file.size > 500 * 1024 * 1024) return notify.error("File too large (max 500 MB)");
 
-    const id = notify.loading("Uploading…");
-    const form = new FormData();
-    form.append("file", file);
+    const key = await loadKey(groupId);
+    if (!key) return notify.error("This device doesn't hold this group's key");
+
+    const id = notify.loading("Encrypting…");
     const filename = file.name;
+
+    // Encrypt the whole file on-device; the server only ever sees ciphertext.
+    let cipher;
+    try {
+      cipher = await encryptBytes(key, await file.arrayBuffer());
+    } catch {
+      notify.dismiss(id);
+      return notify.error("Encryption failed");
+    }
+
+    const form = new FormData();
+    form.append("file", new Blob([cipher], { type: "application/octet-stream" }), filename);
 
     setUploading(true);
     setProgress(0);

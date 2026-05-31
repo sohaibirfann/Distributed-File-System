@@ -1,11 +1,7 @@
 require("dotenv").config();
 
-if (!process.env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY.length !== 64) {
-  console.error("ERROR: ENCRYPTION_KEY missing or invalid in .env — must be a 64-char hex string");
-  console.error("Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"");
-  process.exit(1);
-}
-
+// Note: files are encrypted client-side with per-group keys — the coordinator
+// never holds an encryption key. Only JWT and the node secret are needed here.
 if (!process.env.JWT_SECRET) {
   console.error("ERROR: JWT_SECRET missing in .env");
   process.exit(1);

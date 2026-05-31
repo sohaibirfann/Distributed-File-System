@@ -6,6 +6,7 @@ import { useNotify } from "../context/NotificationContext";
 import {
   Database, Moon, Sun, LogOut, Users, Plus, LogIn,
 } from "lucide-react";
+import { createKeyForGroup, storeKeyB64, parseInvite } from "../lib/groupKeys";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -46,6 +47,9 @@ export default function Groups() {
         body:    JSON.stringify({ name: newName.trim() }),
       });
       if (!res.ok) throw new Error();
+      const group = await res.json();
+      // Generate this group's encryption key on-device; it never goes to the server.
+      await createKeyForGroup(group.id);
       notify.success(`Group "${newName.trim()}" created`);
       setNewName("");
       fetchGroups();
@@ -59,15 +63,20 @@ export default function Groups() {
   async function handleJoin(e) {
     e.preventDefault();
     if (!joinCode.trim()) return;
+    const { joinCode: code, keyB64 } = parseInvite(joinCode);
+    if (!keyB64) { notify.error("Invalid invite — the key is missing from the code"); return; }
+
     setJoining(true);
     try {
       const res  = await authFetch(`${API}/api/groups/join`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ code: joinCode.trim() }),
+        body:    JSON.stringify({ code }),
       });
       const data = await res.json();
       if (!res.ok) { notify.error(data.error || "Couldn't join"); return; }
+      // Persist the group key carried in the invite (never sent to the server).
+      storeKeyB64(data.id, keyB64);
       notify.success(`Joined "${data.name}"`);
       setJoinCode("");
       fetchGroups();

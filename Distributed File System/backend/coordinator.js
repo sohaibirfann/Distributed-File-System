@@ -6,8 +6,7 @@ const path   = require("path");
 
 const { saveFile, getGroupFileByName, getGroup, getNodeMap } = require("./db");
 
-const CHUNK_SIZE     = 512 * 1024; // 512 KB
-const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, "hex");
+const CHUNK_SIZE = 512 * 1024; // 512 KB
 
 // Replication presets → how many copies of each chunk to store.
 // Capped to the number of nodes actually online ('max' = all of them).
@@ -16,13 +15,6 @@ const PRESET_COPIES = { minimal: 2, balanced: 3, max: Infinity };
 function replicaCount(preset, nodeCount) {
   const want = PRESET_COPIES[preset] ?? PRESET_COPIES.balanced;
   return Math.max(1, Math.min(want, nodeCount));
-}
-
-function encrypt(buffer) {
-  const iv     = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv("aes-256-gcm", ENCRYPTION_KEY, iv);
-  const enc    = Buffer.concat([cipher.update(buffer), cipher.final()]);
-  return Buffer.concat([iv, cipher.getAuthTag(), enc]).toString("base64");
 }
 
 function chunkFile(filePath) {
@@ -88,14 +80,16 @@ async function distributeFile(filePath, filename, groupId, uploadedBy, io) {
     }
 
     let storedCount = 0;
-    const encrypted = encrypt(chunk.data);
+    // The uploaded file is already ciphertext (encrypted client-side); the
+    // coordinator just chunks and relays it — it never holds a key.
+    const payload = chunk.data.toString("base64");
 
     for (const user of replicaUsers) {
       try {
         const res = await fetch(`${NODE_MAP[user]}/store-chunk`, {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ fileId, chunkId: chunk.chunkId, data: encrypted }),
+          body:    JSON.stringify({ fileId, chunkId: chunk.chunkId, data: payload }),
           signal:  AbortSignal.timeout(5000),
         });
         if (!res.ok) throw new Error(`Node responded ${res.status}`);

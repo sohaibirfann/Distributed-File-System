@@ -13,19 +13,8 @@ const {
 
 const { distributeFile } = require("../coordinator");
 
-const ENCRYPTION_KEY  = Buffer.from(process.env.ENCRYPTION_KEY, "hex");
 const SHARED_FOLDER   = path.join(__dirname, "../shared");
 const CACHE_MAX_BYTES = 200 * 1024 * 1024; // 200 MB
-
-function decrypt(b64) {
-  const buf     = Buffer.from(b64, "base64");
-  const iv      = buf.slice(0, 12);
-  const authTag = buf.slice(12, 28);
-  const enc     = buf.slice(28);
-  const decipher = crypto.createDecipheriv("aes-256-gcm", ENCRYPTION_KEY, iv);
-  decipher.setAuthTag(authTag);
-  return Buffer.concat([decipher.update(enc), decipher.final()]);
-}
 
 function clientIP(req) {
   return (req.ip || "").replace(/^::ffff:/, "") || "unknown";
@@ -146,24 +135,18 @@ const downloadFile = async (req, res) => {
             if (!response.ok) throw new Error();
 
             const { data } = await response.json();
+            const buf = Buffer.from(data, "base64");
 
-            let decrypted;
-            try {
-              decrypted = decrypt(data);
-            } catch {
-              io.emit("log", `[integrity] chunk ${chunk.chunkId} from ${user} failed decryption — trying next replica`);
-              integrityFailed = true;
-              continue;
-            }
-
-            const actualHash = crypto.createHash("sha256").update(decrypted).digest("hex");
+            // Integrity check on the (encrypted) chunk — detects a corrupted or
+            // tampered replica before we bother returning it.
+            const actualHash = crypto.createHash("sha256").update(buf).digest("hex");
             if (actualHash !== chunk.hash) {
               io.emit("log", `[integrity] chunk ${chunk.chunkId} from ${user} failed hash check — trying next replica`);
               integrityFailed = true;
               continue;
             }
 
-            return decrypted;
+            return buf;
           } catch {}
         }
 
