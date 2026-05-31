@@ -1,71 +1,63 @@
-import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
-import { useAuth }  from "../context/AuthContext";
 import {
   Database, ShieldCheck, Zap, Server, HardDrive,
-  Users, ArrowRight, Download, Moon, Sun,
-  Lock, GitBranch, Activity, Globe,
+  Users, Download, Moon, Sun,
+  Lock, GitBranch, KeyRound,
 } from "lucide-react";
 
 const FEATURES = [
   {
     icon: Lock,
-    title: "AES-256-GCM Encrypted",
-    desc: "Every chunk is encrypted with a unique IV before leaving the backend. Nodes store only ciphertext — the key never leaves the coordinator.",
+    title: "End-to-end Encrypted",
+    desc: "Files are encrypted on your device before they ever leave it. The coordinator and storage nodes only ever see ciphertext.",
+  },
+  {
+    icon: KeyRound,
+    title: "Your Keys, Your Device",
+    desc: "Each group's key is generated on-device and shared only through its invite. No server ever holds a key to your files.",
   },
   {
     icon: GitBranch,
     title: "Fault Tolerant",
-    desc: "Each chunk is stored on 2 nodes. Any single node can go offline and every file remains fully recoverable.",
+    desc: "Every chunk is replicated across multiple members' machines. Anyone can go offline and your files stay fully recoverable.",
   },
   {
     icon: Zap,
     title: "Parallel Downloads",
-    desc: "All chunks are fetched simultaneously across nodes. No waiting — assembly is as fast as your slowest node.",
-  },
-  {
-    icon: Activity,
-    title: "Real-time Monitoring",
-    desc: "Live dashboard with node latency, chunk distribution, cache usage, and a full activity log streamed via WebSocket.",
+    desc: "Chunks are fetched simultaneously across the group's nodes — assembly is as fast as your fastest peers.",
   },
   {
     icon: HardDrive,
     title: "Contribute Storage",
-    desc: "Install the desktop app to donate disk space to the network. Your machine becomes a node — contributing while you use it.",
+    desc: "The desktop app turns your machine into a storage node, holding encrypted chunks for your groups while it runs.",
   },
   {
     icon: Users,
-    title: "Role-based Access",
-    desc: "Admin and user roles backed by JWT authentication. Admins upload and manage files; users browse and download.",
+    title: "Invite-only Groups",
+    desc: "Create a private group, share an invite, and your files live distributed across just your members — no one else.",
   },
 ];
 
 const STEPS = [
   {
     n: "01",
-    title: "Upload",
-    desc: "Your file is split into 512 KB chunks. Each chunk is hashed and encrypted with AES-256-GCM before distribution.",
+    title: "Encrypt",
+    desc: "Your file is encrypted on your device with your group's key, then split into chunks. Plaintext never leaves your machine.",
   },
   {
     n: "02",
     title: "Distribute",
-    desc: "Chunks are spread across connected storage nodes with 2× replication. If a node is down during upload, the system rolls back cleanly.",
+    desc: "Encrypted chunks are spread across your group's members with configurable replication, so the file survives nodes going offline.",
   },
   {
     n: "03",
     title: "Access",
-    desc: "Download from anywhere. Chunks are fetched in parallel, integrity-verified against their SHA-256 hash, then reassembled.",
+    desc: "Any member fetches the chunks in parallel and decrypts on-device with the shared group key. The coordinator only ever relays ciphertext.",
   },
 ];
 
 export default function Landing() {
   const { isDark, toggleTheme } = useTheme();
-  const { user }                = useAuth();
-  const navigate                = useNavigate();
-
-  function handleOpen() {
-    navigate(user ? "/groups" : "/login");
-  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -87,13 +79,13 @@ export default function Landing() {
             >
               {isDark ? <Sun size={15} /> : <Moon size={15} />}
             </button>
-            <button
-              onClick={handleOpen}
+            <a
+              href="#download"
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] text-white transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0"
             >
-              {user ? "Open App" : "Sign In"}
-              <ArrowRight size={12} />
-            </button>
+              <Download size={12} />
+              Download
+            </a>
           </div>
         </div>
       </header>
@@ -116,25 +108,15 @@ export default function Landing() {
             A peer-to-peer file system that splits your files into encrypted chunks and distributes them across a network of nodes you control. No cloud. No trust required.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            {/* Download — placeholder until Electron app is ready */}
-            <button
-              disabled
-              className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold bg-blue-600 dark:bg-[#FF6363] text-white opacity-50 cursor-not-allowed"
+          <div className="flex items-center justify-center">
+            {/* Download — placeholder until the Electron build ships */}
+            <a
+              href="#download"
+              className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] text-white transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0"
             >
               <Download size={15} />
-              Download App
-              <span className="text-[10px] font-medium bg-white/20 px-1.5 py-0.5 rounded-md ml-1">Coming soon</span>
-            </button>
-
-            <button
-              onClick={handleOpen}
-              className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-200 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 group"
-            >
-              <Globe size={15} />
-              Open Web App
-              <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
-            </button>
+              Download the app
+            </a>
           </div>
         </section>
 
@@ -143,9 +125,9 @@ export default function Landing() {
           <div className="max-w-5xl mx-auto px-6 py-6 grid grid-cols-2 sm:grid-cols-4 gap-6">
             {[
               { label: "Encryption",   value: "AES-256-GCM" },
-              { label: "Replication",  value: "2× per chunk" },
-              { label: "Chunk size",   value: "512 KB"       },
-              { label: "File limit",   value: "500 MB"       },
+              { label: "Replication",  value: "per group"   },
+              { label: "Keys held by", value: "you only"    },
+              { label: "File limit",   value: "500 MB"      },
             ].map(({ label, value }) => (
               <div key={label} className="text-center">
                 <p className="text-lg font-bold font-mono text-gray-900 dark:text-white">{value}</p>
@@ -199,7 +181,7 @@ export default function Landing() {
         </section>
 
         {/* ── Download CTA ───────────────────────────────────────── */}
-        <section className="max-w-5xl mx-auto px-6 py-20 text-center">
+        <section id="download" className="max-w-5xl mx-auto px-6 py-20 text-center scroll-mt-16">
           <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-3xl border border-gray-100 dark:border-neutral-800 px-8 py-14">
             <div className="w-14 h-14 bg-blue-600 dark:bg-[#FF6363] rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-blue-500/20 dark:shadow-[#FF6363]/20">
               <Server size={24} className="text-white" />
@@ -223,12 +205,9 @@ export default function Landing() {
               ))}
             </div>
 
-            <button
-              onClick={handleOpen}
-              className="text-sm font-medium text-blue-600 dark:text-[#FF6363] hover:underline underline-offset-4 transition-colors"
-            >
-              Use the web app in the meantime →
-            </button>
+            <p className="text-xs text-gray-400 dark:text-neutral-500">
+              Builds coming soon — the app runs the storage node and keeps your keys on your device.
+            </p>
           </div>
         </section>
 

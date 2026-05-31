@@ -1,15 +1,11 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useTheme }  from "../context/ThemeContext";
+import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import FileTable   from "../components/FileTable";
 import UploadPanel from "../components/UploadPanel";
 import { buildInvite, getKeyB64 } from "../lib/groupKeys";
-import {
-  Database, Moon, Sun, ArrowLeft, Users, Crown, UserPlus,
-  Copy, Check, Upload, Shield,
-} from "lucide-react";
+import { Users, Crown, UserPlus, Copy, Check, Upload, Shield } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -20,11 +16,10 @@ const PRESETS = [
 ];
 
 export default function GroupView() {
-  const { id }                  = useParams();
-  const { isDark, toggleTheme } = useTheme();
-  const { authFetch }           = useAuth();
-  const notify                  = useNotify();
-  const navigate                = useNavigate();
+  const { id }        = useParams();
+  const { authFetch } = useAuth();
+  const notify        = useNotify();
+  const navigate      = useNavigate();
 
   const [group, setGroup]       = useState(null);
   const [notFound, setNotFound] = useState(false);
@@ -84,7 +79,7 @@ export default function GroupView() {
 
   if (notFound) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3">
+      <div className="h-full flex flex-col items-center justify-center gap-3">
         <Shield size={28} className="text-gray-300 dark:text-neutral-600" />
         <p className="text-sm text-gray-500 dark:text-neutral-400">You're not a member of this group.</p>
         <button onClick={() => navigate("/groups")} className="text-sm text-blue-600 dark:text-[#FF6363] hover:underline">← Back to groups</button>
@@ -93,28 +88,10 @@ export default function GroupView() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-30 glass bg-white/40 dark:bg-neutral-950/45 border-b border-blue-100/60 dark:border-white/[0.06]">
-        <div className="max-w-5xl mx-auto flex items-center justify-between px-6" style={{ height: 56 }}>
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 bg-blue-600 dark:bg-[#FF6363] rounded-lg flex items-center justify-center shrink-0">
-              <Database size={14} className="text-white" />
-            </div>
-            <span className="font-bold text-gray-900 dark:text-white text-sm truncate">{group?.name ?? "…"}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => navigate("/groups")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 border border-gray-200 dark:border-neutral-700 transition-colors">
-              <ArrowLeft size={13} /> Groups
-            </button>
-            <button onClick={toggleTheme} className="p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:text-neutral-500 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors">
-              {isDark ? <Sun size={15} /> : <Moon size={15} />}
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="max-w-5xl w-full mx-auto px-6 py-8 space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate">{group?.name ?? "…"}</h1>
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-8 space-y-6">
-        {/* Group meta: members, invite, replication */}
+      {/* Group meta: members, invite, replication */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Members */}
           <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 p-5">
@@ -183,7 +160,7 @@ export default function GroupView() {
         {/* Files */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-gray-900 dark:text-white">Files</h1>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Files</h2>
             <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Encrypted and distributed across this group's nodes</p>
           </div>
           <button
@@ -206,7 +183,6 @@ export default function GroupView() {
         )}
 
         <FileTable key={refresh} groupId={id} canManage={true} />
-      </main>
     </div>
   );
 }
