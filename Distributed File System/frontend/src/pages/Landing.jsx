@@ -60,7 +60,7 @@ export default function Landing() {
   const { isDark, toggleTheme } = useTheme();
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-full flex flex-col">
 
       {/* ── Navbar ─────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 glass bg-white/40 dark:bg-neutral-950/45 border-b border-blue-100/60 dark:border-white/[0.06]">

@@ -41,7 +41,7 @@ export default function AppShell() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-full overflow-hidden">
       {/* ── Sidebar ─────────────────────────────────────────────── */}
       <aside
         className={`flex flex-col shrink-0 glass bg-white/55 dark:bg-neutral-950/55 border-r border-blue-100/60 dark:border-white/[0.06] transition-[width] duration-200 ease-out ${

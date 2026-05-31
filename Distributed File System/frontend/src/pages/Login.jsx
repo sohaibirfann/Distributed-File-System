@@ -78,7 +78,7 @@ export default function Login() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col">
+    <div className="relative min-h-full flex flex-col">
       {!isDesktop() && (
         <button
           onClick={() => navigate("/")}

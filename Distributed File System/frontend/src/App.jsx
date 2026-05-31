@@ -7,6 +7,7 @@ import Login      from "./pages/Login";
 import AppShell   from "./components/AppShell";
 import GroupsHome from "./pages/GroupsHome";
 import GroupView  from "./pages/GroupView";
+import TitleBar   from "./components/TitleBar";
 import { isDesktop } from "./lib/platform";
 
 // The app (login + groups) lives in the desktop client. On the production web
@@ -28,6 +29,9 @@ function App() {
     <ThemeProvider>
       <NotificationProvider>
         <AuthProvider>
+          <div className="flex flex-col h-screen">
+            {isDesktop() && <TitleBar />}
+            <div className="flex-1 min-h-0 overflow-y-auto">
           <Routes>
             <Route path="/"       element={isDesktop() ? <Navigate to="/login" replace /> : <Landing />} />
             <Route path="/login"  element={<RequireApp><Login /></RequireApp>} />
@@ -39,6 +43,8 @@ function App() {
             <Route path="/user"       element={<Navigate to="/groups" replace />} />
             <Route path="*"       element={<Navigate to="/" replace />} />
           </Routes>
+            </div>
+          </div>
         </AuthProvider>
       </NotificationProvider>
     </ThemeProvider>
