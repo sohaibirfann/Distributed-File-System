@@ -21,33 +21,33 @@ export default function TitleBar() {
   return (
     <div
       style={drag}
-      className="flex items-center justify-between h-8 shrink-0 select-none bg-white/55 dark:bg-neutral-950/70 border-b border-blue-100/60 dark:border-white/[0.06] backdrop-blur-xl"
+      className="flex items-center justify-between h-8 shrink-0 select-none bg-transparent border-b border-gray-200/60 osdark:border-white/[0.06]"
     >
       <div className="flex items-center gap-2 px-3">
-        <div className="w-4 h-4 bg-blue-600 dark:bg-[#FF6363] rounded-[5px] flex items-center justify-center">
+        <div className="w-4 h-4 bg-blue-600 osdark:bg-[#0067C0] rounded-[5px] flex items-center justify-center">
           <Database size={9} className="text-white" />
         </div>
-        <span className="text-[11px] font-semibold text-gray-600 dark:text-neutral-300 tracking-wide">DFS</span>
+        <span className="text-[11px] font-semibold text-gray-600 osdark:text-neutral-300 tracking-wide">DFS</span>
       </div>
 
       <div style={noDrag} className="flex items-center h-full">
         <button
           onClick={() => controls.minimize()}
-          className="h-full px-3.5 flex items-center text-gray-500 dark:text-neutral-400 hover:bg-gray-200/70 dark:hover:bg-neutral-800 transition-colors"
+          className="h-full px-3.5 flex items-center text-gray-500 osdark:text-neutral-400 hover:bg-gray-200/70 osdark:hover:bg-neutral-800 transition-colors"
           title="Minimize"
         >
           <Minus size={14} />
         </button>
         <button
           onClick={() => controls.toggleMaximize()}
-          className="h-full px-3.5 flex items-center text-gray-500 dark:text-neutral-400 hover:bg-gray-200/70 dark:hover:bg-neutral-800 transition-colors"
+          className="h-full px-3.5 flex items-center text-gray-500 osdark:text-neutral-400 hover:bg-gray-200/70 osdark:hover:bg-neutral-800 transition-colors"
           title={maximized ? "Restore" : "Maximize"}
         >
           {maximized ? <Copy size={12} /> : <Square size={11} />}
         </button>
         <button
           onClick={() => controls.close()}
-          className="h-full px-3.5 flex items-center text-gray-500 dark:text-neutral-400 hover:bg-red-500 hover:text-white transition-colors"
+          className="h-full px-3.5 flex items-center text-gray-500 osdark:text-neutral-400 hover:bg-red-500 hover:text-white transition-colors"
           title="Close"
         >
           <X size={14} />

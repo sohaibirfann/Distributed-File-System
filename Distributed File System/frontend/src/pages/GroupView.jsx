@@ -89,7 +89,7 @@ export default function GroupView() {
       <div className="h-full flex flex-col items-center justify-center gap-3">
         <Shield size={28} className="text-gray-300 dark:text-neutral-600" />
         <p className="text-sm text-gray-500 dark:text-neutral-400">You're not a member of this group.</p>
-        <button onClick={() => navigate("/groups")} className="text-sm text-blue-600 dark:text-[#FF6363] hover:underline">← Back to groups</button>
+        <button onClick={() => navigate("/groups")} className="text-sm text-blue-600 dark:text-[#4cc2ff] hover:underline">← Back to groups</button>
       </div>
     );
   }
@@ -105,7 +105,7 @@ export default function GroupView() {
       onDrop={onDrop}
     >
       {/* ── Toolbar ─────────────────────────────────────────────── */}
-      <div className="relative shrink-0 flex items-center justify-between gap-3 px-6 h-14 border-b border-gray-100 dark:border-white/[0.06] bg-white/40 dark:bg-neutral-950/30 backdrop-blur-xl">
+      <div className="relative shrink-0 flex items-center justify-between gap-3 px-6 h-14 border-b border-gray-200/70 dark:border-white/[0.06] bg-transparent">
         <div className="flex items-center gap-2.5 min-w-0">
           {group
             ? <h1 className="text-base font-bold text-gray-900 dark:text-white truncate">{group.name}</h1>
@@ -152,7 +152,7 @@ export default function GroupView() {
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
               showUpload
                 ? "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300"
-                : "bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] text-white"
+                : "bg-blue-600 hover:bg-blue-500 dark:bg-[#0067C0] dark:hover:bg-[#005ba1] text-white"
             }`}
           >
             <Upload size={13} /> {showUpload ? "Cancel" : "Upload"}
@@ -179,7 +179,7 @@ export default function GroupView() {
       </div>
 
       {/* ── Search bar ──────────────────────────────────────────── */}
-      <div className="shrink-0 flex items-center gap-3 px-6 py-2.5 border-b border-gray-100 dark:border-white/[0.06] bg-white/30 dark:bg-neutral-950/20 backdrop-blur-xl">
+      <div className="shrink-0 flex items-center gap-3 px-6 py-2.5 border-b border-gray-200/70 dark:border-white/[0.06] bg-transparent">
         <Search size={15} className="text-gray-400 dark:text-neutral-500 shrink-0" />
         <input
           ref={searchRef}
@@ -203,11 +203,11 @@ export default function GroupView() {
       {/* ── File area ───────────────────────────────────────────── */}
       <div className="relative flex-1 min-h-0 overflow-y-auto">
         {dragOver && (
-          <div className="absolute inset-0 z-40 pointer-events-none flex flex-col items-center justify-center gap-3 bg-blue-500/10 dark:bg-[#FF6363]/10 backdrop-blur-sm border-2 border-dashed border-blue-400/70 dark:border-[#FF6363]/70 m-2 rounded-xl">
-            <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-[#FF6363]/15 flex items-center justify-center">
-              <Upload size={26} className="text-blue-500 dark:text-[#FF6363]" />
+          <div className="absolute inset-0 z-40 pointer-events-none flex flex-col items-center justify-center gap-3 bg-blue-500/10 dark:bg-[#0067C0]/10 backdrop-blur-sm border-2 border-dashed border-blue-400/70 dark:border-[#0067C0]/70 m-2 rounded-xl">
+            <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-[#0067C0]/15 flex items-center justify-center">
+              <Upload size={26} className="text-blue-500 dark:text-[#4cc2ff]" />
             </div>
-            <p className="text-base font-semibold text-blue-600 dark:text-[#FF6363]">Drop to upload to {group?.name}</p>
+            <p className="text-base font-semibold text-blue-600 dark:text-[#4cc2ff]">Drop to upload to {group?.name}</p>
           </div>
         )}
 

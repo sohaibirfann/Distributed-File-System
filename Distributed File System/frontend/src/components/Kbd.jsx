@@ -1,4 +1,4 @@
-// Shortcut hint shown as a single rounded pill, e.g. "⌘ + K" / "Ctrl + ,".
+// Shortcut hint: one pill per key, no "+" separator, e.g. [⌘][K] / [Ctrl][,].
 // "mod" renders ⌘ on macOS, Ctrl elsewhere.
 const isMac = typeof navigator !== "undefined" && /mac/i.test(navigator.platform || navigator.userAgent);
 
@@ -7,14 +7,23 @@ function label(k) {
   return k;
 }
 
-export default function Kbd({ keys = [], className = "" }) {
+// `os` makes the pills track the system (OS) theme instead of the in-app toggle.
+// Fill is transparent so the Mica frost shows through (sidebar) — just a hairline
+// keycap border outlines each key.
+export default function Kbd({ keys = [], os = false, className = "" }) {
+  const tone = os
+    ? "border-gray-300/80 osdark:border-white/20 text-gray-500 osdark:text-neutral-300"
+    : "border-gray-300/80 dark:border-white/20 text-gray-500 dark:text-neutral-300";
   return (
-    <kbd
-      className={`inline-flex items-center px-2 py-1 rounded-md text-[11px] font-medium leading-none whitespace-nowrap
-                  bg-gray-100 dark:bg-neutral-800 text-gray-500 dark:text-neutral-400
-                  border border-gray-200 dark:border-neutral-700 ${className}`}
-    >
-      {keys.map(label).join(" + ")}
-    </kbd>
+    <span className={`inline-flex items-center gap-1 ${className}`}>
+      {keys.map((k, i) => (
+        <kbd
+          key={i}
+          className={`inline-flex items-center justify-center min-w-[1.3rem] px-1.5 py-0.5 rounded-[5px] text-[11px] font-medium leading-none whitespace-nowrap border bg-transparent ${tone}`}
+        >
+          {label(k)}
+        </kbd>
+      ))}
+    </span>
   );
 }

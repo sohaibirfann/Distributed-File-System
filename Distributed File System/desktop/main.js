@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, shell, dialog } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, shell, dialog, nativeTheme } = require("electron");
 const path = require("path");
 const fs   = require("fs");
 
@@ -33,7 +33,12 @@ function createWindow() {
     minWidth:  900,
     minHeight: 600,
     frame: false,            // custom title bar drawn in the renderer
-    backgroundColor: "#080808",
+    // Windows 11 "Mica": a subtle, baked wallpaper tint behind the window —
+    // the frosted look of the Settings app. Needs a transparent backgroundColor
+    // plus a transparent app background in the renderer (.is-desktop styles).
+    // (Not 'acrylic' — that's the heavier, see-through flyout blur.)
+    backgroundColor: "#00000000",
+    backgroundMaterial: "mica",
     title: "DFS",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -110,6 +115,9 @@ ipcMain.handle("startup:set", (_e, enabled) => {
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null); // no default OS menu — chrome is fully custom
+  // Dark-only app: force the window's Mica + the renderer's prefers-color-scheme
+  // to dark regardless of the OS setting, so the frost never tints light.
+  nativeTheme.themeSource = "dark";
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

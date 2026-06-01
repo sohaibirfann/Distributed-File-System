@@ -130,13 +130,13 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
         onDragLeave={() => setDrag(false)}
         className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl py-8 cursor-pointer transition-colors duration-150 ${
           drag
-            ? "border-blue-400 dark:border-[#FF6363] bg-blue-50 dark:bg-[#FF6363]/10"
-            : "border-gray-200 dark:border-neutral-700 hover:border-blue-300 dark:hover:border-[#FF6363]/50 hover:bg-gray-50 dark:hover:bg-neutral-800/50"
+            ? "border-blue-400 dark:border-[#0067C0] bg-blue-50 dark:bg-[#0067C0]/10"
+            : "border-gray-200 dark:border-neutral-700 hover:border-blue-300 dark:hover:border-[#0067C0]/50 hover:bg-gray-50 dark:hover:bg-neutral-800/50"
         }`}
       >
         <input type="file" multiple className="hidden" onChange={(e) => addFiles(e.target.files)} />
-        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center mb-2.5 transition-colors ${drag ? "bg-blue-100 dark:bg-[#FF6363]/20" : "bg-gray-100 dark:bg-neutral-800"}`}>
-          <Upload size={19} className={drag ? "text-blue-500 dark:text-[#FF6363]" : "text-gray-400 dark:text-neutral-500"} />
+        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center mb-2.5 transition-colors ${drag ? "bg-blue-100 dark:bg-[#0067C0]/20" : "bg-gray-100 dark:bg-neutral-800"}`}>
+          <Upload size={19} className={drag ? "text-blue-500 dark:text-[#4cc2ff]" : "text-gray-400 dark:text-neutral-500"} />
         </div>
         <p className="text-sm font-semibold text-gray-700 dark:text-neutral-300">{drag ? "Drop your files here" : "Drag & drop files"}</p>
         <p className="text-xs text-gray-400 dark:text-neutral-500 mt-1">or click to browse — select multiple</p>
@@ -149,14 +149,14 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
               <div className="flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                   it.status === "done"  ? "bg-emerald-50 dark:bg-emerald-500/10"
-                  : it.status === "error" ? "bg-red-50 dark:bg-[#FF6363]/10"
-                  : "bg-blue-50 dark:bg-[#FF6363]/10"
+                  : it.status === "error" ? "bg-red-50 dark:bg-[#0067C0]/10"
+                  : "bg-blue-50 dark:bg-[#0067C0]/10"
                 }`}>
                   {it.status === "done"  ? <CheckCircle size={15} className="text-emerald-500" />
                    : it.status === "error" ? <AlertCircle size={15} className="text-red-500" />
                    : (it.status === "encrypting" || it.status === "uploading" || it.status === "distributing")
-                     ? <Loader2 size={15} className="text-blue-500 dark:text-[#FF6363] animate-spin" />
-                     : <FileIcon size={15} className="text-blue-500 dark:text-[#FF6363]" />}
+                     ? <Loader2 size={15} className="text-blue-500 dark:text-[#4cc2ff] animate-spin" />
+                     : <FileIcon size={15} className="text-blue-500 dark:text-[#4cc2ff]" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{it.file.name}</p>
@@ -170,7 +170,7 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
               </div>
               {(it.status === "uploading" || it.status === "distributing") && (
                 <div className="h-1 bg-gray-100 dark:bg-neutral-700 rounded-full overflow-hidden mt-2">
-                  <div className="h-full rounded-full bg-blue-500 dark:bg-[#FF6363] transition-all duration-300" style={{ width: `${Math.max(4, it.progress)}%` }} />
+                  <div className="h-full rounded-full bg-blue-500 dark:bg-[#0067C0] transition-all duration-300" style={{ width: `${Math.max(4, it.progress)}%` }} />
                 </div>
               )}
             </div>
@@ -181,7 +181,7 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
       <button
         onClick={uploadAll}
         disabled={running || pendingCount === 0}
-        className="mt-4 w-full py-2.5 bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 disabled:hover:translate-y-0"
+        className="mt-4 w-full py-2.5 bg-blue-600 hover:bg-blue-500 dark:bg-[#0067C0] dark:hover:bg-[#005ba1] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 disabled:hover:translate-y-0"
       >
         {running ? "Uploading…" : pendingCount > 0 ? `Upload ${pendingCount} file${pendingCount !== 1 ? "s" : ""}` : "Upload to network"}
       </button>

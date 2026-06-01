@@ -1,44 +1,18 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect } from "react";
 
 const ThemeContext = createContext(null);
 
+// Dark-only for now — light mode has been removed. The app always renders dark;
+// the .dark class stays on <html> so the existing dark: styles apply. (Light
+// mode can be brought back by restoring the toggle + a stored preference.)
 export function ThemeProvider({ children }) {
-  const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem("theme");
-    return saved ? saved === "dark" : true;
-  });
-
   useEffect(() => {
-    const root = document.documentElement;
-    if (isDark) root.classList.add("dark");
-    else root.classList.remove("dark");
-    localStorage.setItem("theme", isDark ? "dark" : "light");
-  }, [isDark]);
-
-  function toggleTheme() {
-    const next = !isDark;
-
-    const apply = () => {
-      const root = document.documentElement;
-      if (next) root.classList.add("dark");
-      else root.classList.remove("dark");
-      localStorage.setItem("theme", next ? "dark" : "light");
-      setIsDark(next);
-    };
-
-    if (document.startViewTransition) {
-      document.startViewTransition(apply);
-    } else {
-      document.documentElement.classList.add("theme-transitioning");
-      apply();
-      setTimeout(() => {
-        document.documentElement.classList.remove("theme-transitioning");
-      }, 300);
-    }
-  }
+    document.documentElement.classList.add("dark");
+    localStorage.removeItem("theme");
+  }, []);
 
   return (
-    <ThemeContext.Provider value={{ isDark, toggleTheme }}>
+    <ThemeContext.Provider value={{ isDark: true }}>
       {children}
     </ThemeContext.Provider>
   );
