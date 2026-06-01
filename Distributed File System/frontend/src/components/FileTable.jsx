@@ -6,7 +6,7 @@ import { decryptBytes } from "../lib/crypto";
 import {
   Download, Eye, Trash2, Search, X, AlertTriangle, WifiOff,
   FileText, Image, Film, Music, Archive, Code, File, HardDrive,
-  ChevronUp, ChevronDown, ChevronsUpDown,
+  ChevronUp, ChevronDown, ChevronsUpDown, Loader2,
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
@@ -98,6 +98,7 @@ export default function FileTable({ groupId, canManage = false }) {
   const [previewType, setPreviewType]       = useState(null);
   const [previewContent, setPreviewContent] = useState("");
   const [previewUrl, setPreviewUrl]         = useState(null);
+  const [downloading, setDownloading]       = useState([]);
 
   const base = `${API}/api/groups/${groupId}/files`;
 
@@ -119,7 +120,7 @@ export default function FileTable({ groupId, canManage = false }) {
   }
 
   async function handleDownload(filename) {
-    const id = notify.loading("Downloading…");
+    setDownloading((d) => [...d, filename]);
     try {
       const key = await loadKey(groupId);
       if (!key) throw new Error("This device doesn't hold this group's key");
@@ -142,11 +143,11 @@ export default function FileTable({ groupId, canManage = false }) {
       a.href = url; a.download = filename;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
-      notify.dismiss(id);
       notify.success("Download complete");
     } catch (err) {
-      notify.dismiss(id);
       notify.error(err.message || "Download failed");
+    } finally {
+      setDownloading((d) => d.filter((f) => f !== filename));
     }
   }
 
@@ -360,14 +361,21 @@ export default function FileTable({ groupId, canManage = false }) {
                       </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => handleDownload(file.filename)}
-                            title="Download"
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
-                          >
-                            <Download size={13} />
-                            <span className="hidden sm:inline">Download</span>
-                          </button>
+                          {downloading.includes(file.filename) ? (
+                            <span className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                              <Loader2 size={13} className="animate-spin" />
+                              <span className="hidden sm:inline">Downloading…</span>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleDownload(file.filename)}
+                              title="Download"
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
+                            >
+                              <Download size={13} />
+                              <span className="hidden sm:inline">Download</span>
+                            </button>
+                          )}
                           {getPreviewType(file.filename) && (
                             <button
                               onClick={() => handlePreview(file.filename)}

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, useOutletContext } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import FileTable   from "../components/FileTable";
@@ -27,6 +27,34 @@ export default function GroupView() {
   const [copied, setCopied]     = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [refresh, setRefresh]   = useState(0);
+  const [dragOver, setDragOver] = useState(false);
+  const [dropped, setDropped]   = useState(null);
+  const [dropNonce, setDropNonce] = useState(0);
+  const dragCount = useRef(0);
+
+  function onDragEnter(e) {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    dragCount.current++;
+    setDragOver(true);
+  }
+  function onDragOver(e) {
+    if (e.dataTransfer.types.includes("Files")) e.preventDefault();
+  }
+  function onDragLeave() {
+    dragCount.current--;
+    if (dragCount.current <= 0) { dragCount.current = 0; setDragOver(false); }
+  }
+  function onDrop(e) {
+    e.preventDefault();
+    dragCount.current = 0;
+    setDragOver(false);
+    const f = e.dataTransfer.files?.[0];
+    if (!f) return;
+    setDropped(f);
+    setDropNonce((n) => n + 1);
+    setShowUpload(true);
+  }
 
   useEffect(() => { fetchGroup(); }, [id]);
 
@@ -88,7 +116,22 @@ export default function GroupView() {
   }
 
   return (
-    <div className="max-w-5xl w-full mx-auto px-6 py-8 space-y-6">
+    <div
+      className="relative max-w-5xl w-full mx-auto px-6 py-8 space-y-6"
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      {dragOver && (
+        <div className="absolute inset-3 z-40 pointer-events-none flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-blue-400/70 dark:border-[#FF6363]/70 bg-blue-500/10 dark:bg-[#FF6363]/10 backdrop-blur-sm">
+          <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-[#FF6363]/15 flex items-center justify-center">
+            <Upload size={26} className="text-blue-500 dark:text-[#FF6363]" />
+          </div>
+          <p className="text-base font-semibold text-blue-600 dark:text-[#FF6363]">Drop to upload to {group?.name}</p>
+        </div>
+      )}
+
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate">{group?.name ?? "…"}</h1>
 
       {/* Group meta: members, invite, replication */}
@@ -164,7 +207,7 @@ export default function GroupView() {
             <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Encrypted and distributed across this group's nodes</p>
           </div>
           <button
-            onClick={() => setShowUpload((v) => !v)}
+            onClick={() => { setDropped(null); setShowUpload((v) => !v); }}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
               showUpload
                 ? "bg-white/60 dark:bg-neutral-800/60 text-gray-700 dark:text-neutral-300"
@@ -177,8 +220,10 @@ export default function GroupView() {
 
         {showUpload && (
           <UploadPanel
+            key={dropNonce}
             groupId={id}
-            onUploadSuccess={() => { setRefresh((n) => n + 1); setShowUpload(false); }}
+            initialFile={dropped}
+            onUploadSuccess={() => { setRefresh((n) => n + 1); setShowUpload(false); setDropped(null); }}
           />
         )}
 
