@@ -118,6 +118,7 @@ const stmts = {
   insertGroup:      db.prepare(`INSERT INTO groups (id, name, created_by, replication) VALUES (?, ?, ?, ?)`),
   getGroupById:     db.prepare(`SELECT * FROM groups WHERE id = ?`),
   deleteGroupById:  db.prepare(`DELETE FROM groups WHERE id = ?`),
+  renameGroupById:  db.prepare(`UPDATE groups SET name = ? WHERE id = ?`),
   setReplication:   db.prepare(`UPDATE groups SET replication = ? WHERE id = ?`),
   userGroups:       db.prepare(`SELECT g.* FROM groups g
                                   JOIN group_members m ON m.group_id = g.id
@@ -127,6 +128,8 @@ const stmts = {
   // Group members
   addMember:        db.prepare(`INSERT OR IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)`),
   getMember:        db.prepare(`SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?`),
+  getMemberRole:    db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`),
+  removeMemberRow:  db.prepare(`DELETE FROM group_members WHERE group_id = ? AND user_id = ?`),
   listMembers:      db.prepare(`SELECT m.user_id, m.role, m.joined_at, u.username
                                   FROM group_members m JOIN users u ON u.id = m.user_id
                                  WHERE m.group_id = ? ORDER BY m.joined_at`),
@@ -238,6 +241,10 @@ function setGroupReplication(groupId, replication) {
   return true;
 }
 
+function renameGroup(groupId, name) {
+  stmts.renameGroupById.run(name, groupId);
+}
+
 function getUserGroups(userId) {
   return stmts.userGroups.all(userId);
 }
@@ -246,8 +253,18 @@ function isMember(groupId, userId) {
   return !!stmts.getMember.get(groupId, userId);
 }
 
+// Returns the user's role in the group ('owner' | 'member'), or null if not a member.
+function getMemberRole(groupId, userId) {
+  const row = stmts.getMemberRole.get(groupId, userId);
+  return row ? row.role : null;
+}
+
 function addMember(groupId, userId, role = "member") {
   stmts.addMember.run(groupId, userId, role);
+}
+
+function removeMember(groupId, userId) {
+  stmts.removeMemberRow.run(groupId, userId);
 }
 
 function getGroupMembers(groupId) {
@@ -295,9 +312,12 @@ module.exports = {
   createGroup,
   getGroup,
   setGroupReplication,
+  renameGroup,
   getUserGroups,
   isMember,
+  getMemberRole,
   addMember,
+  removeMember,
   getGroupMembers,
   deleteGroup,
   // invites

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import FileTable   from "../components/FileTable";
@@ -7,7 +7,7 @@ import UploadPanel from "../components/UploadPanel";
 import InviteModal from "../components/InviteModal";
 import Skeleton    from "../components/Skeleton";
 import Kbd         from "../components/Kbd";
-import { Users, Crown, UserPlus, Upload, Shield, Search, X, List, LayoutGrid } from "lucide-react";
+import { Users, Crown, UserPlus, Upload, Shield, Search, X, List, LayoutGrid, MoreHorizontal, Pencil, Trash2, LogOut } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -29,12 +29,19 @@ export default function GroupView() {
   const { authFetch } = useAuth();
   const notify        = useNotify();
   const navigate      = useNavigate();
+  const { refreshGroups } = useOutletContext() || {};
 
   const [group, setGroup]       = useState(null);
   const [notFound, setNotFound] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [menuOpen, setMenuOpen]   = useState(false);
+  const [renameOpen, setRenameOpen]   = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [renaming, setRenaming]       = useState(false);
+  const [confirm, setConfirm]         = useState(null); // null | "delete" | "leave"
+  const [confirming, setConfirming]   = useState(false);
   const [refresh, setRefresh]   = useState(0);
   const [search, setSearch]     = useState("");
   const [stats, setStats]       = useState({ count: 0, totalSize: 0 });
@@ -69,6 +76,56 @@ export default function GroupView() {
     } catch { notify.error("Couldn't load group"); }
   }
 
+  async function doRename(e) {
+    e?.preventDefault?.();
+    const name = renameValue.trim();
+    if (!name || name === group?.name) { setRenameOpen(false); return; }
+    setRenaming(true);
+    try {
+      const res = await authFetch(`${API}/api/groups/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error();
+      setGroup((g) => ({ ...g, name }));
+      refreshGroups?.();
+      notify.success("Group renamed");
+      setRenameOpen(false);
+    } catch { notify.error("Couldn't rename group"); }
+    finally { setRenaming(false); }
+  }
+
+  async function doDelete() {
+    setConfirming(true);
+    try {
+      const res = await authFetch(`${API}/api/groups/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      notify.success("Group deleted");
+      refreshGroups?.();
+      navigate("/groups");
+    } catch { notify.error("Couldn't delete group"); setConfirming(false); }
+  }
+
+  async function doLeave() {
+    setConfirming(true);
+    try {
+      const res = await authFetch(`${API}/api/groups/${id}/members/me`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      notify.success("Left group");
+      refreshGroups?.();
+      navigate("/groups");
+    } catch { notify.error("Couldn't leave group"); setConfirming(false); }
+  }
+
+  async function removeMember(userId, username) {
+    try {
+      const res = await authFetch(`${API}/api/groups/${id}/members/${userId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      notify.success(`Removed ${username}`);
+      fetchGroup();
+    } catch { notify.error("Couldn't remove member"); }
+  }
+
   function onDragEnter(e) {
     if (!e.dataTransfer.types.includes("Files")) return;
     e.preventDefault(); dragCount.current++; setDragOver(true);
@@ -95,6 +152,7 @@ export default function GroupView() {
   }
 
   const memberCount = group?.members?.length;
+  const isOwner     = group?.myRole === "owner";
 
   return (
     <div
@@ -112,7 +170,7 @@ export default function GroupView() {
             : <Skeleton className="h-5 w-32" />}
 
           <button
-            onClick={() => setMembersOpen((o) => !o)}
+            onClick={() => { setMenuOpen(false); setMembersOpen((o) => !o); }}
             className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors shrink-0"
           >
             <Users size={13} />
@@ -122,6 +180,16 @@ export default function GroupView() {
           <span className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium text-gray-500 dark:text-neutral-400 bg-gray-100/70 dark:bg-neutral-800/60 shrink-0" title="Replication (set at creation)">
             <Shield size={12} /> {PRESETS[group?.replication] ?? "…"}
           </span>
+
+          {group && (
+            <button
+              onClick={() => { setMembersOpen(false); setMenuOpen((o) => !o); }}
+              title="Group options"
+              className="p-1.5 rounded-lg text-gray-400 dark:text-neutral-500 hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-gray-600 dark:hover:text-neutral-300 transition-colors shrink-0"
+            >
+              <MoreHorizontal size={15} />
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -166,13 +234,56 @@ export default function GroupView() {
             <div className="absolute top-[3.25rem] left-6 z-40 w-60 glass bg-white/90 dark:bg-neutral-900/90 rounded-xl border border-gray-100 dark:border-neutral-800 p-2 shadow-lg">
               <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-neutral-500">Members</p>
               {group?.members?.map((m) => (
-                <div key={m.user_id} className="flex items-center justify-between px-2 py-1.5 text-sm">
+                <div key={m.user_id} className="group/mem flex items-center justify-between gap-2 px-2 py-1.5 text-sm">
                   <span className="text-gray-800 dark:text-neutral-200 truncate">{m.username}</span>
-                  <span className={`flex items-center gap-1 text-xs font-medium shrink-0 ${m.role === "owner" ? "text-amber-600 dark:text-amber-400" : "text-gray-400 dark:text-neutral-500"}`}>
-                    {m.role === "owner" ? <Crown size={11} /> : <UserPlus size={11} />}{m.role}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`flex items-center gap-1 text-xs font-medium ${m.role === "owner" ? "text-amber-600 dark:text-amber-400" : "text-gray-400 dark:text-neutral-500"}`}>
+                      {m.role === "owner" ? <Crown size={11} /> : <UserPlus size={11} />}{m.role}
+                    </span>
+                    {isOwner && m.role !== "owner" && (
+                      <button
+                        onClick={() => removeMember(m.user_id, m.username)}
+                        title={`Remove ${m.username}`}
+                        className="p-1 rounded-md text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 opacity-0 group-hover/mem:opacity-100 transition"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
+            </div>
+          </>
+        )}
+
+        {/* Group options menu */}
+        {menuOpen && group && (
+          <>
+            <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
+            <div className="absolute top-[3.25rem] left-6 z-40 w-44 glass bg-white/90 dark:bg-neutral-900/90 rounded-xl border border-gray-100 dark:border-neutral-800 p-1.5 shadow-lg text-sm">
+              {isOwner ? (
+                <>
+                  <button
+                    onClick={() => { setRenameValue(group.name); setRenameOpen(true); setMenuOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-gray-700 dark:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
+                  >
+                    <Pencil size={14} /> Rename group
+                  </button>
+                  <button
+                    onClick={() => { setConfirm("delete"); setMenuOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                  >
+                    <Trash2 size={14} /> Delete group
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => { setConfirm("leave"); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                >
+                  <LogOut size={14} /> Leave group
+                </button>
+              )}
             </div>
           </>
         )}
@@ -227,6 +338,64 @@ export default function GroupView() {
 
       {showInvite && (
         <InviteModal groupId={id} groupName={group?.name} onClose={() => setShowInvite(false)} />
+      )}
+
+      {/* Rename modal */}
+      {renameOpen && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={() => !renaming && setRenameOpen(false)}>
+          <form onClick={(e) => e.stopPropagation()} onSubmit={doRename}
+            className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Rename group</h3>
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[#0067C0]"
+            />
+            <div className="flex gap-2.5 mt-4">
+              <button type="button" onClick={() => setRenameOpen(false)} disabled={renaming}
+                className="flex-1 py-2.5 text-sm font-medium border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40">
+                Cancel
+              </button>
+              <button type="submit" disabled={renaming || !renameValue.trim()}
+                className="flex-1 py-2.5 text-sm font-medium bg-blue-600 hover:bg-blue-500 dark:bg-[#0067C0] dark:hover:bg-[#005ba1] text-white rounded-xl transition-colors disabled:opacity-40">
+                {renaming ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Delete / Leave confirm */}
+      {confirm && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={() => !confirming && setConfirm(null)}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6">
+            <div className="w-11 h-11 bg-red-50 dark:bg-red-500/10 rounded-xl flex items-center justify-center mb-4">
+              {confirm === "delete" ? <Trash2 size={20} className="text-red-500" /> : <LogOut size={20} className="text-red-500" />}
+            </div>
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+              {confirm === "delete" ? "Delete this group?" : "Leave this group?"}
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-neutral-400 mb-5">
+              {confirm === "delete" ? (
+                <><span className="font-medium text-gray-800 dark:text-neutral-200 break-all">{group?.name}</span> and its file list will be removed for everyone. This can't be undone.</>
+              ) : (
+                <>You'll lose access to <span className="font-medium text-gray-800 dark:text-neutral-200 break-all">{group?.name}</span>. You can rejoin later with an invite.</>
+              )}
+            </p>
+            <div className="flex gap-2.5">
+              <button onClick={() => setConfirm(null)} disabled={confirming}
+                className="flex-1 py-2.5 text-sm font-medium border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40">
+                Cancel
+              </button>
+              <button onClick={confirm === "delete" ? doDelete : doLeave} disabled={confirming}
+                className="flex-1 py-2.5 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors disabled:opacity-60">
+                {confirming ? "Working…" : confirm === "delete" ? "Delete" : "Leave"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

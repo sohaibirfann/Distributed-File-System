@@ -7,10 +7,14 @@ const {
   createGroup,
   getGroup,
   setGroupReplication,
+  renameGroup,
+  deleteGroup,
   getUserGroups,
   isMember,
+  getMemberRole,
   getGroupMembers,
   addMember,
+  removeMember,
   createInvite,
   getValidInvite,
   revokeInvite,
@@ -24,6 +28,14 @@ router.use(requireAuth);
 function requireMember(req, res, next) {
   if (!isMember(req.params.id, req.user.id)) {
     return res.status(403).json({ error: "Not a member of this group" });
+  }
+  next();
+}
+
+// Owner guard — for destructive group-level actions (rename, delete, remove member).
+function requireOwner(req, res, next) {
+  if (getMemberRole(req.params.id, req.user.id) !== "owner") {
+    return res.status(403).json({ error: "Only the group owner can do this" });
   }
   next();
 }
@@ -60,9 +72,60 @@ router.post("/join", (req, res) => {
   res.json(getGroup(invite.group_id));
 });
 
-// GET /api/groups/:id — group detail + member list (members only)
+// GET /api/groups/:id — group detail + member list + caller's role (members only)
 router.get("/:id", requireMember, (req, res) => {
-  res.json({ ...getGroup(req.params.id), members: getGroupMembers(req.params.id) });
+  res.json({
+    ...getGroup(req.params.id),
+    members: getGroupMembers(req.params.id),
+    myRole:  getMemberRole(req.params.id, req.user.id),
+  });
+});
+
+// PATCH /api/groups/:id — rename the group (owner only)
+router.patch("/:id", requireMember, requireOwner, (req, res) => {
+  const name = (req.body.name || "").trim();
+  if (!name) return res.status(400).json({ error: "name required" });
+  renameGroup(req.params.id, name);
+  res.json(getGroup(req.params.id));
+});
+
+// DELETE /api/groups/:id — delete the group (owner only). Cascades members,
+// invites and file metadata. NB: encrypted chunks already pushed to member
+// nodes become orphaned — GC of those is deferred (see PLAN.md).
+router.delete("/:id", requireMember, requireOwner, (req, res) => {
+  deleteGroup(req.params.id);
+  res.json({ success: true });
+});
+
+// DELETE /api/groups/:id/members/:userId — leave the group (userId = "me") or,
+// for the owner, remove another member.
+router.delete("/:id/members/:userId", requireMember, (req, res) => {
+  const groupId  = req.params.id;
+  const actorId  = req.user.id;
+  const targetId = req.params.userId === "me" ? actorId : Number(req.params.userId);
+  if (!Number.isInteger(targetId)) return res.status(400).json({ error: "invalid member" });
+
+  const targetRole = getMemberRole(groupId, targetId);
+  if (!targetRole) return res.status(404).json({ error: "Not a member of this group" });
+
+  // Leaving (acting on yourself)
+  if (targetId === actorId) {
+    if (targetRole === "owner") {
+      return res.status(400).json({ error: "The owner can't leave — delete the group or transfer ownership first." });
+    }
+    removeMember(groupId, actorId);
+    return res.json({ success: true });
+  }
+
+  // Removing someone else — owner only, and never the owner.
+  if (getMemberRole(groupId, actorId) !== "owner") {
+    return res.status(403).json({ error: "Only the group owner can remove members" });
+  }
+  if (targetRole === "owner") {
+    return res.status(400).json({ error: "Can't remove the owner" });
+  }
+  removeMember(groupId, targetId);
+  res.json({ success: true });
 });
 
 // POST /api/groups/:id/invites — mint an invite code (members only)
