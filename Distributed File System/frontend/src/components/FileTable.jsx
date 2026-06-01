@@ -74,6 +74,20 @@ function formatSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+const AVATAR_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#f43f5e", "#0ea5e9", "#8b5cf6", "#14b8a6", "#f97316", "#ec4899", "#84cc16"];
+function avatarColor(name = "") {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+function Avatar({ name }) {
+  return (
+    <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ backgroundColor: avatarColor(name) }}>
+      {(name?.[0] ?? "?").toUpperCase()}
+    </div>
+  );
+}
+
 function formatRelativeTime(iso) {
   if (!iso) return "—";
   const diff  = Date.now() - new Date(iso).getTime();
@@ -87,7 +101,7 @@ function formatRelativeTime(iso) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export default function FileTable({ groupId, canManage = false, search = "", onStats }) {
+export default function FileTable({ groupId, canManage = false, search = "", onStats, view = "list" }) {
   const notify = useNotify();
   const { authFetch } = useAuth();
   const [files, setFiles]               = useState([]);
@@ -245,8 +259,69 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   const totalSize = filtered.reduce((s, f) => s + (f.size || 0), 0);
   useEffect(() => { onStats?.({ count: filtered.length, totalSize }); }, [filtered.length, totalSize]);
 
+  const emptyState = (
+    apiError && files.length === 0 ? (
+      <>
+        <WifiOff size={28} className="mx-auto mb-3 text-red-400 dark:text-[#FF6363]" />
+        <p className="text-sm font-medium text-gray-400 dark:text-neutral-500">Can't reach server</p>
+      </>
+    ) : (
+      <>
+        <File size={28} className="mx-auto mb-3 text-gray-200 dark:text-neutral-700" />
+        <p className="text-sm font-medium text-gray-400 dark:text-neutral-500">{search ? "No files match your search" : "No files here yet"}</p>
+        {!search && <p className="text-xs text-gray-300 dark:text-neutral-600 mt-1">{canManage ? "Upload a file to get started" : "Check back later"}</p>}
+      </>
+    )
+  );
+
   return (
     <>
+      {view === "grid" ? (
+        <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          {loading && files.length === 0 ? (
+            Array.from({ length: 10 }).map((_, i) => (
+              <div key={`gsk-${i}`} className="glass bg-white/70 dark:bg-neutral-900/60 rounded-xl border border-gray-100 dark:border-neutral-800 p-4">
+                <Skeleton className="w-12 h-12 rounded-xl" />
+                <Skeleton className="h-3.5 w-3/4 mt-3" />
+                <Skeleton className="h-3 w-1/2 mt-2" />
+              </div>
+            ))
+          ) : sorted.length === 0 ? (
+            <div className="col-span-full flex flex-col items-center py-16 text-center">{emptyState}</div>
+          ) : (
+            sorted.map((file, i) => {
+              const { icon: Icon, bg, color } = getType(file.filename);
+              const dl = downloading.includes(file.filename);
+              return (
+                <div key={i} className="group relative glass bg-white/70 dark:bg-neutral-900/60 rounded-xl border border-gray-100 dark:border-neutral-800 p-4 hover:-translate-y-0.5 transition-transform">
+                  <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {dl ? (
+                      <Loader2 size={14} className="m-1.5 animate-spin text-emerald-500" />
+                    ) : (
+                      <button onClick={() => handleDownload(file.filename)} title="Download" className="p-1.5 rounded-lg text-gray-500 dark:text-neutral-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600"><Download size={14} /></button>
+                    )}
+                    {getPreviewType(file.filename) && (
+                      <button onClick={() => handlePreview(file.filename)} title="Preview" className="p-1.5 rounded-lg text-gray-500 dark:text-neutral-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600"><Eye size={14} /></button>
+                    )}
+                    {canManage && (
+                      <button onClick={() => setFileToDelete(file.filename)} title="Delete" className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-[#FF6363]/10 hover:text-red-500"><Trash2 size={14} /></button>
+                    )}
+                  </div>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${bg}`}><Icon size={22} className={color} /></div>
+                  <p className="mt-3 text-sm font-medium text-gray-800 dark:text-neutral-100 truncate" title={file.filename}>{file.filename}</p>
+                  <p className="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">{formatSize(file.size)} · {formatRelativeTime(file.uploadedAt)}</p>
+                  {file.uploadedBy && (
+                    <div className="flex items-center gap-1.5 mt-2.5">
+                      <Avatar name={file.uploadedBy} />
+                      <span className="text-[11px] text-gray-400 dark:text-neutral-500 truncate">{file.uploadedBy}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      ) : (
       <table className="w-full text-sm">
         <thead className="sticky top-0 z-10 bg-white/95 dark:bg-neutral-950/85 backdrop-blur-sm border-b border-gray-100 dark:border-neutral-800">
               <tr>
@@ -401,6 +476,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
               )}
             </tbody>
           </table>
+      )}
 
       {/* Preview modal */}
       {previewFile && (

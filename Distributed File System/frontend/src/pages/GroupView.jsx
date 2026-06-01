@@ -7,7 +7,7 @@ import UploadPanel from "../components/UploadPanel";
 import InviteModal from "../components/InviteModal";
 import Skeleton    from "../components/Skeleton";
 import Kbd         from "../components/Kbd";
-import { Users, Crown, UserPlus, Upload, Shield, Search, X } from "lucide-react";
+import { Users, Crown, UserPlus, Upload, Shield, Search, X, List, LayoutGrid } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -38,6 +38,9 @@ export default function GroupView() {
   const [refresh, setRefresh]   = useState(0);
   const [search, setSearch]     = useState("");
   const [stats, setStats]       = useState({ count: 0, totalSize: 0 });
+  const [view, setView]         = useState(() => localStorage.getItem("dfs_fileview") || "list");
+
+  function chooseView(v) { localStorage.setItem("dfs_fileview", v); setView(v); }
   const [dragOver, setDragOver] = useState(false);
   const [dropped, setDropped]   = useState(null);
   const [dropNonce, setDropNonce] = useState(0);
@@ -102,7 +105,7 @@ export default function GroupView() {
       onDrop={onDrop}
     >
       {/* ── Toolbar ─────────────────────────────────────────────── */}
-      <div className="relative shrink-0 flex items-center justify-between gap-3 px-6 h-14 border-b border-gray-100 dark:border-white/[0.06]">
+      <div className="relative shrink-0 flex items-center justify-between gap-3 px-6 h-14 border-b border-gray-100 dark:border-white/[0.06] bg-white/40 dark:bg-neutral-950/30 backdrop-blur-xl">
         <div className="flex items-center gap-2.5 min-w-0">
           {group
             ? <h1 className="text-base font-bold text-gray-900 dark:text-white truncate">{group.name}</h1>
@@ -122,6 +125,22 @@ export default function GroupView() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center rounded-lg border border-gray-200 dark:border-neutral-700 overflow-hidden mr-1">
+            <button
+              onClick={() => chooseView("list")}
+              title="List view"
+              className={`p-1.5 transition-colors ${view === "list" ? "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-200" : "text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300"}`}
+            >
+              <List size={14} />
+            </button>
+            <button
+              onClick={() => chooseView("grid")}
+              title="Grid view"
+              className={`p-1.5 transition-colors ${view === "grid" ? "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-200" : "text-gray-400 dark:text-neutral-500 hover:text-gray-600 dark:hover:text-neutral-300"}`}
+            >
+              <LayoutGrid size={14} />
+            </button>
+          </div>
           <button
             onClick={() => setShowInvite(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 border border-gray-200 dark:border-neutral-700 transition-colors"
@@ -160,7 +179,7 @@ export default function GroupView() {
       </div>
 
       {/* ── Search bar ──────────────────────────────────────────── */}
-      <div className="shrink-0 flex items-center gap-3 px-6 py-2.5 border-b border-gray-100 dark:border-white/[0.06]">
+      <div className="shrink-0 flex items-center gap-3 px-6 py-2.5 border-b border-gray-100 dark:border-white/[0.06] bg-white/30 dark:bg-neutral-950/20 backdrop-blur-xl">
         <Search size={15} className="text-gray-400 dark:text-neutral-500 shrink-0" />
         <input
           ref={searchRef}
@@ -203,7 +222,7 @@ export default function GroupView() {
           </div>
         )}
 
-        <FileTable key={refresh} groupId={id} canManage search={search} onStats={setStats} />
+        <FileTable key={refresh} groupId={id} canManage search={search} onStats={setStats} view={view} />
       </div>
 
       {showInvite && (
