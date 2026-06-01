@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "description": "DFS dev launcher — one command to run the coordinator, a storage node, the web build, and the desktop app together.",
   "scripts": {
-    "dev": "concurrently -k -n backend,node,web,app -c blue,magenta,green,yellow \"npm --prefix backend run start\" \"wait-on tcp:127.0.0.1:5000 && npm --prefix backend run node1\" \"npm --prefix frontend run dev\" \"wait-on tcp:127.0.0.1:5173 tcp:127.0.0.1:5000 && npm --prefix desktop start\"",
-    "dev:web": "concurrently -k -n backend,node,web -c blue,magenta,green \"npm --prefix backend run start\" \"wait-on tcp:127.0.0.1:5000 && npm --prefix backend run node1\" \"npm --prefix frontend run dev\""
+    "dev": "concurrently -k -n backend,node,web,app -c blue,magenta,green,yellow \"npm --prefix backend run start\" \"wait-on http://localhost:5000 && npm --prefix backend run node1\" \"npm --prefix frontend run dev\" \"wait-on http://localhost:5173 http://localhost:5000 && npm --prefix desktop start\"",
+    "dev:web": "concurrently -k -n backend,node,web -c blue,magenta,green \"npm --prefix backend run start\" \"wait-on http://localhost:5000 && npm --prefix backend run node1\" \"npm --prefix frontend run dev\""
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
