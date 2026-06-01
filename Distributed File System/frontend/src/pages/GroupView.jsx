@@ -4,8 +4,8 @@ import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import FileTable   from "../components/FileTable";
 import UploadPanel from "../components/UploadPanel";
-import { buildInvite, getKeyB64 } from "../lib/groupKeys";
-import { Users, Crown, UserPlus, Copy, Check, Upload, Shield } from "lucide-react";
+import InviteModal from "../components/InviteModal";
+import { Users, Crown, UserPlus, Upload, Shield } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -23,8 +23,7 @@ export default function GroupView() {
 
   const [group, setGroup]       = useState(null);
   const [notFound, setNotFound] = useState(false);
-  const [inviteCode, setInviteCode] = useState("");
-  const [copied, setCopied]     = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [refresh, setRefresh]   = useState(0);
   const [dragOver, setDragOver] = useState(false);
@@ -68,25 +67,6 @@ export default function GroupView() {
     }
   }
 
-  async function mintInvite() {
-    const keyB64 = getKeyB64(id);
-    if (!keyB64) {
-      notify.error("This device doesn't hold this group's key, so it can't create an invite");
-      return;
-    }
-    try {
-      const res  = await authFetch(`${API}/api/groups/${id}/invites`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error();
-      // The shareable invite carries the group key after '#'; the join flow keeps
-      // it client-side and only sends the join code to the server.
-      setInviteCode(buildInvite(data.code, keyB64));
-      setCopied(false);
-    } catch { notify.error("Couldn't create invite"); }
-  }
-
   async function setReplication(preset) {
     try {
       const res = await authFetch(`${API}/api/groups/${id}/replication`, {
@@ -97,12 +77,6 @@ export default function GroupView() {
       setGroup((g) => ({ ...g, replication: preset }));
       notify.success(`Replication set to ${preset}`);
     } catch { notify.error("Couldn't update replication"); }
-  }
-
-  function copyInvite() {
-    navigator.clipboard.writeText(inviteCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
   }
 
   if (notFound) {
@@ -154,22 +128,14 @@ export default function GroupView() {
           </div>
 
           {/* Invite */}
-          <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 p-5">
+          <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 p-5 flex flex-col">
             <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wide">
               <UserPlus size={13} /> Invite
             </div>
-            {inviteCode ? (
-              <div className="flex gap-2">
-                <code className="flex-1 px-3 py-2 bg-gray-50 dark:bg-neutral-800 rounded-xl text-sm font-mono text-gray-900 dark:text-white truncate">{inviteCode}</code>
-                <button onClick={copyInvite} className="px-3 py-2 bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] text-white rounded-xl transition-colors">
-                  {copied ? <Check size={15} /> : <Copy size={15} />}
-                </button>
-              </div>
-            ) : (
-              <button onClick={mintInvite} className="w-full py-2 bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] text-white text-sm font-medium rounded-xl transition-colors">
-                Generate code
-              </button>
-            )}
+            <p className="text-xs text-gray-500 dark:text-neutral-400 mb-3 flex-1">Share a code so friends can join this group.</p>
+            <button onClick={() => setShowInvite(true)} className="w-full flex items-center justify-center gap-2 py-2 bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] text-white text-sm font-medium rounded-xl transition-colors">
+              <UserPlus size={14} /> Invite people
+            </button>
           </div>
 
           {/* Replication */}
@@ -228,6 +194,10 @@ export default function GroupView() {
         )}
 
         <FileTable key={refresh} groupId={id} canManage={true} />
+
+      {showInvite && (
+        <InviteModal groupId={id} groupName={group?.name} onClose={() => setShowInvite(false)} />
+      )}
     </div>
   );
 }

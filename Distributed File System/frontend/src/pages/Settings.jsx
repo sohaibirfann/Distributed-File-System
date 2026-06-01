@@ -5,10 +5,9 @@ import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { isDesktop } from "../lib/platform";
 import {
-  SlidersHorizontal, User, Power, HardDrive, Server, FolderOpen, LogOut,
+  SlidersHorizontal, User, Power, HardDrive, FolderOpen, LogOut,
 } from "lucide-react";
 
-const API     = import.meta.env.VITE_API_URL;
 const desktop = isDesktop();
 const settingsApi = () => window.dfsDesktop?.settings;
 
@@ -101,7 +100,7 @@ export default function Settings() {
 
       {/* Account */}
       <Section icon={User} title="Account">
-        <Row label="Signed in as" hint="Your username on this coordinator">
+        <Row label="Signed in as" hint="Your account username">
           <span className="text-sm font-semibold text-gray-800 dark:text-neutral-200">{user?.username ?? "—"}</span>
         </Row>
         <Row label="Sign out" hint="Return to the login screen">
@@ -153,13 +152,6 @@ export default function Settings() {
             Your node starts contributing once peer-to-peer networking ships — these preferences are saved and ready.
           </p>
         )}
-      </Section>
-
-      {/* Coordinator */}
-      <Section icon={Server} title="Coordinator">
-        <Row label="Server" hint="The coordinator this app connects to">
-          <span className="text-xs font-mono text-gray-600 dark:text-neutral-300 truncate max-w-[200px]">{API}</span>
-        </Row>
       </Section>
 
       {desktop && window.dfsDesktop?.version && (
