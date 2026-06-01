@@ -5,6 +5,7 @@ import { useNotify } from "../context/NotificationContext";
 import FileTable   from "../components/FileTable";
 import UploadPanel from "../components/UploadPanel";
 import InviteModal from "../components/InviteModal";
+import Skeleton    from "../components/Skeleton";
 import { Users, Crown, UserPlus, Upload, Shield } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
@@ -106,7 +107,11 @@ export default function GroupView() {
         </div>
       )}
 
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate">{group?.name ?? "…"}</h1>
+      {group ? (
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate">{group.name}</h1>
+      ) : (
+        <Skeleton className="h-8 w-48" />
+      )}
 
       {/* Group meta: members, invite, replication */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -116,14 +121,19 @@ export default function GroupView() {
               <Users size={13} /> Members ({group?.members?.length ?? 0})
             </div>
             <div className="space-y-1.5">
-              {group?.members?.map((m) => (
+              {group ? group.members?.map((m) => (
                 <div key={m.user_id} className="flex items-center justify-between text-sm">
                   <span className="text-gray-800 dark:text-neutral-200">{m.username}</span>
                   <span className={`flex items-center gap-1 text-xs font-medium ${m.role === "owner" ? "text-amber-600 dark:text-amber-400" : "text-gray-400 dark:text-neutral-500"}`}>
                     {m.role === "owner" ? <Crown size={11} /> : <UserPlus size={11} />}{m.role}
                   </span>
                 </div>
-              ))}
+              )) : (
+                <>
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                </>
+              )}
             </div>
           </div>
 

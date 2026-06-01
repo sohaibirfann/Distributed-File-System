@@ -5,6 +5,7 @@ import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { createKeyForGroup, storeKeyB64, parseInvite } from "../lib/groupKeys";
 import Kbd from "./Kbd";
+import Skeleton from "./Skeleton";
 import {
   Database, Users, Plus, LogIn, Moon, Sun, LogOut, X, Settings,
   PanelLeftClose, PanelLeftOpen,
@@ -33,6 +34,7 @@ export default function AppShell() {
     () => localStorage.getItem("dfs_sidebar_collapsed") === "1",
   );
   const [groups, setGroups] = useState([]);
+  const [loadingGroups, setLoadingGroups] = useState(true);
   const [modal, setModal]   = useState(null); // null | "new" | "join"
 
   const fetchGroups = useCallback(async () => {
@@ -40,6 +42,7 @@ export default function AppShell() {
       const res = await authFetch(`${API}/api/groups`);
       setGroups(await res.json());
     } catch { /* ignore — sidebar just stays as-is */ }
+    finally { setLoadingGroups(false); }
   }, [authFetch]);
 
   useEffect(() => { fetchGroups(); }, [fetchGroups]);
@@ -98,6 +101,13 @@ export default function AppShell() {
           )}
 
           <div className="space-y-0.5">
+            {loadingGroups && groups.length === 0 &&
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={`gsk-${i}`} className={`flex items-center gap-2.5 ${collapsed ? "justify-center p-2" : "px-2.5 py-2"}`}>
+                  <Skeleton className="w-7 h-7 rounded-lg shrink-0" />
+                  {!collapsed && <Skeleton className="h-3.5 flex-1" style={{ maxWidth: `${70 - i * 10}%` }} />}
+                </div>
+              ))}
             {groups.map((g) => {
               const active = g.id === activeId;
               return (

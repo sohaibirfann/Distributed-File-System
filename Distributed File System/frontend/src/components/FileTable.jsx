@@ -4,6 +4,7 @@ import { useAuth }   from "../context/AuthContext";
 import { loadKey }     from "../lib/groupKeys";
 import { decryptBytes } from "../lib/crypto";
 import Kbd from "./Kbd";
+import Skeleton from "./Skeleton";
 import {
   Download, Eye, Trash2, Search, X, AlertTriangle, WifiOff,
   FileText, Image, Film, Music, Archive, Code, File, HardDrive,
@@ -91,6 +92,7 @@ export default function FileTable({ groupId, canManage = false }) {
   const notify = useNotify();
   const { authFetch } = useAuth();
   const [files, setFiles]               = useState([]);
+  const [loading, setLoading]           = useState(true);
   const [search, setSearch]             = useState("");
   const [apiError, setApiError]         = useState(false);
   const [fileToDelete, setFileToDelete]     = useState(null);
@@ -135,6 +137,8 @@ export default function FileTable({ groupId, canManage = false }) {
       setApiError(false);
     } catch {
       setApiError(true);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -313,7 +317,22 @@ export default function FileTable({ groupId, canManage = false }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-neutral-800">
-              {filtered.length === 0 ? (
+              {loading && files.length === 0 ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={`sk-${i}`}>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="w-8 h-8 rounded-lg" />
+                        <Skeleton className="h-3.5 w-40" />
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5 hidden sm:table-cell"><Skeleton className="h-3 w-14" /></td>
+                    <td className="px-5 py-3.5 hidden md:table-cell"><Skeleton className="h-4 w-10 rounded-md" /></td>
+                    <td className="px-5 py-3.5 hidden lg:table-cell"><Skeleton className="h-3 w-16" /></td>
+                    <td className="px-5 py-3.5"><div className="flex justify-end"><Skeleton className="h-6 w-24 rounded-lg" /></div></td>
+                  </tr>
+                ))
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="px-5 py-16 text-center">
                     {apiError && files.length === 0 ? (
