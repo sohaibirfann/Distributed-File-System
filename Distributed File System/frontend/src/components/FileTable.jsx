@@ -1,12 +1,11 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNotify } from "../context/NotificationContext";
 import { useAuth }   from "../context/AuthContext";
 import { loadKey }     from "../lib/groupKeys";
 import { decryptBytes } from "../lib/crypto";
-import Kbd from "./Kbd";
 import Skeleton from "./Skeleton";
 import {
-  Download, Eye, Trash2, Search, X, AlertTriangle, WifiOff,
+  Download, Eye, Trash2, X, AlertTriangle, WifiOff,
   FileText, Image, Film, Music, Archive, Code, File, HardDrive,
   ChevronUp, ChevronDown, ChevronsUpDown, Loader2,
 } from "lucide-react";
@@ -88,12 +87,11 @@ function formatRelativeTime(iso) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export default function FileTable({ groupId, canManage = false }) {
+export default function FileTable({ groupId, canManage = false, search = "", onCount }) {
   const notify = useNotify();
   const { authFetch } = useAuth();
   const [files, setFiles]               = useState([]);
   const [loading, setLoading]           = useState(true);
-  const [search, setSearch]             = useState("");
   const [apiError, setApiError]         = useState(false);
   const [fileToDelete, setFileToDelete]     = useState(null);
   const [deleting, setDeleting]             = useState(false);
@@ -102,26 +100,8 @@ export default function FileTable({ groupId, canManage = false }) {
   const [previewContent, setPreviewContent] = useState("");
   const [previewUrl, setPreviewUrl]         = useState(null);
   const [downloading, setDownloading]       = useState([]);
-  const searchRef = useRef(null);
 
   const base = `${API}/api/groups/${groupId}/files`;
-
-  // "/" focuses the search (unless already typing somewhere); Esc clears it.
-  useEffect(() => {
-    function onKey(e) {
-      const el = document.activeElement;
-      const typing = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
-      if (e.key === "/" && !typing) {
-        e.preventDefault();
-        searchRef.current?.focus();
-      } else if (e.key === "Escape" && el === searchRef.current) {
-        setSearch("");
-        searchRef.current?.blur();
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   useEffect(() => {
     if (!groupId) return;
@@ -262,39 +242,12 @@ export default function FileTable({ groupId, canManage = false }) {
     return 0;
   });
 
+  useEffect(() => { onCount?.(filtered.length); }, [filtered.length]);
+
   return (
     <>
-      <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 overflow-hidden">
-        {/* Search + count */}
-        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-neutral-800">
-          <Search size={15} className="text-gray-400 dark:text-neutral-500 shrink-0" />
-          <input
-            ref={searchRef}
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search files…"
-            className="flex-1 text-sm bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500"
-          />
-          {search ? (
-            <button
-              onClick={() => setSearch("")}
-              className="text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors"
-            >
-              <X size={14} />
-            </button>
-          ) : (
-            <Kbd keys={["/"]} />
-          )}
-          <span className="text-xs text-gray-400 dark:text-neutral-500 shrink-0 border-l border-gray-100 dark:border-neutral-800 pl-3">
-            {sorted.length} {sorted.length === 1 ? "file" : "files"}
-          </span>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-white/40 dark:bg-neutral-800/40 border-b border-gray-100 dark:border-neutral-800">
+      <table className="w-full text-sm">
+        <thead className="sticky top-0 z-10 bg-white/95 dark:bg-neutral-950/85 backdrop-blur-sm border-b border-gray-100 dark:border-neutral-800">
               <tr>
                 {[
                   { label: "Name",   col: "filename",   cls: "" },
@@ -305,7 +258,7 @@ export default function FileTable({ groupId, canManage = false }) {
                   <th
                     key={col}
                     onClick={() => handleSort(col)}
-                    className={`px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400 cursor-pointer select-none hover:text-gray-700 dark:hover:text-neutral-200 transition-colors ${cls}`}
+                    className={`px-6 py-2.5 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400 cursor-pointer select-none hover:text-gray-700 dark:hover:text-neutral-200 transition-colors ${cls}`}
                   >
                     <div className="flex items-center gap-1">
                       {label}
@@ -313,28 +266,28 @@ export default function FileTable({ groupId, canManage = false }) {
                     </div>
                   </th>
                 ))}
-                <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 dark:text-neutral-400">Actions</th>
+                <th className="px-6 py-2.5 text-right text-xs font-semibold text-gray-500 dark:text-neutral-400">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-neutral-800">
               {loading && files.length === 0 ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <tr key={`sk-${i}`}>
-                    <td className="px-5 py-3.5">
+                    <td className="px-6 py-2.5">
                       <div className="flex items-center gap-3">
                         <Skeleton className="w-8 h-8 rounded-lg" />
                         <Skeleton className="h-3.5 w-40" />
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 hidden sm:table-cell"><Skeleton className="h-3 w-14" /></td>
-                    <td className="px-5 py-3.5 hidden md:table-cell"><Skeleton className="h-4 w-10 rounded-md" /></td>
-                    <td className="px-5 py-3.5 hidden lg:table-cell"><Skeleton className="h-3 w-16" /></td>
-                    <td className="px-5 py-3.5"><div className="flex justify-end"><Skeleton className="h-6 w-24 rounded-lg" /></div></td>
+                    <td className="px-6 py-2.5 hidden sm:table-cell"><Skeleton className="h-3 w-14" /></td>
+                    <td className="px-6 py-2.5 hidden md:table-cell"><Skeleton className="h-4 w-10 rounded-md" /></td>
+                    <td className="px-6 py-2.5 hidden lg:table-cell"><Skeleton className="h-3 w-16" /></td>
+                    <td className="px-6 py-2.5"><div className="flex justify-end"><Skeleton className="h-6 w-24 rounded-lg" /></div></td>
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-5 py-16 text-center">
+                  <td colSpan="5" className="px-6 py-16 text-center">
                     {apiError && files.length === 0 ? (
                       <>
                         <WifiOff size={28} className="mx-auto mb-3 text-red-400 dark:text-[#FF6363]" />
@@ -361,7 +314,7 @@ export default function FileTable({ groupId, canManage = false }) {
                   const { icon: Icon, bg, color } = getType(file.filename);
                   return (
                     <tr key={i} className="hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition-colors">
-                      <td className="px-5 py-3.5 max-w-0 w-full">
+                      <td className="px-6 py-2.5 max-w-0 w-full">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
                             <Icon size={15} className={color} />
@@ -377,12 +330,12 @@ export default function FileTable({ groupId, canManage = false }) {
                           )}
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 hidden sm:table-cell">
+                      <td className="px-6 py-2.5 hidden sm:table-cell">
                         <span className="text-gray-500 dark:text-neutral-400 font-mono text-xs whitespace-nowrap">
                           {formatSize(file.size)}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 hidden md:table-cell">
+                      <td className="px-6 py-2.5 hidden md:table-cell">
                         {(() => {
                           const ext = file.filename.split(".").pop()?.toUpperCase() ?? "";
                           const { bg, color } = getType(file.filename);
@@ -395,12 +348,12 @@ export default function FileTable({ groupId, canManage = false }) {
                           );
                         })()}
                       </td>
-                      <td className="px-5 py-3.5 hidden lg:table-cell">
+                      <td className="px-6 py-2.5 hidden lg:table-cell">
                         <span className="text-xs text-gray-500 dark:text-neutral-400">
                           {formatRelativeTime(file.uploadedAt)}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-6 py-2.5">
                         <div className="flex items-center justify-end gap-1">
                           {downloading.includes(file.filename) ? (
                             <span className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
@@ -444,8 +397,6 @@ export default function FileTable({ groupId, canManage = false }) {
               )}
             </tbody>
           </table>
-        </div>
-      </div>
 
       {/* Preview modal */}
       {previewFile && (

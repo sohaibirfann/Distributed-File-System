@@ -6,15 +6,16 @@ import FileTable   from "../components/FileTable";
 import UploadPanel from "../components/UploadPanel";
 import InviteModal from "../components/InviteModal";
 import Skeleton    from "../components/Skeleton";
-import { Users, Crown, UserPlus, Upload, Shield } from "lucide-react";
+import Kbd         from "../components/Kbd";
+import { Users, Crown, UserPlus, Upload, Shield, Search, X } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
 
-const PRESETS = [
-  { key: "minimal",  label: "Minimal",  hint: "2 copies"      },
-  { key: "balanced", label: "Balanced", hint: "3 copies"      },
-  { key: "max",      label: "Maximum",  hint: "all nodes"     },
-];
+const PRESETS = {
+  minimal:  "Minimal",
+  balanced: "Balanced",
+  max:      "Maximum",
+};
 
 export default function GroupView() {
   const { id }        = useParams();
@@ -26,46 +27,51 @@ export default function GroupView() {
   const [notFound, setNotFound] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
   const [refresh, setRefresh]   = useState(0);
+  const [search, setSearch]     = useState("");
+  const [fileCount, setFileCount] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [dropped, setDropped]   = useState(null);
   const [dropNonce, setDropNonce] = useState(0);
   const dragCount = useRef(0);
-
-  function onDragEnter(e) {
-    if (!e.dataTransfer.types.includes("Files")) return;
-    e.preventDefault();
-    dragCount.current++;
-    setDragOver(true);
-  }
-  function onDragOver(e) {
-    if (e.dataTransfer.types.includes("Files")) e.preventDefault();
-  }
-  function onDragLeave() {
-    dragCount.current--;
-    if (dragCount.current <= 0) { dragCount.current = 0; setDragOver(false); }
-  }
-  function onDrop(e) {
-    e.preventDefault();
-    dragCount.current = 0;
-    setDragOver(false);
-    const files = Array.from(e.dataTransfer.files || []);
-    if (!files.length) return;
-    setDropped(files);
-    setDropNonce((n) => n + 1);
-    setShowUpload(true);
-  }
+  const searchRef = useRef(null);
 
   useEffect(() => { fetchGroup(); }, [id]);
+
+  // "/" focuses search (unless already typing); Esc clears + blurs.
+  useEffect(() => {
+    function onKey(e) {
+      const el = document.activeElement;
+      const typing = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+      if (e.key === "/" && !typing) { e.preventDefault(); searchRef.current?.focus(); }
+      else if (e.key === "Escape" && el === searchRef.current) { setSearch(""); searchRef.current?.blur(); }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   async function fetchGroup() {
     try {
       const res = await authFetch(`${API}/api/groups/${id}`);
       if (res.status === 403 || res.status === 404) { setNotFound(true); return; }
       setGroup(await res.json());
-    } catch {
-      notify.error("Couldn't load group");
-    }
+    } catch { notify.error("Couldn't load group"); }
+  }
+
+  function onDragEnter(e) {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault(); dragCount.current++; setDragOver(true);
+  }
+  function onDragOver(e) { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); }
+  function onDragLeave() { dragCount.current--; if (dragCount.current <= 0) { dragCount.current = 0; setDragOver(false); } }
+  function onDrop(e) {
+    e.preventDefault();
+    dragCount.current = 0;
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer.files || []);
+    if (!files.length) return;
+    setDropped(files); setDropNonce((n) => n + 1); setShowUpload(true);
   }
 
   if (notFound) {
@@ -78,109 +84,120 @@ export default function GroupView() {
     );
   }
 
+  const memberCount = group?.members?.length;
+
   return (
     <div
-      className="relative max-w-5xl w-full mx-auto px-6 py-8 space-y-6"
+      className="h-full flex flex-col"
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
-      {dragOver && (
-        <div className="absolute inset-3 z-40 pointer-events-none flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-blue-400/70 dark:border-[#FF6363]/70 bg-blue-500/10 dark:bg-[#FF6363]/10 backdrop-blur-sm">
-          <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-[#FF6363]/15 flex items-center justify-center">
-            <Upload size={26} className="text-blue-500 dark:text-[#FF6363]" />
-          </div>
-          <p className="text-base font-semibold text-blue-600 dark:text-[#FF6363]">Drop to upload to {group?.name}</p>
-        </div>
-      )}
+      {/* ── Toolbar ─────────────────────────────────────────────── */}
+      <div className="relative shrink-0 flex items-center justify-between gap-3 px-6 h-14 border-b border-gray-100 dark:border-white/[0.06]">
+        <div className="flex items-center gap-2.5 min-w-0">
+          {group
+            ? <h1 className="text-base font-bold text-gray-900 dark:text-white truncate">{group.name}</h1>
+            : <Skeleton className="h-5 w-32" />}
 
-      {group ? (
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate">{group.name}</h1>
-      ) : (
-        <Skeleton className="h-8 w-48" />
-      )}
+          <button
+            onClick={() => setMembersOpen((o) => !o)}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors shrink-0"
+          >
+            <Users size={13} />
+            {memberCount ?? "…"} {memberCount === 1 ? "member" : "members"}
+          </button>
 
-      {/* Group meta: members, invite, replication */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Members */}
-          <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 p-5">
-            <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wide">
-              <Users size={13} /> Members ({group?.members?.length ?? 0})
-            </div>
-            <div className="space-y-1.5">
-              {group ? group.members?.map((m) => (
-                <div key={m.user_id} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-800 dark:text-neutral-200">{m.username}</span>
-                  <span className={`flex items-center gap-1 text-xs font-medium ${m.role === "owner" ? "text-amber-600 dark:text-amber-400" : "text-gray-400 dark:text-neutral-500"}`}>
-                    {m.role === "owner" ? <Crown size={11} /> : <UserPlus size={11} />}{m.role}
-                  </span>
-                </div>
-              )) : (
-                <>
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-24" />
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Invite */}
-          <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 p-5 flex flex-col">
-            <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wide">
-              <UserPlus size={13} /> Invite
-            </div>
-            <p className="text-xs text-gray-500 dark:text-neutral-400 mb-3 flex-1">Share a code so friends can join this group.</p>
-            <button onClick={() => setShowInvite(true)} className="w-full flex items-center justify-center gap-2 py-2 bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] text-white text-sm font-medium rounded-xl transition-colors">
-              <UserPlus size={14} /> Invite people
-            </button>
-          </div>
-
-          {/* Replication (set at creation, read-only here) */}
-          <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 p-5">
-            <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wide">
-              <Shield size={13} /> Replication
-            </div>
-            {(() => {
-              const preset = PRESETS.find((p) => p.key === group?.replication);
-              return (
-                <div>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{preset?.label ?? "—"}</p>
-                  <p className="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">{preset ? preset.hint : ""} · chosen when the group was created</p>
-                </div>
-              );
-            })()}
-          </div>
+          <span className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium text-gray-500 dark:text-neutral-400 bg-gray-100/70 dark:bg-neutral-800/60 shrink-0" title="Replication (set at creation)">
+            <Shield size={12} /> {PRESETS[group?.replication] ?? "…"}
+          </span>
         </div>
 
-        {/* Files */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Files</h2>
-            <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Encrypted and distributed across this group's nodes</p>
-          </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setShowInvite(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 border border-gray-200 dark:border-neutral-700 transition-colors"
+          >
+            <UserPlus size={13} /> Invite
+          </button>
           <button
             onClick={() => { setDropped(null); setShowUpload((v) => !v); }}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
               showUpload
-                ? "bg-white/60 dark:bg-neutral-800/60 text-gray-700 dark:text-neutral-300"
-                : "bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] text-white hover:-translate-y-0.5"
+                ? "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300"
+                : "bg-blue-600 hover:bg-blue-500 dark:bg-[#FF6363] dark:hover:bg-[#FF5252] text-white"
             }`}
           >
-            <Upload size={14} /> {showUpload ? "Cancel" : "Upload file"}
+            <Upload size={13} /> {showUpload ? "Cancel" : "Upload"}
           </button>
         </div>
 
-        {showUpload && (
-          <UploadPanel
-            key={dropNonce}
-            groupId={id}
-            initialFiles={dropped ?? []}
-            onUploadSuccess={() => { setRefresh((n) => n + 1); setShowUpload(false); setDropped(null); }}
-          />
+        {/* Members popover */}
+        {membersOpen && (
+          <>
+            <div className="fixed inset-0 z-30" onClick={() => setMembersOpen(false)} />
+            <div className="absolute top-[3.25rem] left-6 z-40 w-60 glass bg-white/90 dark:bg-neutral-900/90 rounded-xl border border-gray-100 dark:border-neutral-800 p-2 shadow-lg">
+              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-neutral-500">Members</p>
+              {group?.members?.map((m) => (
+                <div key={m.user_id} className="flex items-center justify-between px-2 py-1.5 text-sm">
+                  <span className="text-gray-800 dark:text-neutral-200 truncate">{m.username}</span>
+                  <span className={`flex items-center gap-1 text-xs font-medium shrink-0 ${m.role === "owner" ? "text-amber-600 dark:text-amber-400" : "text-gray-400 dark:text-neutral-500"}`}>
+                    {m.role === "owner" ? <Crown size={11} /> : <UserPlus size={11} />}{m.role}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Search bar ──────────────────────────────────────────── */}
+      <div className="shrink-0 flex items-center gap-3 px-6 py-2.5 border-b border-gray-100 dark:border-white/[0.06]">
+        <Search size={15} className="text-gray-400 dark:text-neutral-500 shrink-0" />
+        <input
+          ref={searchRef}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search files…"
+          className="flex-1 text-sm bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500"
+        />
+        {search ? (
+          <button onClick={() => setSearch("")} className="text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors">
+            <X size={14} />
+          </button>
+        ) : (
+          <Kbd keys={["/"]} />
+        )}
+        <span className="text-xs text-gray-400 dark:text-neutral-500 shrink-0 border-l border-gray-100 dark:border-neutral-800 pl-3">
+          {fileCount} {fileCount === 1 ? "file" : "files"}
+        </span>
+      </div>
+
+      {/* ── File area ───────────────────────────────────────────── */}
+      <div className="relative flex-1 min-h-0 overflow-y-auto">
+        {dragOver && (
+          <div className="absolute inset-0 z-40 pointer-events-none flex flex-col items-center justify-center gap-3 bg-blue-500/10 dark:bg-[#FF6363]/10 backdrop-blur-sm border-2 border-dashed border-blue-400/70 dark:border-[#FF6363]/70 m-2 rounded-xl">
+            <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-[#FF6363]/15 flex items-center justify-center">
+              <Upload size={26} className="text-blue-500 dark:text-[#FF6363]" />
+            </div>
+            <p className="text-base font-semibold text-blue-600 dark:text-[#FF6363]">Drop to upload to {group?.name}</p>
+          </div>
         )}
 
-        <FileTable key={refresh} groupId={id} canManage={true} />
+        {showUpload && (
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-white/[0.06]">
+            <UploadPanel
+              key={dropNonce}
+              groupId={id}
+              initialFiles={dropped ?? []}
+              onUploadSuccess={() => { setRefresh((n) => n + 1); setShowUpload(false); setDropped(null); }}
+            />
+          </div>
+        )}
+
+        <FileTable key={refresh} groupId={id} canManage search={search} onCount={setFileCount} />
+      </div>
 
       {showInvite && (
         <InviteModal groupId={id} groupName={group?.name} onClose={() => setShowInvite(false)} />
