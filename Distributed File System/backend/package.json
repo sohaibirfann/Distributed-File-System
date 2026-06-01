@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node app.js",
     "dev": "node app.js",
+    "node1": "node nodeServer.js node1 7001",
     "test": "node tests/groups.test.js"
   },
   "dependencies": {
