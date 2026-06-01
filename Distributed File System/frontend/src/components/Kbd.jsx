@@ -1,5 +1,5 @@
-// Small keyboard-key badges (Raycast-style hints). Pass keys as an array, e.g.
-// <Kbd keys={["mod", ","]} /> — "mod" renders ⌘ on macOS, Ctrl elsewhere.
+// Shortcut hint shown as a single rounded pill, e.g. "⌘ + K" / "Ctrl + ,".
+// "mod" renders ⌘ on macOS, Ctrl elsewhere.
 const isMac = typeof navigator !== "undefined" && /mac/i.test(navigator.platform || navigator.userAgent);
 
 function label(k) {
@@ -9,17 +9,12 @@ function label(k) {
 
 export default function Kbd({ keys = [], className = "" }) {
   return (
-    <span className={`inline-flex items-center gap-0.5 ${className}`}>
-      {keys.map((k, i) => (
-        <kbd
-          key={i}
-          className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-[5px] text-[10px] font-semibold font-sans
-                     bg-gray-100 dark:bg-neutral-800 text-gray-500 dark:text-neutral-400
-                     border border-gray-200 dark:border-neutral-700 shadow-[0_1px_0_rgba(0,0,0,0.04)]"
-        >
-          {label(k)}
-        </kbd>
-      ))}
-    </span>
+    <kbd
+      className={`inline-flex items-center px-2 py-1 rounded-md text-[11px] font-medium leading-none whitespace-nowrap
+                  bg-gray-100 dark:bg-neutral-800 text-gray-500 dark:text-neutral-400
+                  border border-gray-200 dark:border-neutral-700 ${className}`}
+    >
+      {keys.map(label).join(" + ")}
+    </kbd>
   );
 }
