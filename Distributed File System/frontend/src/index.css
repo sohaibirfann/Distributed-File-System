@@ -85,6 +85,17 @@ body::before {
   to   { opacity: 1; }
 }
 
+/* ── Command palette (cmdk) group headings ──────────────────── */
+[cmdk-group-heading] {
+  padding: 0.5rem 0.75rem 0.25rem;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+}
+.dark [cmdk-group-heading] { color: #6b7280; }
+
 @keyframes tabEnter {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0);    }

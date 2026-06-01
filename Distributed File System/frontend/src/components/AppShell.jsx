@@ -6,8 +6,9 @@ import { useNotify } from "../context/NotificationContext";
 import { createKeyForGroup, storeKeyB64, parseInvite } from "../lib/groupKeys";
 import Kbd from "./Kbd";
 import Skeleton from "./Skeleton";
+import CommandPalette from "./CommandPalette";
 import {
-  Database, Users, Plus, LogIn, Moon, Sun, LogOut, X, Settings,
+  Database, Users, Plus, LogIn, Moon, Sun, LogOut, X, Settings, Search,
   PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 
@@ -42,6 +43,7 @@ export default function AppShell() {
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [modal, setModal]   = useState(null); // null | "new" | "join"
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const fetchGroups = useCallback(async () => {
     try {
@@ -64,8 +66,9 @@ export default function AppShell() {
   useEffect(() => {
     function onKey(e) {
       if (!(e.ctrlKey || e.metaKey)) return;
-      if (e.key.toLowerCase() === "b") { e.preventDefault(); toggleCollapsed(); }
-      else if (e.key === ",")          { e.preventDefault(); navigate("/settings"); }
+      if (e.key.toLowerCase() === "b")      { e.preventDefault(); toggleCollapsed(); }
+      else if (e.key.toLowerCase() === "k") { e.preventDefault(); setPaletteOpen((o) => !o); }
+      else if (e.key === ",")               { e.preventDefault(); navigate("/settings"); }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -95,6 +98,19 @@ export default function AppShell() {
             className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:text-neutral-500 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
           >
             {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          </button>
+        </div>
+
+        {/* Command palette trigger */}
+        <div className="px-2 pb-2 shrink-0">
+          <button
+            onClick={() => setPaletteOpen(true)}
+            title={collapsed ? "Search / commands (⌘K)" : undefined}
+            className={`w-full flex items-center gap-2 rounded-xl border border-gray-200 dark:border-neutral-700/70 text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800/70 transition-colors ${collapsed ? "justify-center p-2" : "px-2.5 py-1.5"}`}
+          >
+            <Search size={15} className="shrink-0" />
+            {!collapsed && <span className="text-sm flex-1 text-left">Search or jump…</span>}
+            {!collapsed && <Kbd keys={["mod", "K"]} />}
           </button>
         </div>
 
@@ -218,6 +234,20 @@ export default function AppShell() {
           onDone={(groupId) => { setModal(null); fetchGroups(); if (groupId) navigate(`/groups/${groupId}`); }}
         />
       )}
+
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        groups={groups}
+        isDark={isDark}
+        onOpenGroup={(gid) => navigate(`/groups/${gid}`)}
+        onNewGroup={() => setModal("new")}
+        onJoin={() => setModal("join")}
+        onSettings={() => navigate("/settings")}
+        onToggleTheme={toggleTheme}
+        onToggleSidebar={toggleCollapsed}
+        onSignOut={() => { logout(); navigate("/"); }}
+      />
     </div>
   );
 }
