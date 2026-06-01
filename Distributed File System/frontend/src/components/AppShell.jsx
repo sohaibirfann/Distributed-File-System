@@ -21,6 +21,12 @@ function colorFor(id) {
   return PALETTE[h % PALETTE.length];
 }
 
+const REP_PRESETS = [
+  { key: "minimal",  label: "Minimal",  hint: "2 copies"  },
+  { key: "balanced", label: "Balanced", hint: "3 copies"  },
+  { key: "max",      label: "Maximum",  hint: "all nodes" },
+];
+
 export default function AppShell() {
   const { isDark, toggleTheme }     = useTheme();
   const { logout, authFetch, user } = useAuth();
@@ -221,6 +227,7 @@ function NewJoinModal({ mode, onClose, onDone }) {
   const { authFetch } = useAuth();
   const notify        = useNotify();
   const [value, setValue]   = useState("");
+  const [rep, setRep]       = useState("balanced");
   const [busy, setBusy]     = useState(false);
   const isNew = mode === "new";
 
@@ -232,7 +239,7 @@ function NewJoinModal({ mode, onClose, onDone }) {
       if (isNew) {
         const res = await authFetch(`${API}/api/groups`, {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: value.trim() }),
+          body: JSON.stringify({ name: value.trim(), replication: rep }),
         });
         if (!res.ok) throw new Error();
         const group = await res.json();
@@ -273,6 +280,34 @@ function NewJoinModal({ mode, onClose, onDone }) {
             placeholder={isNew ? "Group name" : "Invite code"}
             className={`w-full px-3.5 py-2.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[#FF6363] ${isNew ? "" : "font-mono"}`}
           />
+
+          {isNew && (
+            <div>
+              <p className="text-xs font-medium text-gray-500 dark:text-neutral-400 mb-1.5">Replication</p>
+              <div className="flex gap-1.5">
+                {REP_PRESETS.map((pr) => {
+                  const active = rep === pr.key;
+                  return (
+                    <button
+                      type="button"
+                      key={pr.key}
+                      onClick={() => setRep(pr.key)}
+                      className={`flex-1 px-2 py-2 rounded-xl text-xs font-medium transition-colors ${
+                        active
+                          ? "bg-blue-600 dark:bg-[#FF6363] text-white"
+                          : "bg-white/60 dark:bg-neutral-800/60 text-gray-600 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700"
+                      }`}
+                    >
+                      {pr.label}
+                      <span className={`block text-[10px] font-normal ${active ? "text-white/80" : "text-gray-400 dark:text-neutral-500"}`}>{pr.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-gray-400 dark:text-neutral-500 mt-1.5">How many copies of each file to keep across members. This can't be changed later.</p>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={busy || !value.trim()}

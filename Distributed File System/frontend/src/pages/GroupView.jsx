@@ -68,18 +68,6 @@ export default function GroupView() {
     }
   }
 
-  async function setReplication(preset) {
-    try {
-      const res = await authFetch(`${API}/api/groups/${id}/replication`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ replication: preset }),
-      });
-      if (!res.ok) throw new Error();
-      setGroup((g) => ({ ...g, replication: preset }));
-      notify.success(`Replication set to ${preset}`);
-    } catch { notify.error("Couldn't update replication"); }
-  }
-
   if (notFound) {
     return (
       <div className="h-full flex flex-col items-center justify-center gap-3">
@@ -148,31 +136,20 @@ export default function GroupView() {
             </button>
           </div>
 
-          {/* Replication */}
+          {/* Replication (set at creation, read-only here) */}
           <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 p-5">
             <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wide">
               <Shield size={13} /> Replication
             </div>
-            <div className="flex gap-1.5">
-              {PRESETS.map((p) => {
-                const active = group?.replication === p.key;
-                return (
-                  <button
-                    key={p.key}
-                    onClick={() => setReplication(p.key)}
-                    title={p.hint}
-                    className={`flex-1 px-2 py-2 rounded-xl text-xs font-medium transition-colors ${
-                      active
-                        ? "bg-blue-600 dark:bg-[#FF6363] text-white"
-                        : "bg-white/60 dark:bg-neutral-800/60 text-gray-600 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700"
-                    }`}
-                  >
-                    {p.label}
-                    <span className={`block text-[10px] font-normal ${active ? "text-white/80" : "text-gray-400 dark:text-neutral-500"}`}>{p.hint}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {(() => {
+              const preset = PRESETS.find((p) => p.key === group?.replication);
+              return (
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{preset?.label ?? "—"}</p>
+                  <p className="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">{preset ? preset.hint : ""} · chosen when the group was created</p>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
