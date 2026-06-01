@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNotify } from "../context/NotificationContext";
 import { useAuth }   from "../context/AuthContext";
 import { loadKey }     from "../lib/groupKeys";
 import { decryptBytes } from "../lib/crypto";
+import Kbd from "./Kbd";
 import {
   Download, Eye, Trash2, Search, X, AlertTriangle, WifiOff,
   FileText, Image, Film, Music, Archive, Code, File, HardDrive,
@@ -99,8 +100,26 @@ export default function FileTable({ groupId, canManage = false }) {
   const [previewContent, setPreviewContent] = useState("");
   const [previewUrl, setPreviewUrl]         = useState(null);
   const [downloading, setDownloading]       = useState([]);
+  const searchRef = useRef(null);
 
   const base = `${API}/api/groups/${groupId}/files`;
+
+  // "/" focuses the search (unless already typing somewhere); Esc clears it.
+  useEffect(() => {
+    function onKey(e) {
+      const el = document.activeElement;
+      const typing = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+      if (e.key === "/" && !typing) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      } else if (e.key === "Escape" && el === searchRef.current) {
+        setSearch("");
+        searchRef.current?.blur();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     if (!groupId) return;
@@ -246,19 +265,22 @@ export default function FileTable({ groupId, canManage = false }) {
         <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-neutral-800">
           <Search size={15} className="text-gray-400 dark:text-neutral-500 shrink-0" />
           <input
+            ref={searchRef}
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search files…"
             className="flex-1 text-sm bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500"
           />
-          {search && (
+          {search ? (
             <button
               onClick={() => setSearch("")}
               className="text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors"
             >
               <X size={14} />
             </button>
+          ) : (
+            <Kbd keys={["/"]} />
           )}
           <span className="text-xs text-gray-400 dark:text-neutral-500 shrink-0 border-l border-gray-100 dark:border-neutral-800 pl-3">
             {sorted.length} {sorted.length === 1 ? "file" : "files"}

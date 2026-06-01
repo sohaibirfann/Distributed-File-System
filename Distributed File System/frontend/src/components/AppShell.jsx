@@ -4,6 +4,7 @@ import { useTheme }  from "../context/ThemeContext";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { createKeyForGroup, storeKeyB64, parseInvite } from "../lib/groupKeys";
+import Kbd from "./Kbd";
 import {
   Database, Users, Plus, LogIn, Moon, Sun, LogOut, X, Settings,
   PanelLeftClose, PanelLeftOpen,
@@ -50,13 +51,12 @@ export default function AppShell() {
     });
   }
 
-  // Ctrl/Cmd+B toggles the sidebar.
+  // Ctrl/Cmd+B toggles the sidebar; Ctrl/Cmd+, opens Settings.
   useEffect(() => {
     function onKey(e) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
-        e.preventDefault();
-        toggleCollapsed();
-      }
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.key.toLowerCase() === "b") { e.preventDefault(); toggleCollapsed(); }
+      else if (e.key === ",")          { e.preventDefault(); navigate("/settings"); }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -168,7 +168,8 @@ export default function AppShell() {
             }`}
           >
             <div className="w-7 h-7 flex items-center justify-center shrink-0"><Settings size={15} /></div>
-            {!collapsed && <span className="text-sm font-medium">Settings</span>}
+            {!collapsed && <span className="text-sm font-medium flex-1 text-left">Settings</span>}
+            {!collapsed && <Kbd keys={["mod", ","]} />}
           </button>
           <button
             onClick={toggleTheme}
