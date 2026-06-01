@@ -33,7 +33,12 @@ function createWindow() {
     minWidth:  900,
     minHeight: 600,
     frame: false,            // custom title bar drawn in the renderer
-    backgroundColor: "#080808",
+    // Translucent window: the OS blurs the desktop behind the app (Win11 acrylic
+    // / macOS vibrancy). Needs the transparent backgroundColor below + a
+    // transparent app background in the renderer (.is-desktop styles).
+    backgroundColor: "#00000000",
+    backgroundMaterial: "acrylic",
+    vibrancy: "under-window",
     title: "DFS",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
