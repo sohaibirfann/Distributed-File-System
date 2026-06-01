@@ -44,25 +44,6 @@ body::before {
     #080808;
 }
 
-/* ── Desktop app: translucent window (acrylic/vibrancy shows the desktop) ──── */
-/* Drop the solid background fill so the OS material/desktop shows through;
-   keep only a faint accent glow at the top. */
-.is-desktop body,
-.is-desktop.dark body { background-color: transparent; }
-
-.is-desktop body::before {
-  background:
-    radial-gradient(ellipse 110% 55% at 50% -10%,
-      rgba(59, 130, 246, 0.22) 0%,
-      transparent 55%);
-}
-.is-desktop.dark body::before {
-  background:
-    radial-gradient(ellipse 110% 55% at 50% -10%,
-      rgba(255, 80, 80, 0.22) 0%,
-      transparent 55%);
-}
-
 /* ── Glass ──────────────────────────────────────────────────── */
 .glass {
   backdrop-filter: blur(28px) saturate(180%);
