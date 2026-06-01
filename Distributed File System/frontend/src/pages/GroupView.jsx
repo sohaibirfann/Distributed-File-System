@@ -48,9 +48,9 @@ export default function GroupView() {
     e.preventDefault();
     dragCount.current = 0;
     setDragOver(false);
-    const f = e.dataTransfer.files?.[0];
-    if (!f) return;
-    setDropped(f);
+    const files = Array.from(e.dataTransfer.files || []);
+    if (!files.length) return;
+    setDropped(files);
     setDropNonce((n) => n + 1);
     setShowUpload(true);
   }
@@ -188,7 +188,7 @@ export default function GroupView() {
           <UploadPanel
             key={dropNonce}
             groupId={id}
-            initialFile={dropped}
+            initialFiles={dropped ?? []}
             onUploadSuccess={() => { setRefresh((n) => n + 1); setShowUpload(false); setDropped(null); }}
           />
         )}
