@@ -17,6 +17,13 @@ const PRESETS = {
   max:      "Maximum",
 };
 
+function fmtSize(b) {
+  if (!b) return "0 B";
+  if (b < 1024)        return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function GroupView() {
   const { id }        = useParams();
   const { authFetch } = useAuth();
@@ -30,7 +37,7 @@ export default function GroupView() {
   const [membersOpen, setMembersOpen] = useState(false);
   const [refresh, setRefresh]   = useState(0);
   const [search, setSearch]     = useState("");
-  const [fileCount, setFileCount] = useState(0);
+  const [stats, setStats]       = useState({ count: 0, totalSize: 0 });
   const [dragOver, setDragOver] = useState(false);
   const [dropped, setDropped]   = useState(null);
   const [dropNonce, setDropNonce] = useState(0);
@@ -169,8 +176,8 @@ export default function GroupView() {
         ) : (
           <Kbd keys={["/"]} />
         )}
-        <span className="text-xs text-gray-400 dark:text-neutral-500 shrink-0 border-l border-gray-100 dark:border-neutral-800 pl-3">
-          {fileCount} {fileCount === 1 ? "file" : "files"}
+        <span className="text-xs text-gray-400 dark:text-neutral-500 shrink-0 border-l border-gray-100 dark:border-neutral-800 pl-3 whitespace-nowrap">
+          {stats.count} {stats.count === 1 ? "file" : "files"}{stats.totalSize > 0 ? ` · ${fmtSize(stats.totalSize)}` : ""}
         </span>
       </div>
 
@@ -196,7 +203,7 @@ export default function GroupView() {
           </div>
         )}
 
-        <FileTable key={refresh} groupId={id} canManage search={search} onCount={setFileCount} />
+        <FileTable key={refresh} groupId={id} canManage search={search} onStats={setStats} />
       </div>
 
       {showInvite && (

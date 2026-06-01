@@ -95,8 +95,10 @@ const stmts = {
   deleteFileByName: db.prepare(`DELETE FROM files WHERE group_id = ? AND filename = ?`),
   deleteFileById:   db.prepare(`DELETE FROM files WHERE id = ?`),
   getFileByName:    db.prepare(`SELECT * FROM files WHERE group_id = ? AND filename = ?`),
-  groupFiles:       db.prepare(`SELECT f.*, (SELECT COUNT(*) FROM chunks c WHERE c.file_id = f.id) AS chunk_count
-                                  FROM files f WHERE f.group_id = ? ORDER BY f.uploaded_at DESC`),
+  groupFiles:       db.prepare(`SELECT f.*, u.username AS uploaded_by_name,
+                                       (SELECT COUNT(*) FROM chunks c WHERE c.file_id = f.id) AS chunk_count
+                                  FROM files f LEFT JOIN users u ON u.id = f.uploaded_by
+                                 WHERE f.group_id = ? ORDER BY f.uploaded_at DESC`),
   allFiles:         db.prepare(`SELECT * FROM files ORDER BY uploaded_at DESC`),
 
   // Chunks

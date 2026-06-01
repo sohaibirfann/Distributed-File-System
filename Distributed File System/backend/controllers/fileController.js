@@ -80,6 +80,7 @@ const getFiles = (req, res) => {
       chunks:     f.chunk_count,
       size:       f.total_size,
       uploadedAt: f.uploaded_at,
+      uploadedBy: f.uploaded_by_name,
       cached:     cachedSet.has(f.id),
     }));
 

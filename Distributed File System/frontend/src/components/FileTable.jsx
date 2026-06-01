@@ -87,7 +87,7 @@ function formatRelativeTime(iso) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export default function FileTable({ groupId, canManage = false, search = "", onCount }) {
+export default function FileTable({ groupId, canManage = false, search = "", onStats }) {
   const notify = useNotify();
   const { authFetch } = useAuth();
   const [files, setFiles]               = useState([]);
@@ -242,7 +242,8 @@ export default function FileTable({ groupId, canManage = false, search = "", onC
     return 0;
   });
 
-  useEffect(() => { onCount?.(filtered.length); }, [filtered.length]);
+  const totalSize = filtered.reduce((s, f) => s + (f.size || 0), 0);
+  useEffect(() => { onStats?.({ count: filtered.length, totalSize }); }, [filtered.length, totalSize]);
 
   return (
     <>
@@ -313,7 +314,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onC
                 sorted.map((file, i) => {
                   const { icon: Icon, bg, color } = getType(file.filename);
                   return (
-                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition-colors">
+                    <tr key={i} className="group hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition-colors">
                       <td className="px-6 py-2.5 max-w-0 w-full">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
@@ -352,9 +353,12 @@ export default function FileTable({ groupId, canManage = false, search = "", onC
                         <span className="text-xs text-gray-500 dark:text-neutral-400">
                           {formatRelativeTime(file.uploadedAt)}
                         </span>
+                        {file.uploadedBy && (
+                          <span className="block text-[11px] text-gray-400 dark:text-neutral-600">by {file.uploadedBy}</span>
+                        )}
                       </td>
                       <td className="px-6 py-2.5">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className={`flex items-center justify-end gap-1 transition-opacity ${downloading.includes(file.filename) ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}>
                           {downloading.includes(file.filename) ? (
                             <span className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                               <Loader2 size={13} className="animate-spin" />
