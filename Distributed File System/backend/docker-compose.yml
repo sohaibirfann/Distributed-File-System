@@ -1,0 +1,21 @@
+# Local/self-host run of the coordinator.
+#   cd backend && docker compose up --build
+# JWT_SECRET / NODE_SECRET are read from the shell env or backend/.env (Compose
+# auto-loads a .env in this directory). The SQLite metadata persists in a volume.
+
+services:
+  coordinator:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      NODE_SECRET: ${NODE_SECRET:?set NODE_SECRET}
+      PORT: 5000
+      DFS_DB_PATH: /data/dfs.db
+    volumes:
+      - coordinator-data:/data
+    restart: unless-stopped
+
+volumes:
+  coordinator-data:
