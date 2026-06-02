@@ -243,7 +243,7 @@ export default function AppShell() {
       {/* Solid fill so it covers the window's Mica — only the sidebar +
           title bar stay translucent (transparent → Mica shows through). */}
       <main className="flex-1 overflow-y-auto bg-[#f3f3f3] dark:bg-[#202020]">
-        <Outlet context={{ refreshGroups: fetchGroups }} />
+        <Outlet context={{ refreshGroups: fetchGroups, groups, openNew: () => setModal("new"), openJoin: () => setModal("join") }} />
       </main>
 
       {modal && (
