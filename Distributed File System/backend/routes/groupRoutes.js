@@ -15,6 +15,7 @@ const {
   getGroupMembers,
   addMember,
   removeMember,
+  transferOwnership,
   createInvite,
   getValidInvite,
   revokeInvite,
@@ -94,6 +95,17 @@ router.patch("/:id", requireMember, requireOwner, (req, res) => {
 // nodes become orphaned — GC of those is deferred (see PLAN.md).
 router.delete("/:id", requireMember, requireOwner, (req, res) => {
   deleteGroup(req.params.id);
+  res.json({ success: true });
+});
+
+// POST /api/groups/:id/transfer — hand ownership to another member (owner only)
+router.post("/:id/transfer", requireMember, requireOwner, (req, res) => {
+  const toId = Number(req.body.userId);
+  if (!Number.isInteger(toId))      return res.status(400).json({ error: "userId required" });
+  if (toId === req.user.id)         return res.status(400).json({ error: "You are already the owner" });
+  if (getMemberRole(req.params.id, toId) == null)
+    return res.status(404).json({ error: "Not a member of this group" });
+  transferOwnership(req.params.id, req.user.id, toId);
   res.json({ success: true });
 });
 

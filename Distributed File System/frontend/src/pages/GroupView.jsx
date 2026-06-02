@@ -45,6 +45,8 @@ export default function GroupView() {
   const [renaming, setRenaming]       = useState(false);
   const [confirm, setConfirm]         = useState(null); // null | "delete" | "leave"
   const [confirming, setConfirming]   = useState(false);
+  const [transferTo, setTransferTo]   = useState(null); // member to hand ownership to
+  const [transferring, setTransferring] = useState(false);
   const [refresh, setRefresh]   = useState(0);
   const [search, setSearch]     = useState("");
   const [stats, setStats]       = useState({ count: 0, totalSize: 0, total: 0, allSize: 0 });
@@ -134,6 +136,21 @@ export default function GroupView() {
       notify.success(`Removed ${username}`);
       fetchGroup();
     } catch { notify.error("Couldn't remove member"); }
+  }
+
+  async function doTransfer() {
+    setTransferring(true);
+    try {
+      const res = await authFetch(`${API}/api/groups/${id}/transfer`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: transferTo.user_id }),
+      });
+      if (!res.ok) throw new Error();
+      notify.success(`${transferTo.username} is now the owner`);
+      setTransferTo(null);
+      fetchGroup(); // roles changed — myRole becomes "member"
+    } catch { notify.error("Couldn't transfer ownership"); }
+    finally { setTransferring(false); }
   }
 
   function onDragEnter(e) {
@@ -258,6 +275,15 @@ export default function GroupView() {
                     <span className={`flex items-center gap-1 text-xs font-medium ${m.role === "owner" ? "text-amber-600 dark:text-amber-400" : "text-gray-400 dark:text-neutral-500"}`}>
                       {m.role === "owner" ? <Crown size={11} /> : <UserPlus size={11} />}{m.role}
                     </span>
+                    {isOwner && m.role !== "owner" && (
+                      <button
+                        onClick={() => { setMembersOpen(false); setTransferTo(m); }}
+                        title={`Make ${m.username} the owner`}
+                        className="p-1 rounded-md text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 opacity-0 group-hover/mem:opacity-100 transition"
+                      >
+                        <Crown size={12} />
+                      </button>
+                    )}
                     {isOwner && m.role !== "owner" && (
                       <button
                         onClick={() => removeMember(m.user_id, m.username)}
@@ -427,6 +453,32 @@ export default function GroupView() {
               <button onClick={confirm === "delete" ? doDelete : doLeave} disabled={confirming}
                 className="flex-1 py-2.5 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors disabled:opacity-60">
                 {confirming ? "Working…" : confirm === "delete" ? "Delete" : "Leave"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer ownership confirm */}
+      {transferTo && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={() => !transferring && setTransferTo(null)}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6">
+            <div className="w-11 h-11 bg-amber-50 dark:bg-amber-500/10 rounded-xl flex items-center justify-center mb-4">
+              <Crown size={20} className="text-amber-500" />
+            </div>
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Make {transferTo.username} the owner?</h3>
+            <p className="text-sm text-gray-500 dark:text-neutral-400 mb-5">
+              <span className="font-medium text-gray-800 dark:text-neutral-200 break-all">{transferTo.username}</span> will be able to rename, delete and manage members. You'll become a regular member.
+            </p>
+            <div className="flex gap-2.5">
+              <button onClick={() => setTransferTo(null)} disabled={transferring}
+                className="flex-1 py-2.5 text-sm font-medium border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40">
+                Cancel
+              </button>
+              <button onClick={doTransfer} disabled={transferring}
+                className="flex-1 py-2.5 text-sm font-medium bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors disabled:opacity-60">
+                {transferring ? "Transferring…" : "Make owner"}
               </button>
             </div>
           </div>

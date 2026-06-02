@@ -129,6 +129,7 @@ const stmts = {
   addMember:        db.prepare(`INSERT OR IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)`),
   getMember:        db.prepare(`SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?`),
   getMemberRole:    db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`),
+  setMemberRole:    db.prepare(`UPDATE group_members SET role = ? WHERE group_id = ? AND user_id = ?`),
   removeMemberRow:  db.prepare(`DELETE FROM group_members WHERE group_id = ? AND user_id = ?`),
   listMembers:      db.prepare(`SELECT m.user_id, m.role, m.joined_at, u.username
                                   FROM group_members m JOIN users u ON u.id = m.user_id
@@ -267,6 +268,13 @@ function removeMember(groupId, userId) {
   stmts.removeMemberRow.run(groupId, userId);
 }
 
+// Hands ownership to another member: the current owner becomes a member and the
+// target becomes the owner, atomically.
+const transferOwnership = db.transaction((groupId, fromUserId, toUserId) => {
+  stmts.setMemberRole.run("member", groupId, fromUserId);
+  stmts.setMemberRole.run("owner", groupId, toUserId);
+});
+
 function getGroupMembers(groupId) {
   return stmts.listMembers.all(groupId);
 }
@@ -318,6 +326,7 @@ module.exports = {
   getMemberRole,
   addMember,
   removeMember,
+  transferOwnership,
   getGroupMembers,
   deleteGroup,
   // invites
