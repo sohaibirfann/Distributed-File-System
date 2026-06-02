@@ -127,8 +127,9 @@ function getNodeId() {
 }
 
 // ── Embedded storage node ────────────────────────────────────────────────────
-let storageNode = null;
-let syncingNode = false;
+let storageNode  = null;
+let syncingNode  = false;
+let currentUserId = null; // the logged-in user (pushed from the renderer)
 
 // Reconcile the running node to the current settings: stop any existing node,
 // then (re)start it if the user is contributing — picking up dir/quota changes.
@@ -138,10 +139,10 @@ async function syncStorageNode() {
   try {
     if (storageNode) { await storageNode.stop(); storageNode = null; }
 
-    const s    = readSettings();
-    const want = !!s.contribute;
+    const s      = readSettings();
     const secret = nodeSecret();
-    if (!want) return;
+    // The node belongs to a user, so it only runs while contributing AND signed in.
+    if (!s.contribute || !currentUserId) return;
     if (!secret) { console.warn("[node] contribute is on but no NODE_SECRET is configured — not starting"); return; }
 
     const node = new StorageNode({
@@ -151,6 +152,7 @@ async function syncStorageNode() {
       quotaBytes: Math.max(1, Number(s.quotaGB) || 5) * 1024 * 1024 * 1024,
       coordUrl:   coordUrl(),
       secret,
+      userId:     currentUserId,
     });
     const { url } = await node.start();
     storageNode = node;
@@ -171,6 +173,16 @@ ipcMain.handle("settings:set", (_e, partial) => {
 });
 ipcMain.handle("node:status", () =>
   storageNode ? storageNode.status() : { running: false, registered: false, chunks: 0, bytes: 0 });
+
+// The renderer tells us who's signed in so the node can register under that user
+// (and stop when they sign out).
+ipcMain.handle("node:set-user", (_e, userId) => {
+  const next = userId ?? null;
+  if (next === currentUserId) return true;
+  currentUserId = next;
+  syncStorageNode();
+  return true;
+});
 
 ipcMain.handle("dialog:pick-folder", async (e) => {
   const win = BrowserWindow.fromWebContents(e.sender);

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import { useNotify } from "./NotificationContext";
 
 const AuthContext = createContext(null);
@@ -45,6 +45,12 @@ export function AuthProvider({ children }) {
     }
     return res;
   }, [token, notify]);
+
+  // Tell the desktop shell who's signed in, so its embedded storage node can
+  // register under this user (and stop when they sign out). No-op on the web.
+  useEffect(() => {
+    window.dfsDesktop?.node?.setUser(user?.id ?? null);
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ token, user, login, logout, authFetch }}>

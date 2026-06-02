@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld("dfsDesktop", {
     setStartup: (enabled) => ipcRenderer.invoke("startup:set", enabled),
   },
   node: {
-    getStatus: () => ipcRenderer.invoke("node:status"),
+    getStatus: ()     => ipcRenderer.invoke("node:status"),
+    setUser:   (id)   => ipcRenderer.invoke("node:set-user", id),
   },
 });

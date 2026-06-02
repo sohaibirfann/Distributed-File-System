@@ -4,7 +4,7 @@ const fs     = require("fs");
 const crypto = require("crypto");
 const path   = require("path");
 
-const { saveFile, getGroupFileByName, getGroup, getNodeMap } = require("./db");
+const { saveFile, getGroupFileByName, getGroup, getNodeMap, getMemberNodeMap, getGroupMembers } = require("./db");
 
 const CHUNK_SIZE = 512 * 1024; // 512 KB
 
@@ -51,12 +51,20 @@ async function distributeFile(filePath, filename, groupId, uploadedBy, io) {
   const group      = getGroup(groupId);
   const preset     = group?.replication || "balanced";
   const fileChunks = chunkFile(filePath);
-  const NODE_MAP   = getNodeMap();
+
+  // Prefer the group's own members' nodes ("files live on your group's machines").
+  // Fall back to the global pool while no member is contributing storage yet, so
+  // it keeps working (e.g. the dev node) — group-scoping kicks in once members do.
+  const memberIds  = getGroupMembers(groupId).map((m) => m.user_id);
+  const memberMap  = getMemberNodeMap(memberIds);
+  const scoped     = Object.keys(memberMap).length > 0;
+  const NODE_MAP   = scoped ? memberMap : getNodeMap();
   const USERS      = Object.keys(NODE_MAP);
 
   if (USERS.length === 0) {
-    throw new Error("No nodes available — start at least one node before uploading");
+    throw new Error("No nodes available — a group member needs to enable storage (or start a node) before uploading");
   }
+  io.emit("log", `[replication] using ${scoped ? "group-member" : "global (fallback)"} nodes: ${USERS.join(", ")}`);
 
   const copies = replicaCount(preset, USERS.length);
 

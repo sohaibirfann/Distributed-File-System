@@ -12,6 +12,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS nodes (
     name      TEXT PRIMARY KEY,
     url       TEXT NOT NULL,
+    user_id   INTEGER,
     last_seen INTEGER NOT NULL DEFAULT (unixepoch())
   );
 
@@ -80,11 +81,14 @@ db.exec(`
   );
 `);
 
+// Back-fill the user_id column on databases created before node↔user identity.
+try { db.exec(`ALTER TABLE nodes ADD COLUMN user_id INTEGER`); } catch { /* already present */ }
+
 // ── Nodes ─────────────────────────────────────────────────────────────────────
 
 const stmts = {
-  upsertNode:   db.prepare(`INSERT INTO nodes (name, url, last_seen) VALUES (?, ?, unixepoch())
-                             ON CONFLICT(name) DO UPDATE SET url = excluded.url, last_seen = unixepoch()`),
+  upsertNode:   db.prepare(`INSERT INTO nodes (name, url, user_id, last_seen) VALUES (?, ?, ?, unixepoch())
+                             ON CONFLICT(name) DO UPDATE SET url = excluded.url, user_id = excluded.user_id, last_seen = unixepoch()`),
   heartbeat:    db.prepare(`UPDATE nodes SET last_seen = unixepoch() WHERE name = ?`),
   getNodes:     db.prepare(`SELECT name, url FROM nodes`),
   deleteNode:   db.prepare(`DELETE FROM nodes WHERE name = ?`),
@@ -143,8 +147,16 @@ const stmts = {
 
 // ── Node helpers ──────────────────────────────────────────────────────────────
 
-function registerNode(name, url) {
-  stmts.upsertNode.run(name, url);
+function registerNode(name, url, userId = null) {
+  stmts.upsertNode.run(name, url, userId ?? null);
+}
+
+// name→url map of nodes owned by any of the given users (a group's members).
+function getMemberNodeMap(userIds) {
+  if (!userIds || !userIds.length) return {};
+  const ph   = userIds.map(() => "?").join(",");
+  const rows = db.prepare(`SELECT name, url FROM nodes WHERE user_id IN (${ph})`).all(...userIds);
+  return Object.fromEntries(rows.map((r) => [r.name, r.url]));
 }
 
 function heartbeatNode(name) {
@@ -312,6 +324,7 @@ module.exports = {
   registerNode,
   heartbeatNode,
   getNodeMap,
+  getMemberNodeMap,
   deregisterNode,
   deregisterStaleNodes,
   saveFile,

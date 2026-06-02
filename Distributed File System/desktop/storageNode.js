@@ -54,13 +54,14 @@ function readJson(req, limit = 16 * 1024 * 1024) {
 const chunkPath = (dir, fileId, chunkId) => path.join(dir, `${fileId}_chunk_${chunkId}`);
 
 class StorageNode {
-  constructor({ name, port, storageDir, quotaBytes, coordUrl, secret }) {
+  constructor({ name, port, storageDir, quotaBytes, coordUrl, secret, userId }) {
     this.name       = name;
     this.port       = port;
     this.storageDir = storageDir;
     this.quotaBytes = quotaBytes;
     this.coordUrl   = coordUrl;
     this.secret     = secret;
+    this.userId     = userId ?? null;
     this.server     = null;
     this.heartbeat  = null;
     this.registered = false;
@@ -115,7 +116,7 @@ class StorageNode {
       const res = await fetch(`${this.coordUrl}/api/nodes/register`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ name: this.name, url: this._url(), secret: this.secret }),
+        body:    JSON.stringify({ name: this.name, url: this._url(), secret: this.secret, userId: this.userId }),
       });
       this.registered = res.ok;
     } catch { this.registered = false; }
