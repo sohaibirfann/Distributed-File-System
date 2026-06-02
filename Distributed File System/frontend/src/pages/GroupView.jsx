@@ -2,12 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
+import { useTitle }  from "../context/TitleContext";
+import { hasKey }    from "../lib/groupKeys";
 import FileTable   from "../components/FileTable";
 import UploadPanel from "../components/UploadPanel";
 import InviteModal from "../components/InviteModal";
 import Skeleton    from "../components/Skeleton";
 import Kbd         from "../components/Kbd";
-import { Users, Crown, UserPlus, Upload, Shield, Search, X, List, LayoutGrid, MoreHorizontal, Pencil, Trash2, LogOut } from "lucide-react";
+import { Users, Crown, UserPlus, Upload, Shield, Search, X, List, LayoutGrid, MoreHorizontal, Pencil, Trash2, LogOut, KeyRound } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -29,6 +31,7 @@ export default function GroupView() {
   const { authFetch } = useAuth();
   const notify        = useNotify();
   const navigate      = useNavigate();
+  const { setTitle }  = useTitle();
   const { refreshGroups } = useOutletContext() || {};
 
   const [group, setGroup]       = useState(null);
@@ -56,6 +59,12 @@ export default function GroupView() {
 
   useEffect(() => { fetchGroup(); }, [id]);
 
+  // Reflect the open group in the custom title bar + OS window title.
+  useEffect(() => {
+    if (group?.name) { setTitle(group.name); document.title = `${group.name} · DFS`; }
+    return () => { setTitle(null); document.title = "DFS"; };
+  }, [group?.name]);
+
   // "/" focuses search (unless already typing); Esc clears + blurs.
   useEffect(() => {
     function onKey(e) {
@@ -73,6 +82,7 @@ export default function GroupView() {
       const res = await authFetch(`${API}/api/groups/${id}`);
       if (res.status === 403 || res.status === 404) { setNotFound(true); return; }
       setGroup(await res.json());
+      localStorage.setItem("dfs_last_group", id); // reopen this group on next launch
     } catch { notify.error("Couldn't load group"); }
   }
 
@@ -153,6 +163,7 @@ export default function GroupView() {
 
   const memberCount = group?.members?.length;
   const isOwner     = group?.myRole === "owner";
+  const keyMissing  = group && !hasKey(id);
 
   return (
     <div
@@ -310,6 +321,19 @@ export default function GroupView() {
           {stats.count} {stats.count === 1 ? "file" : "files"}{stats.totalSize > 0 ? ` · ${fmtSize(stats.totalSize)}` : ""}
         </span>
       </div>
+
+      {/* Missing-key notice — this device joined elsewhere / cleared storage */}
+      {keyMissing && (
+        <div className="shrink-0 mx-6 mt-3 flex items-start gap-2.5 rounded-xl border border-amber-300/50 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 px-4 py-3">
+          <KeyRound size={16} className="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+          <div className="text-sm">
+            <p className="font-medium text-amber-800 dark:text-amber-300">This device is missing the group's key</p>
+            <p className="text-xs text-amber-700/80 dark:text-amber-300/70 mt-0.5">
+              Files here are end-to-end encrypted. Open an invite link for this group on this device to unlock and download them — the key travels in the invite, never through the server.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── File area ───────────────────────────────────────────── */}
       <div className="relative flex-1 min-h-0 overflow-y-auto">

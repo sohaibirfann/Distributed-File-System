@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Database, Minus, Square, Copy, X } from "lucide-react";
+import { useTitle } from "../context/TitleContext";
 
 // Custom title bar for the frameless desktop window. The bar itself is a drag
 // region; the controls opt out of dragging so they stay clickable.
@@ -8,6 +9,7 @@ const noDrag = { WebkitAppRegion: "no-drag" };
 
 export default function TitleBar() {
   const controls = window.dfsDesktop?.windowControls;
+  const { title } = useTitle();
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
@@ -27,7 +29,9 @@ export default function TitleBar() {
         <div className="w-4 h-4 bg-blue-600 osdark:bg-[#0067C0] rounded-[5px] flex items-center justify-center">
           <Database size={9} className="text-white" />
         </div>
-        <span className="text-[11px] font-semibold text-gray-600 osdark:text-neutral-300 tracking-wide">DFS</span>
+        <span className="text-[11px] font-semibold text-gray-600 osdark:text-neutral-300 tracking-wide truncate max-w-[40vw]">
+          {title || "DFS"}
+        </span>
       </div>
 
       <div style={noDrag} className="flex items-center h-full">

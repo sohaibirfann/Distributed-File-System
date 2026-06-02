@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Outlet, useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
@@ -52,6 +52,17 @@ export default function AppShell() {
   }, [authFetch]);
 
   useEffect(() => { fetchGroups(); }, [fetchGroups]);
+
+  // On launch, reopen the last group the user had open (once, only if we landed
+  // on the bare /groups index and that group still exists).
+  const didAutoOpen = useRef(false);
+  useEffect(() => {
+    if (didAutoOpen.current || loadingGroups) return;
+    didAutoOpen.current = true;
+    if (location.pathname !== "/groups") return;
+    const last = localStorage.getItem("dfs_last_group");
+    if (last && groups.some((g) => g.id === last)) navigate(`/groups/${last}`, { replace: true });
+  }, [loadingGroups, groups, location.pathname, navigate]);
 
   function toggleCollapsed() {
     setCollapsed((c) => {

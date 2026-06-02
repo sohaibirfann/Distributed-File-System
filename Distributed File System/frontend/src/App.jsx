@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider }        from "./context/ThemeContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { TitleProvider }         from "./context/TitleContext";
 import Landing    from "./pages/Landing";
 import Login      from "./pages/Login";
 import AppShell   from "./components/AppShell";
@@ -30,6 +31,7 @@ function App() {
     <ThemeProvider>
       <NotificationProvider>
         <AuthProvider>
+          <TitleProvider>
           <div className="flex flex-col h-screen">
             {isDesktop() && <TitleBar />}
             <div className="flex-1 min-h-0 overflow-y-auto">
@@ -47,6 +49,7 @@ function App() {
           </Routes>
             </div>
           </div>
+          </TitleProvider>
         </AuthProvider>
       </NotificationProvider>
     </ThemeProvider>

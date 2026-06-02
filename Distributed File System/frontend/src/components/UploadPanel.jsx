@@ -4,7 +4,7 @@ import { useNotify } from "../context/NotificationContext";
 import { useAuth }   from "../context/AuthContext";
 import { loadKey }     from "../lib/groupKeys";
 import { encryptBytes } from "../lib/crypto";
-import { Upload, X, FileIcon, CheckCircle, Loader2, AlertCircle } from "lucide-react";
+import { Upload, X, FileIcon, CheckCircle, Loader2, AlertCircle, AlertTriangle } from "lucide-react";
 
 const API     = import.meta.env.VITE_API_URL;
 const MAX_SIZE = 500 * 1024 * 1024;
@@ -19,11 +19,15 @@ const toItem = (file) => ({ id: crypto.randomUUID(), file, status: "queued", pro
 
 export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [] }) {
   const notify = useNotify();
-  const { token } = useAuth();
+  const { token, authFetch } = useAuth();
   const [items, setItems] = useState(() => initialFiles.map(toItem));
   const [drag, setDrag]   = useState(false);
   const [running, setRunning] = useState(false);
+  const [confirm, setConfirm] = useState(null); // { names: [], resolve } — overwrite prompt
   const socketRef = useRef(null);
+
+  // Resolves true (replace) / false (cancel) once the user answers the prompt.
+  const askOverwrite = (names) => new Promise((resolve) => setConfirm({ names, resolve }));
 
   useEffect(() => () => socketRef.current?.disconnect(), []);
 
@@ -86,6 +90,16 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
     const key = await loadKey(groupId);
     if (!key) return notify.error("This device doesn't hold this group's key");
 
+    // Warn before silently overwriting same-named files already in the group.
+    try {
+      const res = await authFetch(`${API}/api/groups/${groupId}/files`);
+      if (res.ok) {
+        const existing = new Set((await res.json()).map((f) => f.filename));
+        const clashes  = [...new Set(pending.filter((it) => existing.has(it.file.name)).map((it) => it.file.name))];
+        if (clashes.length && !(await askOverwrite(clashes))) return;
+      }
+    } catch { /* if the check fails, let the upload proceed rather than block it */ }
+
     setRunning(true);
     const socket = io(API);
     socketRef.current = socket;
@@ -123,6 +137,7 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
   }
 
   return (
+    <>
     <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 p-5">
       <label
         onDrop={(e) => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); }}
@@ -186,5 +201,44 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
         {running ? "Uploading…" : pendingCount > 0 ? `Upload ${pendingCount} file${pendingCount !== 1 ? "s" : ""}` : "Upload to network"}
       </button>
     </div>
+
+    {/* Overwrite confirmation */}
+    {confirm && (
+      <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4"
+        onClick={() => { confirm.resolve(false); setConfirm(null); }}>
+        <div onClick={(e) => e.stopPropagation()}
+          className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6">
+          <div className="w-11 h-11 bg-amber-50 dark:bg-amber-500/10 rounded-xl flex items-center justify-center mb-4">
+            <AlertTriangle size={20} className="text-amber-500" />
+          </div>
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+            Replace existing file{confirm.names.length !== 1 ? "s" : ""}?
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-neutral-400 mb-3">
+            {confirm.names.length === 1 ? (
+              <>A file named <span className="font-medium text-gray-800 dark:text-neutral-200 break-all">{confirm.names[0]}</span> already exists in this group and will be overwritten.</>
+            ) : (
+              <>{confirm.names.length} files already exist in this group and will be overwritten:</>
+            )}
+          </p>
+          {confirm.names.length > 1 && (
+            <ul className="mb-4 max-h-28 overflow-y-auto text-xs font-mono text-gray-600 dark:text-neutral-400 space-y-0.5">
+              {confirm.names.map((n) => <li key={n} className="truncate">{n}</li>)}
+            </ul>
+          )}
+          <div className="flex gap-2.5 mt-2">
+            <button onClick={() => { confirm.resolve(false); setConfirm(null); }}
+              className="flex-1 py-2.5 text-sm font-medium border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors">
+              Cancel
+            </button>
+            <button onClick={() => { confirm.resolve(true); setConfirm(null); }}
+              className="flex-1 py-2.5 text-sm font-medium bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors">
+              Replace
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

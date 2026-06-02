@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { createContext, useContext, useState, useCallback, useRef } from "react";
+import { useNotify } from "./NotificationContext";
 
 const AuthContext = createContext(null);
 
@@ -8,13 +8,17 @@ function parseToken(tokenStr) {
 }
 
 export function AuthProvider({ children }) {
+  const notify = useNotify();
   const [token, setToken] = useState(() => localStorage.getItem("dfs_token") || null);
   const [user,  setUser]  = useState(() => {
     const t = localStorage.getItem("dfs_token");
     return t ? parseToken(t) : null;
   });
+  // Guards against multiple in-flight 401s (e.g. the file poller) all firing a toast.
+  const expiredRef = useRef(false);
 
   function login(tokenStr) {
+    expiredRef.current = false;
     localStorage.setItem("dfs_token", tokenStr);
     setToken(tokenStr);
     setUser(parseToken(tokenStr));
@@ -32,11 +36,15 @@ export function AuthProvider({ children }) {
       headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` },
     });
     if (res.status === 401) {
+      if (!expiredRef.current) {
+        expiredRef.current = true;
+        notify.error("Your session expired — please sign in again.");
+      }
       logout();
       throw new Error("Session expired — please log in again");
     }
     return res;
-  }, [token]);
+  }, [token, notify]);
 
   return (
     <AuthContext.Provider value={{ token, user, login, logout, authFetch }}>
