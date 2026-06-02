@@ -50,6 +50,14 @@ body::before {
 .is-desktop body::before,
 .is-desktop.dark body::before { background: transparent; }
 
+/* ── Keyboard focus ring (a11y) ─────────────────────────────── */
+/* Shows only for keyboard navigation, not mouse clicks. Inputs keep their own
+   focus styles — their `outline-none` utility (higher specificity) overrides this. */
+:focus-visible {
+  outline: 2px solid #4cc2ff;
+  outline-offset: 2px;
+}
+
 /* ── Scrollbars — Windows 11 Fluent style ───────────────────── */
 /* Thin, rounded, inset thumb on a transparent track; brightens on hover.
    NB: we deliberately do NOT set the standard scrollbar-width/scrollbar-color —
