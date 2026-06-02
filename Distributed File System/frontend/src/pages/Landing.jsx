@@ -1,7 +1,7 @@
 import {
   Database, ShieldCheck, Zap, Server, HardDrive,
   Users, Download, ArrowRight,
-  Lock, GitBranch, KeyRound, FileText, Image as ImageIcon, Film,
+  Lock, GitBranch, KeyRound,
 } from "lucide-react";
 
 const FEATURES = [
@@ -18,66 +18,6 @@ const STEPS = [
   { n: "02", title: "Distribute", desc: "Encrypted chunks are spread across your group's members with configurable replication, so the file survives nodes going offline." },
   { n: "03", title: "Access", desc: "Any member fetches the chunks in parallel and decrypts on-device with the shared group key. The coordinator only ever relays ciphertext." },
 ];
-
-// A stylised mock of the desktop app — the hero centrepiece.
-function AppMock() {
-  const groups = [
-    { name: "Family Photos", color: "#8b5cf6", active: true },
-    { name: "Design Team",   color: "#10b981" },
-    { name: "Backups",       color: "#f59e0b" },
-  ];
-  const files = [
-    { icon: ImageIcon, tint: "text-sky-400",    name: "trip-2025.png",   size: "4.2 MB" },
-    { icon: Film,      tint: "text-purple-400", name: "demo-reel.mp4",   size: "128 MB" },
-    { icon: FileText,  tint: "text-blue-400",   name: "contract.pdf",    size: "820 KB" },
-    { icon: HardDrive, tint: "text-amber-400",  name: "archive.zip",     size: "2.4 GB" },
-  ];
-  return (
-    <div className="rounded-2xl border border-white/10 bg-[#161619]/80 backdrop-blur-xl shadow-2xl overflow-hidden text-left">
-      {/* title bar */}
-      <div className="h-9 flex items-center justify-between px-3 border-b border-white/[0.06]">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-[5px] bg-[#0067C0] flex items-center justify-center"><Database size={9} className="text-white" /></div>
-          <span className="text-[11px] font-semibold text-neutral-300">Family Photos · DFS</span>
-        </div>
-        <div className="flex gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-white/15" />
-          <span className="w-2.5 h-2.5 rounded-full bg-white/15" />
-          <span className="w-2.5 h-2.5 rounded-full bg-white/15" />
-        </div>
-      </div>
-      <div className="flex h-[280px]">
-        {/* sidebar */}
-        <div className="w-40 shrink-0 border-r border-white/[0.06] p-2 hidden sm:block">
-          <p className="px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-neutral-600">Groups</p>
-          {groups.map((g) => (
-            <div key={g.name} className={`relative flex items-center gap-2 px-1.5 py-1.5 rounded-lg ${g.active ? "bg-white/[0.07]" : ""}`}>
-              {g.active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-[#60cdff]" />}
-              <span className="w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: g.color }}>{g.name[0]}</span>
-              <span className={`text-[11px] truncate ${g.active ? "text-white font-semibold" : "text-neutral-400"}`}>{g.name}</span>
-            </div>
-          ))}
-        </div>
-        {/* main */}
-        <div className="flex-1 p-3">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium text-emerald-400 bg-emerald-500/10"><Lock size={9} /> Encrypted</span>
-            <span className="text-[10px] text-neutral-500">4 files · 2.6 GB</span>
-          </div>
-          <div className="space-y-1.5">
-            {files.map(({ icon: Icon, tint, name, size }) => (
-              <div key={name} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/[0.04]">
-                <div className="w-7 h-7 rounded-lg bg-white/[0.05] flex items-center justify-center shrink-0"><Icon size={14} className={tint} /></div>
-                <span className="flex-1 text-[11px] text-neutral-200 truncate">{name}</span>
-                <span className="text-[10px] font-mono text-neutral-500">{size}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function Landing() {
   return (
@@ -134,10 +74,14 @@ export default function Landing() {
             </a>
           </div>
 
-          {/* Product mock */}
-          <div className="reveal relative mt-16 max-w-3xl mx-auto" style={{ animationDelay: ".25s" }}>
+          {/* Product shot — a real screenshot of the desktop app */}
+          <div className="reveal relative mt-16 max-w-4xl mx-auto" style={{ animationDelay: ".25s" }}>
             <div className="absolute -inset-x-8 -top-8 bottom-0 -z-10 blur-2xl" style={{ background: "radial-gradient(ellipse at center top, rgba(0,103,192,0.4), transparent 65%)" }} />
-            <AppMock />
+            <img
+              src="/app-preview.png"
+              alt="The DFS desktop app showing a group's end-to-end encrypted files"
+              className="relative w-full rounded-2xl border border-white/10 shadow-2xl shadow-black/60"
+            />
           </div>
         </section>
 
