@@ -9,7 +9,7 @@ import UploadPanel from "../components/UploadPanel";
 import InviteModal from "../components/InviteModal";
 import Skeleton    from "../components/Skeleton";
 import Kbd         from "../components/Kbd";
-import { Users, Crown, UserPlus, Upload, Shield, Search, X, List, LayoutGrid, MoreHorizontal, Pencil, Trash2, LogOut, KeyRound, Files } from "lucide-react";
+import { Users, Crown, UserPlus, Upload, Shield, Search, X, List, LayoutGrid, MoreHorizontal, Pencil, Trash2, LogOut, KeyRound, Files, Lock } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -213,6 +213,15 @@ export default function GroupView() {
             <span className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium text-gray-500 dark:text-neutral-400 shrink-0" title="Files in this group">
               <Files size={12} />
               {stats.total} {stats.total === 1 ? "file" : "files"}{stats.allSize > 0 ? ` · ${fmtSize(stats.allSize)}` : ""}
+            </span>
+          )}
+
+          {group && (
+            <span
+              className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 shrink-0"
+              title="End-to-end encrypted — files are encrypted on your device before upload; the coordinator only ever sees ciphertext."
+            >
+              <Lock size={12} /> Encrypted
             </span>
           )}
 
