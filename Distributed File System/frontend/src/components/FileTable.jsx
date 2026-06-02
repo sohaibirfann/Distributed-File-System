@@ -256,8 +256,11 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
     return 0;
   });
 
-  const totalSize = filtered.reduce((s, f) => s + (f.size || 0), 0);
-  useEffect(() => { onStats?.({ count: filtered.length, totalSize }); }, [filtered.length, totalSize]);
+  const totalSize = filtered.reduce((s, f) => s + (f.size || 0), 0); // visible (search-filtered)
+  const allSize   = files.reduce((s, f) => s + (f.size || 0), 0);    // whole group
+  useEffect(() => {
+    onStats?.({ count: filtered.length, totalSize, total: files.length, allSize });
+  }, [filtered.length, totalSize, files.length, allSize]);
 
   const emptyState = (
     apiError && files.length === 0 ? (

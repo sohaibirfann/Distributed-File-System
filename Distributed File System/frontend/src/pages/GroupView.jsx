@@ -9,7 +9,7 @@ import UploadPanel from "../components/UploadPanel";
 import InviteModal from "../components/InviteModal";
 import Skeleton    from "../components/Skeleton";
 import Kbd         from "../components/Kbd";
-import { Users, Crown, UserPlus, Upload, Shield, Search, X, List, LayoutGrid, MoreHorizontal, Pencil, Trash2, LogOut, KeyRound } from "lucide-react";
+import { Users, Crown, UserPlus, Upload, Shield, Search, X, List, LayoutGrid, MoreHorizontal, Pencil, Trash2, LogOut, KeyRound, Files } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -47,7 +47,7 @@ export default function GroupView() {
   const [confirming, setConfirming]   = useState(false);
   const [refresh, setRefresh]   = useState(0);
   const [search, setSearch]     = useState("");
-  const [stats, setStats]       = useState({ count: 0, totalSize: 0 });
+  const [stats, setStats]       = useState({ count: 0, totalSize: 0, total: 0, allSize: 0 });
   const [view, setView]         = useState(() => localStorage.getItem("dfs_fileview") || "list");
 
   function chooseView(v) { localStorage.setItem("dfs_fileview", v); setView(v); }
@@ -193,6 +193,13 @@ export default function GroupView() {
           </span>
 
           {group && (
+            <span className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium text-gray-500 dark:text-neutral-400 shrink-0" title="Files in this group">
+              <Files size={12} />
+              {stats.total} {stats.total === 1 ? "file" : "files"}{stats.allSize > 0 ? ` · ${fmtSize(stats.allSize)}` : ""}
+            </span>
+          )}
+
+          {group && (
             <button
               onClick={() => { setMembersOpen(false); setMenuOpen((o) => !o); }}
               title="Group options"
@@ -301,25 +308,29 @@ export default function GroupView() {
       </div>
 
       {/* ── Search bar ──────────────────────────────────────────── */}
-      <div className="shrink-0 flex items-center gap-3 px-6 py-2.5 border-b border-gray-200/70 dark:border-white/[0.06] bg-transparent">
-        <Search size={15} className="text-gray-400 dark:text-neutral-500 shrink-0" />
-        <input
-          ref={searchRef}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search files…"
-          className="flex-1 text-sm bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500"
-        />
-        {search ? (
-          <button onClick={() => setSearch("")} className="text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors">
-            <X size={14} />
-          </button>
-        ) : (
-          <Kbd keys={["/"]} />
+      <div className="shrink-0 flex items-center gap-3 px-6 py-2.5 border-b border-gray-200/70 dark:border-white/[0.06]">
+        <div className="flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-lg border bg-white/60 dark:bg-neutral-800/40 border-gray-200 dark:border-neutral-700 transition-all duration-150 focus-within:bg-white dark:focus-within:bg-neutral-800/70 focus-within:border-blue-500 dark:focus-within:border-[#0067C0] focus-within:ring-2 focus-within:ring-blue-500/20 dark:focus-within:ring-[#0067C0]/30">
+          <Search size={15} className="text-gray-400 dark:text-neutral-500 shrink-0" />
+          <input
+            ref={searchRef}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search files…"
+            className="flex-1 text-sm bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500"
+          />
+          {search ? (
+            <button onClick={() => setSearch("")} className="shrink-0 text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors">
+              <X size={14} />
+            </button>
+          ) : (
+            <Kbd keys={["/"]} />
+          )}
+        </div>
+        {search && (
+          <span className="text-xs text-gray-400 dark:text-neutral-500 shrink-0 whitespace-nowrap">
+            {stats.count} {stats.count === 1 ? "match" : "matches"}
+          </span>
         )}
-        <span className="text-xs text-gray-400 dark:text-neutral-500 shrink-0 border-l border-gray-100 dark:border-neutral-800 pl-3 whitespace-nowrap">
-          {stats.count} {stats.count === 1 ? "file" : "files"}{stats.totalSize > 0 ? ` · ${fmtSize(stats.totalSize)}` : ""}
-        </span>
       </div>
 
       {/* Missing-key notice — this device joined elsewhere / cleared storage */}
