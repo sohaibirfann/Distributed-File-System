@@ -4,7 +4,7 @@ import { useNotify } from "../context/NotificationContext";
 import { useAuth }   from "../context/AuthContext";
 import { loadKey }     from "../lib/groupKeys";
 import { encryptBytes } from "../lib/crypto";
-import { Upload, X, FileIcon, CheckCircle, Loader2, AlertCircle, AlertTriangle } from "lucide-react";
+import { Upload, X, FileIcon, CheckCircle, Loader2, AlertCircle, AlertTriangle, RotateCw } from "lucide-react";
 
 const API     = import.meta.env.VITE_API_URL;
 const MAX_SIZE = 500 * 1024 * 1024;
@@ -123,6 +123,21 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
     if (ok && !fail) setTimeout(() => onUploadSuccess?.(), 600);
   }
 
+  // Retry a single failed file (transient upload/network errors).
+  async function retryOne(item) {
+    if (running) return;
+    const key = await loadKey(groupId);
+    if (!key) return notify.error("This device doesn't hold this group's key");
+    setRunning(true);
+    const socket = io(API);
+    socketRef.current = socket;
+    const ok = await uploadOne(item, key, socket);
+    socket.disconnect();
+    socketRef.current = null;
+    setRunning(false);
+    if (ok) notify.success("Upload complete");
+  }
+
   const pendingCount = items.filter((it) => it.status === "queued" || it.status === "error").length;
 
   function statusLabel(it) {
@@ -177,6 +192,11 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
                   <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{it.file.name}</p>
                   <p className={`text-xs font-mono ${it.status === "error" ? "text-red-500" : "text-gray-400 dark:text-neutral-500"}`}>{statusLabel(it)}</p>
                 </div>
+                {it.status === "error" && !running && (
+                  <button onClick={() => retryOne(it)} title="Retry" className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-[#4cc2ff] hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors shrink-0">
+                    <RotateCw size={14} />
+                  </button>
+                )}
                 {(it.status === "queued" || it.status === "error") && !running && (
                   <button onClick={() => removeItem(it.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors shrink-0">
                     <X size={14} />

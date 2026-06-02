@@ -7,7 +7,7 @@ import Skeleton from "./Skeleton";
 import {
   Download, Eye, Trash2, X, AlertTriangle, WifiOff,
   FileText, Image, Film, Music, Archive, Code, File, HardDrive,
-  ChevronUp, ChevronDown, ChevronsUpDown, Loader2,
+  ChevronUp, ChevronDown, ChevronsUpDown, Loader2, RotateCw,
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
@@ -114,6 +114,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   const [previewContent, setPreviewContent] = useState("");
   const [previewUrl, setPreviewUrl]         = useState(null);
   const [downloading, setDownloading]       = useState([]);
+  const [failedDl, setFailedDl]             = useState([]);   // downloads that errored — show a Retry
 
   const base = `${API}/api/groups/${groupId}/files`;
 
@@ -138,6 +139,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
 
   async function handleDownload(filename) {
     setDownloading((d) => [...d, filename]);
+    setFailedDl((s) => s.filter((f) => f !== filename)); // clear any prior failure on (re)try
     try {
       const key = await loadKey(groupId);
       if (!key) throw new Error("This device doesn't hold this group's key");
@@ -163,6 +165,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
       notify.success("Download complete");
     } catch (err) {
       notify.error(err.message || "Download failed");
+      setFailedDl((s) => (s.includes(filename) ? s : [...s, filename]));
     } finally {
       setDownloading((d) => d.filter((f) => f !== filename));
     }
@@ -295,13 +298,14 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
             sorted.map((file, i) => {
               const { icon: Icon, bg, color } = getType(file.filename);
               const dl = downloading.includes(file.filename);
+              const fail = failedDl.includes(file.filename);
               return (
                 <div key={i} className="group relative glass bg-white/70 dark:bg-neutral-900/60 rounded-xl border border-gray-100 dark:border-neutral-800 p-4 hover:-translate-y-0.5 transition-transform">
-                  <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className={`absolute top-2 right-2 flex items-center gap-0.5 transition-opacity ${(dl || fail) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
                     {dl ? (
                       <Loader2 size={14} className="m-1.5 animate-spin text-emerald-500" />
                     ) : (
-                      <button onClick={() => handleDownload(file.filename)} title="Download" className="p-1.5 rounded-lg text-gray-500 dark:text-neutral-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600"><Download size={14} /></button>
+                      <button onClick={() => handleDownload(file.filename)} title={fail ? "Retry download" : "Download"} className={`p-1.5 rounded-lg ${fail ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10" : "text-gray-500 dark:text-neutral-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600"}`}>{fail ? <RotateCw size={14} /> : <Download size={14} />}</button>
                     )}
                     {getPreviewType(file.filename) && (
                       <button onClick={() => handlePreview(file.filename)} title="Preview" className="p-1.5 rounded-lg text-gray-500 dark:text-neutral-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600"><Eye size={14} /></button>
@@ -436,12 +440,21 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                         )}
                       </td>
                       <td className="px-6 py-2.5">
-                        <div className={`flex items-center justify-end gap-1 transition-opacity ${downloading.includes(file.filename) ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}>
+                        <div className={`flex items-center justify-end gap-1 transition-opacity ${(downloading.includes(file.filename) || failedDl.includes(file.filename)) ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}>
                           {downloading.includes(file.filename) ? (
                             <span className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                               <Loader2 size={13} className="animate-spin" />
                               <span className="hidden sm:inline">Downloading…</span>
                             </span>
+                          ) : failedDl.includes(file.filename) ? (
+                            <button
+                              onClick={() => handleDownload(file.filename)}
+                              title="Retry download"
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                            >
+                              <RotateCw size={13} />
+                              <span className="hidden sm:inline">Retry</span>
+                            </button>
                           ) : (
                             <button
                               onClick={() => handleDownload(file.filename)}
