@@ -23,4 +23,7 @@ contextBridge.exposeInMainWorld("dfsDesktop", {
     getStartup: ()        => ipcRenderer.invoke("startup:get"),
     setStartup: (enabled) => ipcRenderer.invoke("startup:set", enabled),
   },
+  node: {
+    getStatus: () => ipcRenderer.invoke("node:status"),
+  },
 });

@@ -9,6 +9,15 @@ import {
 
 const desktop = isDesktop();
 const settingsApi = () => window.dfsDesktop?.settings;
+const nodeApi     = () => window.dfsDesktop?.node;
+
+function fmtBytes(b) {
+  if (!b) return "0 B";
+  if (b < 1024)               return `${b} B`;
+  if (b < 1024 * 1024)        return `${(b / 1024).toFixed(0)} KB`;
+  if (b < 1024 * 1024 * 1024) return `${(b / 1024 / 1024).toFixed(1)} MB`;
+  return `${(b / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
 
 function Switch({ checked, onChange, disabled }) {
   return (
@@ -57,12 +66,24 @@ export default function Settings() {
 
   const [cfg, setCfg]         = useState(null);   // desktop settings
   const [startup, setStartup] = useState(false);
+  const [nodeStatus, setNodeStatus] = useState(null);
 
   useEffect(() => {
     const s = settingsApi();
     if (!s) return;
     s.get().then(setCfg).catch(() => {});
     s.getStartup().then(setStartup).catch(() => {});
+  }, []);
+
+  // Poll the embedded node's live status (chunks stored, etc.).
+  useEffect(() => {
+    const n = nodeApi();
+    if (!n) return;
+    let alive = true;
+    const tick = () => n.getStatus().then((st) => alive && setNodeStatus(st)).catch(() => {});
+    tick();
+    const id = setInterval(tick, 3000);
+    return () => { alive = false; clearInterval(id); };
   }, []);
 
   async function patch(partial) {
@@ -139,9 +160,24 @@ export default function Settings() {
           </div>
         </Row>
         {desktop && (
-          <p className="text-xs text-amber-600/90 dark:text-amber-400/80 bg-amber-50 dark:bg-amber-500/10 rounded-lg px-3 py-2">
-            Your node starts contributing once peer-to-peer networking ships — these preferences are saved and ready.
-          </p>
+          cfg?.contribute ? (
+            nodeStatus?.running ? (
+              <p className="text-xs text-emerald-600/90 dark:text-emerald-400/90 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg px-3 py-2 flex items-center gap-2">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                Contributing — storing {nodeStatus.chunks} chunk{nodeStatus.chunks === 1 ? "" : "s"} ({fmtBytes(nodeStatus.bytes)})
+                {nodeStatus.registered ? "" : " · connecting…"}
+              </p>
+            ) : (
+              <p className="text-xs text-amber-600/90 dark:text-amber-400/80 bg-amber-50 dark:bg-amber-500/10 rounded-lg px-3 py-2">
+                Starting your node… if this persists, the coordinator may be unreachable.
+              </p>
+            )
+          ) : (
+            <p className="text-xs text-gray-400 dark:text-neutral-500 bg-gray-50 dark:bg-neutral-800/40 rounded-lg px-3 py-2">
+              Turn this on to store encrypted chunks for your groups while the app runs. Works on your local
+              network today; cross-network sharing arrives with peer-to-peer networking.
+            </p>
+          )
         )}
       </Section>
 

@@ -1,10 +1,30 @@
 const { app, BrowserWindow, Menu, ipcMain, shell, dialog, nativeTheme } = require("electron");
-const path = require("path");
-const fs   = require("fs");
+const path   = require("path");
+const fs     = require("fs");
+const crypto = require("crypto");
+const { StorageNode } = require("./node");
 
 // In dev we load the live Vite server so UI changes hot-reload inside the window.
 // In a packaged build this will point at the bundled frontend (added later).
 const APP_URL = process.env.DFS_APP_URL || "http://localhost:5173";
+
+// Dev convenience: pull BACKEND_URL / NODE_SECRET from the backend's .env so the
+// embedded storage node can register with no extra setup. In a packaged build
+// these come from the app's own config / the deployed coordinator instead.
+function loadBackendEnv() {
+  try {
+    const text = fs.readFileSync(path.join(__dirname, "..", "backend", ".env"), "utf8");
+    for (const line of text.split(/\r?\n/)) {
+      const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*(.*)\s*$/);
+      if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+    }
+  } catch { /* no backend/.env — packaged build */ }
+}
+loadBackendEnv();
+
+const NODE_PORT    = Number(process.env.DFS_NODE_PORT || 7330);
+const coordUrl     = () => process.env.DFS_API_URL || process.env.BACKEND_URL || "http://localhost:5000";
+const nodeSecret   = () => process.env.NODE_SECRET || process.env.DFS_NODE_SECRET || "";
 
 // ── Window bounds persistence ───────────────────────────────────────────────
 function stateFile() {
@@ -97,8 +117,60 @@ function writeSettings(next) {
   return merged;
 }
 
+// Stable per-install node identity (persisted in settings.json).
+function getNodeId() {
+  const s = readSettings();
+  if (s.nodeId) return s.nodeId;
+  const id = "desktop-" + crypto.randomBytes(4).toString("hex");
+  writeSettings({ nodeId: id });
+  return id;
+}
+
+// ── Embedded storage node ────────────────────────────────────────────────────
+let storageNode = null;
+let syncingNode = false;
+
+// Reconcile the running node to the current settings: stop any existing node,
+// then (re)start it if the user is contributing — picking up dir/quota changes.
+async function syncStorageNode() {
+  if (syncingNode) return;
+  syncingNode = true;
+  try {
+    if (storageNode) { await storageNode.stop(); storageNode = null; }
+
+    const s    = readSettings();
+    const want = !!s.contribute;
+    const secret = nodeSecret();
+    if (!want) return;
+    if (!secret) { console.warn("[node] contribute is on but no NODE_SECRET is configured — not starting"); return; }
+
+    const node = new StorageNode({
+      name:       getNodeId(),
+      port:       NODE_PORT,
+      storageDir: s.storageDir,
+      quotaBytes: Math.max(1, Number(s.quotaGB) || 5) * 1024 * 1024 * 1024,
+      coordUrl:   coordUrl(),
+      secret,
+    });
+    const { url } = await node.start();
+    storageNode = node;
+    console.log(`[node] contributing as ${getNodeId()} @ ${url} (${coordUrl()})`);
+  } catch (err) {
+    console.error("[node] failed to start:", err.message);
+    storageNode = null;
+  } finally {
+    syncingNode = false;
+  }
+}
+
 ipcMain.handle("settings:get", () => readSettings());
-ipcMain.handle("settings:set", (_e, partial) => writeSettings(partial || {}));
+ipcMain.handle("settings:set", (_e, partial) => {
+  const merged = writeSettings(partial || {});
+  syncStorageNode(); // apply contribute/dir/quota changes immediately
+  return merged;
+});
+ipcMain.handle("node:status", () =>
+  storageNode ? storageNode.status() : { running: false, registered: false, chunks: 0, bytes: 0 });
 
 ipcMain.handle("dialog:pick-folder", async (e) => {
   const win = BrowserWindow.fromWebContents(e.sender);
@@ -119,10 +191,13 @@ app.whenReady().then(() => {
   // to dark regardless of the OS setting, so the frost never tints light.
   nativeTheme.themeSource = "dark";
   createWindow();
+  syncStorageNode(); // start contributing if the user enabled it last time
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
+
+app.on("before-quit", () => { if (storageNode) storageNode.stop(); });
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
