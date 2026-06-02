@@ -7,19 +7,14 @@ function label(k) {
   return k;
 }
 
-// `os` makes the pills track the system (OS) theme instead of the in-app toggle.
-// Fill is transparent so the Mica frost shows through (sidebar) — just a hairline
-// keycap border outlines each key.
-export default function Kbd({ keys = [], os = false, className = "" }) {
-  const tone = os
-    ? "border-gray-300/80 osdark:border-white/20 text-gray-500 osdark:text-neutral-300"
-    : "border-gray-300/80 dark:border-white/20 text-gray-500 dark:text-neutral-300";
+// Transparent fill + a hairline keycap border outlines each key.
+export default function Kbd({ keys = [], className = "" }) {
   return (
     <span className={`inline-flex items-center gap-1 ${className}`}>
       {keys.map((k, i) => (
         <kbd
           key={i}
-          className={`inline-flex items-center justify-center min-w-[1.3rem] px-1.5 py-0.5 rounded-[5px] text-[11px] font-medium leading-none whitespace-nowrap border bg-transparent ${tone}`}
+          className="inline-flex items-center justify-center min-w-[1.3rem] px-1.5 py-0.5 rounded-[5px] text-[11px] font-medium leading-none whitespace-nowrap border bg-transparent border-gray-300/80 dark:border-white/20 text-gray-500 dark:text-neutral-300"
         >
           {label(k)}
         </kbd>

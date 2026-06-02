@@ -2,10 +2,6 @@
 
 @custom-variant dark (.dark &);
 
-/* OS-theme variant — tracks the system light/dark setting (prefers-color-scheme),
-   independent of the in-app theme toggle. Used by the Mica regions (title bar +
-   sidebar) so they always match the OS-painted Mica tint, not the app theme. */
-@custom-variant osdark (@media (prefers-color-scheme: dark));
 
 html {
   font-size: 100%;
@@ -40,15 +36,6 @@ body::before {
   background: #202020;
 }
 
-/* ── Desktop app: Windows 11 Mica shows behind the window ───── */
-/* Drop the solid fill so the OS-composited Mica material (a subtle, baked
-   wallpaper tint) shows through. Web build keeps its solid background since
-   the .is-desktop class is only added inside the Electron shell. */
-.is-desktop body,
-.is-desktop.dark body { background-color: transparent; }
-
-.is-desktop body::before,
-.is-desktop.dark body::before { background: transparent; }
 
 /* ── Keyboard focus ring (a11y) ─────────────────────────────── */
 /* Shows only for keyboard navigation, not mouse clicks. Inputs keep their own
