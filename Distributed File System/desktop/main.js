@@ -2,7 +2,7 @@ const { app, BrowserWindow, Menu, ipcMain, shell, dialog, nativeTheme } = requir
 const path   = require("path");
 const fs     = require("fs");
 const crypto = require("crypto");
-const { StorageNode } = require("./node");
+const { StorageNode } = require("./storageNode");
 
 // In dev we load the live Vite server so UI changes hot-reload inside the window.
 // In a packaged build this will point at the bundled frontend (added later).
