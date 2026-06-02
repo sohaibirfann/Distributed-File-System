@@ -81,6 +81,15 @@ class StorageNode {
   async stop() {
     if (this.heartbeat) clearInterval(this.heartbeat);
     this.heartbeat = null;
+    // Tell the coordinator we're leaving so it drops us from the pool at once
+    // (otherwise we linger until the heartbeat-timeout sweep).
+    try {
+      await fetch(`${this.coordUrl}/api/nodes/deregister`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ name: this.name, secret: this.secret }),
+      });
+    } catch { /* coordinator down — the stale sweep will clean us up */ }
     if (this.server) await new Promise((r) => this.server.close(r));
     this.server = null;
     this.registered = false;

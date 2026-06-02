@@ -1,6 +1,6 @@
 const express = require("express");
 
-const { registerNode, heartbeatNode } = require("../db");
+const { registerNode, heartbeatNode, deregisterNode } = require("../db");
 
 const router = express.Router();
 
@@ -25,6 +25,15 @@ router.post("/heartbeat", (req, res) => {
   if (secret !== NODE_SECRET) return res.status(401).json({ error: "invalid node secret" });
   heartbeatNode(name);
   res.json({ ok: true });
+});
+
+// POST /api/nodes/deregister — a node leaving cleanly (contribute toggled off / quit)
+router.post("/deregister", (req, res) => {
+  const { name, secret } = req.body;
+  if (secret !== NODE_SECRET) return res.status(401).json({ error: "invalid node secret" });
+  deregisterNode(name);
+  req.app.get("io").emit("log", `[node] ${name} left`);
+  res.json({ success: true });
 });
 
 module.exports = router;

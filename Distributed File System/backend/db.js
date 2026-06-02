@@ -156,6 +156,10 @@ function getNodeMap() {
   return Object.fromEntries(rows.map((r) => [r.name, r.url]));
 }
 
+function deregisterNode(name) {
+  stmts.deleteNode.run(name);
+}
+
 function deregisterStaleNodes(timeoutSeconds) {
   const stale = stmts.staleNodes.all(timeoutSeconds);
   for (const { name } of stale) stmts.deleteNode.run(name);
@@ -308,6 +312,7 @@ module.exports = {
   registerNode,
   heartbeatNode,
   getNodeMap,
+  deregisterNode,
   deregisterStaleNodes,
   saveFile,
   getGroupFiles,
