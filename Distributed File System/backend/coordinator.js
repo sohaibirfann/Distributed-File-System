@@ -44,7 +44,27 @@ function chunkFile(filePath) {
 | files with the same name without colliding.
 */
 
-async function distributeFile(filePath, filename, groupId, uploadedBy, io) {
+// ── Per-target upload lock ───────────────────────────────────────────────────
+// Serialises uploads that target the same (group, filename) so two concurrent
+// uploads of the same file can't interleave their chunk-push / save / old-chunk
+// cleanup steps and orphan each other's chunks. Different files/groups still run
+// in parallel. (better-sqlite3 writes are synchronous; the races are around the
+// awaited chunk transfers.)
+const uploadChains = new Map();
+function withUploadLock(key, fn) {
+  const run  = (uploadChains.get(key) || Promise.resolve()).then(fn, fn);
+  const tail = run.catch(() => {}); // non-throwing link so the queue keeps flowing
+  uploadChains.set(key, tail);
+  tail.then(() => { if (uploadChains.get(key) === tail) uploadChains.delete(key); });
+  return run;
+}
+
+function distributeFile(filePath, filename, groupId, uploadedBy, io) {
+  return withUploadLock(`${groupId}:${filename}`, () =>
+    distributeFileInner(filePath, filename, groupId, uploadedBy, io));
+}
+
+async function distributeFileInner(filePath, filename, groupId, uploadedBy, io) {
   if (!fs.existsSync(filePath)) throw new Error("Uploaded file not found on disk");
 
   const fileId     = crypto.randomUUID();
