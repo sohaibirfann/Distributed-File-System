@@ -5,7 +5,7 @@ const ThemeContext = createContext(null);
 // Accent themes. "default" = Windows blue (no data-theme attribute); others map
 // to a [data-theme="…"] block in index.css that overrides the --accent vars.
 export const ACCENTS = [
-  { id: "default", label: "Blue",  swatch: "#0067C0" },
+  { id: "default", label: "Default", swatch: "#0067C0" },
   { id: "coral",   label: "Coral", swatch: "#e8533f" },
   { id: "ember",   label: "Amber", swatch: "#e8a44d" },
 ];
