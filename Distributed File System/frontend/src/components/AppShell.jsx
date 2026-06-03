@@ -1,0 +1,385 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Outlet, useNavigate, useParams, useLocation } from "react-router-dom";
+import { useAuth }   from "../context/AuthContext";
+import { useNotify } from "../context/NotificationContext";
+import { createKeyForGroup, storeKeyB64, parseInvite } from "../lib/groupKeys";
+import { useDialog } from "../lib/useDialog";
+import Kbd from "./Kbd";
+import Skeleton from "./Skeleton";
+import CommandPalette from "./CommandPalette";
+import {
+  Database, Users, Plus, LogIn, LogOut, X, Settings, Search,
+  PanelLeftClose, PanelLeftOpen,
+} from "lucide-react";
+
+import { getApiUrl } from "../lib/api";
+const API = getApiUrl();
+
+// Deterministic per-group color so each group keeps a stable visual identity.
+const PALETTE = ["#6366f1", "#10b981", "#f59e0b", "#f43f5e", "#0ea5e9", "#8b5cf6", "#14b8a6", "#f97316", "#ec4899", "#84cc16"];
+function colorFor(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return PALETTE[h % PALETTE.length];
+}
+
+const REP_PRESETS = [
+  { key: "minimal",  label: "Minimal",  hint: "2 copies"  },
+  { key: "balanced", label: "Balanced", hint: "3 copies"  },
+  { key: "max",      label: "Maximum",  hint: "all nodes" },
+];
+
+export default function AppShell() {
+  const { logout, authFetch, user } = useAuth();
+  const notify                      = useNotify();
+  const navigate                    = useNavigate();
+  const { id: activeId }            = useParams();
+  const location                    = useLocation();
+  const onSettings                  = location.pathname === "/settings";
+
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem("dfs_sidebar_collapsed") === "1",
+  );
+  // Labels are revealed only once the panel has widened, so they never flash
+  // squished/wrapped inside the narrow rail mid-animation.
+  const [showLabels, setShowLabels] = useState(
+    () => localStorage.getItem("dfs_sidebar_collapsed") !== "1",
+  );
+  const [groups, setGroups] = useState([]);
+  const [loadingGroups, setLoadingGroups] = useState(true);
+  const [modal, setModal]   = useState(null); // null | "new" | "join"
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  const fetchGroups = useCallback(async () => {
+    try {
+      const res = await authFetch(`${API}/api/groups`);
+      setGroups(await res.json());
+    } catch { /* ignore — sidebar just stays as-is */ }
+    finally { setLoadingGroups(false); }
+  }, [authFetch]);
+
+  useEffect(() => { fetchGroups(); }, [fetchGroups]);
+
+  // On launch, reopen the last group the user had open (once, only if we landed
+  // on the bare /groups index and that group still exists).
+  const didAutoOpen = useRef(false);
+  useEffect(() => {
+    if (didAutoOpen.current || loadingGroups) return;
+    didAutoOpen.current = true;
+    if (location.pathname !== "/groups") return;
+    const last = localStorage.getItem("dfs_last_group");
+    if (last && groups.some((g) => g.id === last)) navigate(`/groups/${last}`, { replace: true });
+  }, [loadingGroups, groups, location.pathname, navigate]);
+
+  function toggleCollapsed() {
+    setCollapsed((c) => {
+      localStorage.setItem("dfs_sidebar_collapsed", c ? "0" : "1");
+      return !c;
+    });
+  }
+
+  // Arrow-key roving between group buttons when one is focused.
+  function onGroupsKeyDown(e) {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const btns = Array.from(e.currentTarget.querySelectorAll("button[data-group]"));
+    const i = btns.indexOf(document.activeElement);
+    if (i === -1) return;
+    e.preventDefault();
+    const next = e.key === "ArrowDown" ? Math.min(i + 1, btns.length - 1) : Math.max(i - 1, 0);
+    btns[next]?.focus();
+  }
+
+  // Collapsing hides labels at once; expanding reveals them after the width
+  // transition (~200ms) so they fade in at full width instead of popping in.
+  useEffect(() => {
+    if (collapsed) { setShowLabels(false); return; }
+    const t = setTimeout(() => setShowLabels(true), 190);
+    return () => clearTimeout(t);
+  }, [collapsed]);
+
+  // Ctrl/Cmd+B toggles the sidebar; Ctrl/Cmd+, opens Settings.
+  useEffect(() => {
+    function onKey(e) {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.key.toLowerCase() === "b")      { e.preventDefault(); toggleCollapsed(); }
+      else if (e.key.toLowerCase() === "k") { e.preventDefault(); setPaletteOpen((o) => !o); }
+      else if (e.key === ",")               { e.preventDefault(); navigate("/settings"); }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  return (
+    <div className="flex h-full overflow-hidden">
+      {/* ── Sidebar ─────────────────────────────────────────────── */}
+      <aside
+        className={`flex flex-col shrink-0 bg-[#f7f7f8] dark:bg-[var(--surface)] border-r border-gray-200/70 dark:border-white/[0.06] transition-[width] duration-200 ease-out ${
+          collapsed ? "w-16" : "w-60"
+        } ${showLabels ? "labels-in" : ""}`}
+      >
+        {/* Brand + collapse toggle */}
+        <div className={`flex items-center h-14 shrink-0 ${collapsed ? "justify-center" : "justify-between px-3"}`}>
+          {showLabels && (
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 bg-blue-600 dark:bg-[var(--accent)] rounded-lg flex items-center justify-center">
+                <Database size={14} className="text-[var(--on-accent)]" />
+              </div>
+              <span className="font-bold text-gray-900 dark:text-white text-sm">DFS</span>
+            </div>
+          )}
+          <button
+            onClick={toggleCollapsed}
+            title={collapsed ? "Expand" : "Collapse"}
+            className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:text-neutral-500 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
+          >
+            {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          </button>
+        </div>
+
+        {/* Command palette trigger */}
+        <div className="px-2 pb-2 shrink-0">
+          <button
+            onClick={() => setPaletteOpen(true)}
+            title={collapsed ? "Search / commands (⌘K)" : undefined}
+            className={`w-full flex items-center gap-2 rounded-xl border border-gray-200 dark:border-neutral-700/70 text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800/70 transition-colors ${collapsed ? "justify-center p-2" : "px-2.5 py-1.5"}`}
+          >
+            <Search size={15} className="shrink-0" />
+            {showLabels && <span className="text-sm flex-1 text-left">Search or jump…</span>}
+            {showLabels && <Kbd keys={["mod", "K"]} />}
+          </button>
+        </div>
+
+        {/* Groups */}
+        <div className="flex-1 overflow-y-auto px-2">
+          {showLabels && (
+            <p className="px-2 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-neutral-600">
+              Groups
+            </p>
+          )}
+
+          <div className="space-y-0.5" onKeyDown={onGroupsKeyDown}>
+            {loadingGroups && groups.length === 0 &&
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={`gsk-${i}`} className={`flex items-center gap-2.5 ${collapsed ? "justify-center p-2" : "px-2.5 py-2"}`}>
+                  <Skeleton className="w-7 h-7 rounded-lg shrink-0" />
+                  {showLabels && <Skeleton className="h-3.5 flex-1" style={{ maxWidth: `${70 - i * 10}%` }} />}
+                </div>
+              ))}
+            {groups.map((g) => {
+              const active = g.id === activeId;
+              return (
+                <button
+                  key={g.id}
+                  data-group
+                  aria-current={active ? "page" : undefined}
+                  onClick={() => navigate(`/groups/${g.id}`)}
+                  title={collapsed ? g.name : undefined}
+                  className={`relative w-full flex items-center gap-2.5 rounded-xl transition-colors ${collapsed ? "justify-center p-2" : "px-2.5 py-2"} ${
+                    active
+                      ? "bg-black/[0.04] dark:bg-white/[0.07] text-gray-900 dark:text-white font-semibold"
+                      : "text-gray-600 dark:text-neutral-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
+                  }`}
+                >
+                  {active && showLabels && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-full bg-blue-600 dark:bg-[var(--accent-bright)]" />
+                  )}
+                  <div
+                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold text-white"
+                    style={{ backgroundColor: colorFor(g.id) }}
+                  >
+                    {g.name.slice(0, 1).toUpperCase()}
+                  </div>
+                  {showLabels && <span className="text-sm font-medium truncate">{g.name}</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* New / Join */}
+          <div className={`mt-2 ${collapsed ? "space-y-0.5" : "space-y-0.5"}`}>
+            <button
+              onClick={() => setModal("new")}
+              title={collapsed ? "New group" : undefined}
+              className={`w-full flex items-center gap-2.5 rounded-xl text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800/70 transition-colors ${collapsed ? "justify-center p-2" : "px-2.5 py-2"}`}
+            >
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-dashed border-gray-300 dark:border-neutral-700">
+                <Plus size={14} />
+              </div>
+              {showLabels && <span className="text-sm font-medium">New group</span>}
+            </button>
+            <button
+              onClick={() => setModal("join")}
+              title={collapsed ? "Join group" : undefined}
+              className={`w-full flex items-center gap-2.5 rounded-xl text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800/70 transition-colors ${collapsed ? "justify-center p-2" : "px-2.5 py-2"}`}
+            >
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0">
+                <LogIn size={14} />
+              </div>
+              {showLabels && <span className="text-sm font-medium">Join with code</span>}
+            </button>
+          </div>
+        </div>
+
+        {/* Footer: user, theme, sign out */}
+        <div className="shrink-0 border-t border-gray-100 dark:border-white/[0.06] p-2 space-y-0.5">
+          {showLabels && user && (
+            <div className="px-2.5 py-1.5 text-xs text-gray-400 dark:text-neutral-500 truncate">
+              Signed in as <span className="font-semibold text-gray-600 dark:text-neutral-300">{user.username}</span>
+            </div>
+          )}
+          <button
+            onClick={() => navigate("/settings")}
+            title={collapsed ? "Settings" : undefined}
+            className={`relative w-full flex items-center gap-2.5 rounded-xl transition-colors ${collapsed ? "justify-center p-2" : "px-2.5 py-2"} ${
+              onSettings
+                ? "bg-black/[0.04] dark:bg-white/[0.07] text-gray-900 dark:text-white font-semibold"
+                : "text-gray-500 dark:text-neutral-400 hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
+            }`}
+          >
+            {onSettings && showLabels && (
+              <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-full bg-blue-600 dark:bg-[var(--accent-bright)]" />
+            )}
+            <div className="w-7 h-7 flex items-center justify-center shrink-0"><Settings size={15} /></div>
+            {showLabels && <span className="text-sm font-medium flex-1 text-left">Settings</span>}
+            {showLabels && <Kbd keys={["mod", ","]} />}
+          </button>
+          <button
+            onClick={() => { logout(); navigate("/"); }}
+            title={collapsed ? "Sign out" : undefined}
+            className={`w-full flex items-center gap-2.5 rounded-xl text-gray-500 dark:text-neutral-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-[var(--accent)]/10 transition-colors ${collapsed ? "justify-center p-2" : "px-2.5 py-2"}`}
+          >
+            <div className="w-7 h-7 flex items-center justify-center shrink-0"><LogOut size={15} /></div>
+            {showLabels && <span className="text-sm font-medium">Sign out</span>}
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Main panel ──────────────────────────────────────────── */}
+      {/* Solid fill so it covers the window's Mica — only the sidebar +
+          title bar stay translucent (transparent → Mica shows through). */}
+      <main className="flex-1 overflow-y-auto bg-[#f3f3f3] dark:bg-[var(--bg)]">
+        <Outlet context={{ refreshGroups: fetchGroups, groups, openNew: () => setModal("new"), openJoin: () => setModal("join") }} />
+      </main>
+
+      {modal && (
+        <NewJoinModal
+          mode={modal}
+          onClose={() => setModal(null)}
+          onDone={(groupId) => { setModal(null); fetchGroups(); if (groupId) navigate(`/groups/${groupId}`); }}
+        />
+      )}
+
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        groups={groups}
+        onOpenGroup={(gid) => navigate(`/groups/${gid}`)}
+        onNewGroup={() => setModal("new")}
+        onJoin={() => setModal("join")}
+        onSettings={() => navigate("/settings")}
+        onToggleSidebar={toggleCollapsed}
+        onSignOut={() => { logout(); navigate("/"); }}
+      />
+    </div>
+  );
+}
+
+// ── New / Join modal ────────────────────────────────────────────────────────
+function NewJoinModal({ mode, onClose, onDone }) {
+  const { authFetch } = useAuth();
+  const notify        = useNotify();
+  const [value, setValue]   = useState("");
+  const [rep, setRep]       = useState("balanced");
+  const [busy, setBusy]     = useState(false);
+  const isNew = mode === "new";
+  const panelRef = useDialog(true, onClose); // mounted == open
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!value.trim()) return;
+    setBusy(true);
+    try {
+      if (isNew) {
+        const res = await authFetch(`${API}/api/groups`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: value.trim(), replication: rep }),
+        });
+        if (!res.ok) throw new Error();
+        const group = await res.json();
+        await createKeyForGroup(group.id);
+        notify.success(`Group "${group.name}" created`);
+        onDone(group.id);
+      } else {
+        const { joinCode, keyB64 } = parseInvite(value);
+        if (!keyB64) { notify.error("Invalid invite — the key is missing from the code"); setBusy(false); return; }
+        const res  = await authFetch(`${API}/api/groups/join`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: joinCode }),
+        });
+        const data = await res.json();
+        if (!res.ok) { notify.error(data.error || "Couldn't join"); setBusy(false); return; }
+        storeKeyB64(data.id, keyB64);
+        notify.success(`Joined "${data.name}"`);
+        onDone(data.id);
+      }
+    } catch {
+      notify.error(isNew ? "Couldn't create group" : "Couldn't join group");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-label={isNew ? "Create a group" : "Join with a code"} className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white">{isNew ? "Create a group" : "Join with a code"}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800"><X size={15} /></button>
+        </div>
+        <form onSubmit={submit} className="space-y-3">
+          <input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            autoFocus
+            placeholder={isNew ? "Group name" : "Invite code"}
+            className={`w-full px-3.5 py-2.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)] ${isNew ? "" : "font-mono"}`}
+          />
+
+          {isNew && (
+            <div>
+              <p className="text-xs font-medium text-gray-500 dark:text-neutral-400 mb-1.5">Replication</p>
+              <div className="flex gap-1.5">
+                {REP_PRESETS.map((pr) => {
+                  const active = rep === pr.key;
+                  return (
+                    <button
+                      type="button"
+                      key={pr.key}
+                      onClick={() => setRep(pr.key)}
+                      className={`flex-1 px-2 py-2 rounded-xl text-xs font-medium transition-colors ${
+                        active
+                          ? "bg-blue-600 dark:bg-[var(--accent)] text-[var(--on-accent)]"
+                          : "bg-white/60 dark:bg-neutral-800/60 text-gray-600 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700"
+                      }`}
+                    >
+                      {pr.label}
+                      <span className={`block text-[10px] font-normal ${active ? "text-white/80" : "text-gray-400 dark:text-neutral-500"}`}>{pr.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-gray-400 dark:text-neutral-500 mt-1.5">How many copies of each file to keep across members. This can't be changed later.</p>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={busy || !value.trim()}
+            className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 dark:bg-[var(--accent)] dark:hover:bg-[var(--accent-hover)] disabled:opacity-40 text-[var(--on-accent)] text-sm font-medium rounded-xl transition-colors"
+          >
+            {busy ? "…" : isNew ? "Create group" : "Join group"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,22 @@
+# Rebuilt inside the image — must NOT copy the host's (wrong-platform) native build
+node_modules
+
+# Secrets come from the environment at run time
+.env
+
+# Local data / caches / temp — not part of the image
+dfs.db
+dfs.db-shm
+dfs.db-wal
+shared/
+uploads/
+node_storage/
+metadata.json
+*.log
+
+# Dev-only
+tests/
+.git
+Dockerfile
+.dockerignore
+docker-compose.yml

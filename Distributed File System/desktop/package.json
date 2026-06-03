@@ -1,0 +1,13 @@
+{
+  "name": "dfs-desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "DFS desktop app — Electron shell (later: embedded storage node)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^42.3.0"
+  }
+}

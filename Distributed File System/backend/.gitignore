@@ -4,3 +4,6 @@ shared/
 uploads/
 node_storage/
 metadata.json
+dfs.db
+dfs.db-shm
+dfs.db-wal

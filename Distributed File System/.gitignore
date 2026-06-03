@@ -1,0 +1,8 @@
+node_modules/
+package-lock.json
+
+# Secrets / local env — never commit real env files anywhere in the repo.
+# (.env.example is intentionally NOT matched and stays tracked.)
+**/.env
+**/.env.local
+**/.env.*.local

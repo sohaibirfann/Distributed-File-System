@@ -1,12 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNotify } from "../context/NotificationContext";
+import { useAuth }   from "../context/AuthContext";
+import { loadKey }     from "../lib/groupKeys";
+import { decryptBytes } from "../lib/crypto";
+import Skeleton from "./Skeleton";
 import {
-  Download, Eye, Trash2, Search, X, AlertTriangle, WifiOff,
+  Download, Eye, Trash2, X, AlertTriangle, WifiOff,
   FileText, Image, Film, Music, Archive, Code, File, HardDrive,
-  ChevronUp, ChevronDown, ChevronsUpDown,
+  ChevronUp, ChevronDown, ChevronsUpDown, Loader2, RotateCw,
 } from "lucide-react";
+import { useDialog } from "../lib/useDialog";
 
-const API = import.meta.env.VITE_API_URL;
+import { getApiUrl } from "../lib/api";
+const API = getApiUrl();
 
 const TYPE_MAP = {
   // images
@@ -43,7 +49,7 @@ const TYPE_MAP = {
   html: { icon: Code,     bg: "bg-orange-50 dark:bg-orange-950/40", color: "text-orange-500"                      },
   css:  { icon: Code,     bg: "bg-sky-50 dark:bg-sky-950/40",       color: "text-sky-500"                         },
 };
-const DEFAULT_TYPE = { icon: File, bg: "bg-blue-50 dark:bg-[#FF6363]/10", color: "text-blue-500 dark:text-[#FF6363]" };
+const DEFAULT_TYPE = { icon: File, bg: "bg-blue-50 dark:bg-[var(--accent)]/10", color: "text-blue-500 dark:text-[var(--accent-bright)]" };
 
 function getType(filename) {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
@@ -70,6 +76,20 @@ function formatSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+const AVATAR_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#f43f5e", "#0ea5e9", "#8b5cf6", "#14b8a6", "#f97316", "#ec4899", "#84cc16"];
+function avatarColor(name = "") {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+function Avatar({ name }) {
+  return (
+    <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ backgroundColor: avatarColor(name) }}>
+      {(name?.[0] ?? "?").toUpperCase()}
+    </div>
+  );
+}
+
 function formatRelativeTime(iso) {
   if (!iso) return "—";
   const diff  = Date.now() - new Date(iso).getTime();
@@ -83,10 +103,11 @@ function formatRelativeTime(iso) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export default function FileTable({ isAdmin = false }) {
+export default function FileTable({ groupId, canManage = false, search = "", onStats, view = "list" }) {
   const notify = useNotify();
+  const { authFetch } = useAuth();
   const [files, setFiles]               = useState([]);
-  const [search, setSearch]             = useState("");
+  const [loading, setLoading]           = useState(true);
   const [apiError, setApiError]         = useState(false);
   const [fileToDelete, setFileToDelete]     = useState(null);
   const [deleting, setDeleting]             = useState(false);
@@ -94,42 +115,63 @@ export default function FileTable({ isAdmin = false }) {
   const [previewType, setPreviewType]       = useState(null);
   const [previewContent, setPreviewContent] = useState("");
   const [previewUrl, setPreviewUrl]         = useState(null);
+  const [downloading, setDownloading]       = useState([]);
+  const [failedDl, setFailedDl]             = useState([]);   // downloads that errored — show a Retry
+  const previewRef = useDialog(!!previewFile,  closePreview);
+  const deleteRef  = useDialog(!!fileToDelete, () => { if (!deleting) setFileToDelete(null); });
+
+  const base = `${API}/api/groups/${groupId}/files`;
 
   useEffect(() => {
+    if (!groupId) return;
     fetchFiles();
     const id = setInterval(fetchFiles, 3000);
     return () => clearInterval(id);
-  }, []);
+  }, [groupId]);
 
   async function fetchFiles() {
     try {
-      const res = await fetch(`${API}/api/files`);
+      const res = await authFetch(base);
       setFiles(await res.json());
       setApiError(false);
     } catch {
       setApiError(true);
+    } finally {
+      setLoading(false);
     }
   }
 
   async function handleDownload(filename) {
-    const id = notify.loading("Preparing download…");
+    setDownloading((d) => [...d, filename]);
+    setFailedDl((s) => s.filter((f) => f !== filename)); // clear any prior failure on (re)try
     try {
-      const res = await fetch(`${API}/api/files/download/${filename}`);
+      const key = await loadKey(groupId);
+      if (!key) throw new Error("This device doesn't hold this group's key");
+
+      const res = await authFetch(`${base}/download/${encodeURIComponent(filename)}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || "Download failed");
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+
+      let plain;
+      try {
+        plain = await decryptBytes(key, await res.arrayBuffer());
+      } catch {
+        throw new Error("Could not decrypt — wrong or missing key");
+      }
+
+      const url = URL.createObjectURL(new Blob([plain]));
       const a = document.createElement("a");
       a.href = url; a.download = filename;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
-      notify.dismiss(id);
       notify.success("Download complete");
     } catch (err) {
-      notify.dismiss(id);
       notify.error(err.message || "Download failed");
+      setFailedDl((s) => (s.includes(filename) ? s : [...s, filename]));
+    } finally {
+      setDownloading((d) => d.filter((f) => f !== filename));
     }
   }
 
@@ -145,16 +187,26 @@ export default function FileTable({ isAdmin = false }) {
     const type = getPreviewType(filename);
     const id   = notify.loading("Loading preview…");
     try {
-      const res = await fetch(`${API}/api/files/download/${filename}`);
+      const key = await loadKey(groupId);
+      if (!key) throw new Error("This device doesn't hold this group's key");
+
+      const res = await authFetch(`${base}/download/${encodeURIComponent(filename)}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || "Preview failed");
       }
+
+      let plain;
+      try {
+        plain = await decryptBytes(key, await res.arrayBuffer());
+      } catch {
+        throw new Error("Could not decrypt — wrong or missing key");
+      }
+
       if (type === "image") {
-        const blob = await res.blob();
-        setPreviewUrl(URL.createObjectURL(blob));
+        setPreviewUrl(URL.createObjectURL(new Blob([plain])));
       } else {
-        setPreviewContent(await res.text());
+        setPreviewContent(new TextDecoder().decode(plain));
       }
       setPreviewType(type);
       setPreviewFile(filename);
@@ -168,7 +220,7 @@ export default function FileTable({ isAdmin = false }) {
   async function handleDelete(filename) {
     setDeleting(true);
     try {
-      const res = await fetch(`${API}/api/files/delete/${filename}`, { method: "DELETE" });
+      const res = await authFetch(`${base}/delete/${encodeURIComponent(filename)}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
       notify.success("File deleted");
       setFileToDelete(null);
@@ -191,8 +243,8 @@ export default function FileTable({ isAdmin = false }) {
   function SortIcon({ col }) {
     if (sort.col !== col) return <ChevronsUpDown size={11} className="text-gray-300 dark:text-neutral-600" />;
     return sort.dir === "asc"
-      ? <ChevronUp   size={11} className="text-blue-500 dark:text-[#FF6363]" />
-      : <ChevronDown size={11} className="text-blue-500 dark:text-[#FF6363]" />;
+      ? <ChevronUp   size={11} className="text-blue-500 dark:text-[var(--accent-bright)]" />
+      : <ChevronDown size={11} className="text-blue-500 dark:text-[var(--accent-bright)]" />;
   }
 
   const filtered = files.filter((f) =>
@@ -211,36 +263,78 @@ export default function FileTable({ isAdmin = false }) {
     return 0;
   });
 
+  const totalSize = filtered.reduce((s, f) => s + (f.size || 0), 0); // visible (search-filtered)
+  const allSize   = files.reduce((s, f) => s + (f.size || 0), 0);    // whole group
+  useEffect(() => {
+    onStats?.({ count: filtered.length, totalSize, total: files.length, allSize });
+  }, [filtered.length, totalSize, files.length, allSize]);
+
+  const emptyState = (
+    apiError && files.length === 0 ? (
+      <>
+        <WifiOff size={28} className="mx-auto mb-3 text-red-400 dark:text-[var(--accent-bright)]" />
+        <p className="text-sm font-medium text-gray-400 dark:text-neutral-500">Can't reach server</p>
+      </>
+    ) : (
+      <>
+        <File size={28} className="mx-auto mb-3 text-gray-200 dark:text-neutral-700" />
+        <p className="text-sm font-medium text-gray-400 dark:text-neutral-500">{search ? "No files match your search" : "No files here yet"}</p>
+        {!search && <p className="text-xs text-gray-300 dark:text-neutral-600 mt-1">{canManage ? "Upload a file to get started" : "Check back later"}</p>}
+      </>
+    )
+  );
+
   return (
     <>
-      <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 overflow-hidden">
-        {/* Search + count */}
-        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-neutral-800">
-          <Search size={15} className="text-gray-400 dark:text-neutral-500 shrink-0" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search files…"
-            className="flex-1 text-sm bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              className="text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors"
-            >
-              <X size={14} />
-            </button>
+      {view === "grid" ? (
+        <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          {loading && files.length === 0 ? (
+            Array.from({ length: 10 }).map((_, i) => (
+              <div key={`gsk-${i}`} className="glass bg-white/70 dark:bg-neutral-900/60 rounded-xl border border-gray-100 dark:border-neutral-800 p-4">
+                <Skeleton className="w-12 h-12 rounded-xl" />
+                <Skeleton className="h-3.5 w-3/4 mt-3" />
+                <Skeleton className="h-3 w-1/2 mt-2" />
+              </div>
+            ))
+          ) : sorted.length === 0 ? (
+            <div className="col-span-full flex flex-col items-center py-16 text-center">{emptyState}</div>
+          ) : (
+            sorted.map((file, i) => {
+              const { icon: Icon, bg, color } = getType(file.filename);
+              const dl = downloading.includes(file.filename);
+              const fail = failedDl.includes(file.filename);
+              return (
+                <div key={i} className="group relative glass bg-white/70 dark:bg-neutral-900/60 rounded-xl border border-gray-100 dark:border-neutral-800 p-4 hover:-translate-y-0.5 transition-transform">
+                  <div className={`absolute top-2 right-2 flex items-center gap-0.5 transition-opacity ${(dl || fail) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                    {dl ? (
+                      <Loader2 size={14} className="m-1.5 animate-spin text-emerald-500" />
+                    ) : (
+                      <button onClick={() => handleDownload(file.filename)} title={fail ? "Retry download" : "Download"} className={`p-1.5 rounded-lg ${fail ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10" : "text-gray-500 dark:text-neutral-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600"}`}>{fail ? <RotateCw size={14} /> : <Download size={14} />}</button>
+                    )}
+                    {getPreviewType(file.filename) && (
+                      <button onClick={() => handlePreview(file.filename)} title="Preview" className="p-1.5 rounded-lg text-gray-500 dark:text-neutral-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600"><Eye size={14} /></button>
+                    )}
+                    {canManage && (
+                      <button onClick={() => setFileToDelete(file.filename)} title="Delete" className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-[var(--accent)]/10 hover:text-red-500"><Trash2 size={14} /></button>
+                    )}
+                  </div>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${bg}`}><Icon size={22} className={color} /></div>
+                  <p className="mt-3 text-sm font-medium text-gray-800 dark:text-neutral-100 truncate" title={file.filename}>{file.filename}</p>
+                  <p className="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">{formatSize(file.size)} · {formatRelativeTime(file.uploadedAt)}</p>
+                  {file.uploadedBy && (
+                    <div className="flex items-center gap-1.5 mt-2.5">
+                      <Avatar name={file.uploadedBy} />
+                      <span className="text-[11px] text-gray-400 dark:text-neutral-500 truncate">{file.uploadedBy}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
-          <span className="text-xs text-gray-400 dark:text-neutral-500 shrink-0 border-l border-gray-100 dark:border-neutral-800 pl-3">
-            {sorted.length} {sorted.length === 1 ? "file" : "files"}
-          </span>
         </div>
-
-        {/* Table */}
-        <div className="overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-white/40 dark:bg-neutral-800/40 border-b border-gray-100 dark:border-neutral-800">
+      ) : (
+      <table className="w-full text-sm">
+        <thead className="sticky top-0 z-10 bg-[#f3f3f3]/80 dark:bg-[var(--bg)]/70 backdrop-blur-xl border-b border-gray-200/70 dark:border-neutral-800">
               <tr>
                 {[
                   { label: "Name",   col: "filename",   cls: "" },
@@ -251,7 +345,7 @@ export default function FileTable({ isAdmin = false }) {
                   <th
                     key={col}
                     onClick={() => handleSort(col)}
-                    className={`px-5 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400 cursor-pointer select-none hover:text-gray-700 dark:hover:text-neutral-200 transition-colors ${cls}`}
+                    className={`px-6 py-2.5 text-left text-xs font-semibold text-gray-500 dark:text-neutral-400 cursor-pointer select-none hover:text-gray-700 dark:hover:text-neutral-200 transition-colors ${cls}`}
                   >
                     <div className="flex items-center gap-1">
                       {label}
@@ -259,16 +353,31 @@ export default function FileTable({ isAdmin = false }) {
                     </div>
                   </th>
                 ))}
-                <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 dark:text-neutral-400">Actions</th>
+                <th className="px-6 py-2.5 text-right text-xs font-semibold text-gray-500 dark:text-neutral-400">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-neutral-800">
-              {filtered.length === 0 ? (
+              {loading && files.length === 0 ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={`sk-${i}`}>
+                    <td className="px-6 py-2.5">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="w-8 h-8 rounded-lg" />
+                        <Skeleton className="h-3.5 w-40" />
+                      </div>
+                    </td>
+                    <td className="px-6 py-2.5 hidden sm:table-cell"><Skeleton className="h-3 w-14" /></td>
+                    <td className="px-6 py-2.5 hidden md:table-cell"><Skeleton className="h-4 w-10 rounded-md" /></td>
+                    <td className="px-6 py-2.5 hidden lg:table-cell"><Skeleton className="h-3 w-16" /></td>
+                    <td className="px-6 py-2.5"><div className="flex justify-end"><Skeleton className="h-6 w-24 rounded-lg" /></div></td>
+                  </tr>
+                ))
+              ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-5 py-16 text-center">
+                  <td colSpan="5" className="px-6 py-16 text-center">
                     {apiError && files.length === 0 ? (
                       <>
-                        <WifiOff size={28} className="mx-auto mb-3 text-red-400 dark:text-[#FF6363]" />
+                        <WifiOff size={28} className="mx-auto mb-3 text-red-400 dark:text-[var(--accent-bright)]" />
                         <p className="text-sm font-medium text-gray-400 dark:text-neutral-500">Can't reach server</p>
                         <p className="text-xs text-gray-300 dark:text-neutral-600 mt-1">Make sure the backend is running</p>
                       </>
@@ -280,7 +389,7 @@ export default function FileTable({ isAdmin = false }) {
                         </p>
                         {!search && (
                           <p className="text-xs text-gray-300 dark:text-neutral-600 mt-1">
-                            {isAdmin ? "Upload a file to get started" : "Check back later"}
+                            {canManage ? "Upload a file to get started" : "Check back later"}
                           </p>
                         )}
                       </>
@@ -291,8 +400,8 @@ export default function FileTable({ isAdmin = false }) {
                 sorted.map((file, i) => {
                   const { icon: Icon, bg, color } = getType(file.filename);
                   return (
-                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition-colors">
-                      <td className="px-5 py-3.5 max-w-0 w-full">
+                    <tr key={i} className="group hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition-colors">
+                      <td className="px-6 py-2.5 max-w-0 w-full">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
                             <Icon size={15} className={color} />
@@ -308,12 +417,12 @@ export default function FileTable({ isAdmin = false }) {
                           )}
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 hidden sm:table-cell">
+                      <td className="px-6 py-2.5 hidden sm:table-cell">
                         <span className="text-gray-500 dark:text-neutral-400 font-mono text-xs whitespace-nowrap">
                           {formatSize(file.size)}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 hidden md:table-cell">
+                      <td className="px-6 py-2.5 hidden md:table-cell">
                         {(() => {
                           const ext = file.filename.split(".").pop()?.toUpperCase() ?? "";
                           const { bg, color } = getType(file.filename);
@@ -326,21 +435,40 @@ export default function FileTable({ isAdmin = false }) {
                           );
                         })()}
                       </td>
-                      <td className="px-5 py-3.5 hidden lg:table-cell">
+                      <td className="px-6 py-2.5 hidden lg:table-cell">
                         <span className="text-xs text-gray-500 dark:text-neutral-400">
                           {formatRelativeTime(file.uploadedAt)}
                         </span>
+                        {file.uploadedBy && (
+                          <span className="block text-[11px] text-gray-400 dark:text-neutral-600">by {file.uploadedBy}</span>
+                        )}
                       </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => handleDownload(file.filename)}
-                            title="Download"
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
-                          >
-                            <Download size={13} />
-                            <span className="hidden sm:inline">Download</span>
-                          </button>
+                      <td className="px-6 py-2.5">
+                        <div className={`flex items-center justify-end gap-1 transition-opacity ${(downloading.includes(file.filename) || failedDl.includes(file.filename)) ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}>
+                          {downloading.includes(file.filename) ? (
+                            <span className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                              <Loader2 size={13} className="animate-spin" />
+                              <span className="hidden sm:inline">Downloading…</span>
+                            </span>
+                          ) : failedDl.includes(file.filename) ? (
+                            <button
+                              onClick={() => handleDownload(file.filename)}
+                              title="Retry download"
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                            >
+                              <RotateCw size={13} />
+                              <span className="hidden sm:inline">Retry</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleDownload(file.filename)}
+                              title="Download"
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-neutral-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
+                            >
+                              <Download size={13} />
+                              <span className="hidden sm:inline">Download</span>
+                            </button>
+                          )}
                           {getPreviewType(file.filename) && (
                             <button
                               onClick={() => handlePreview(file.filename)}
@@ -351,11 +479,11 @@ export default function FileTable({ isAdmin = false }) {
                               <span className="hidden sm:inline">Preview</span>
                             </button>
                           )}
-                          {isAdmin && (
+                          {canManage && (
                             <button
                               onClick={() => setFileToDelete(file.filename)}
                               title="Delete"
-                              className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-[#FF6363]/10 hover:text-red-500 transition-colors"
+                              className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-[var(--accent)]/10 hover:text-red-500 transition-colors"
                             >
                               <Trash2 size={13} />
                             </button>
@@ -368,16 +496,16 @@ export default function FileTable({ isAdmin = false }) {
               )}
             </tbody>
           </table>
-        </div>
-      </div>
+      )}
 
       {/* Preview modal */}
       {previewFile && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4"
           onClick={closePreview}
         >
           <div
+            ref={previewRef} role="dialog" aria-modal="true" aria-label={`Preview: ${previewFile}`}
             className={`glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 flex flex-col ${previewType === "image" ? "max-w-[90vw]" : "w-full max-w-3xl max-h-[80vh]"}`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -415,7 +543,7 @@ export default function FileTable({ isAdmin = false }) {
                 />
               </div>
             ) : (
-              <div className="flex-1 overflow-auto rounded-b-2xl bg-white/30 dark:bg-black [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-600">
+              <div className="flex-1 overflow-auto rounded-b-2xl bg-white/30 dark:bg-black">
                 <table className="min-w-full border-collapse font-mono text-xs">
                   <tbody>
                     {previewContent.split("\n").map((line, i) => (
@@ -439,14 +567,15 @@ export default function FileTable({ isAdmin = false }) {
       {/* Delete modal */}
       {fileToDelete && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4"
           onClick={() => !deleting && setFileToDelete(null)}
         >
           <div
+            ref={deleteRef} role="dialog" aria-modal="true" aria-label="Delete file"
             className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-11 h-11 bg-red-50 dark:bg-[#FF6363]/10 rounded-xl flex items-center justify-center mb-4">
+            <div className="w-11 h-11 bg-red-50 dark:bg-[var(--accent)]/10 rounded-xl flex items-center justify-center mb-4">
               <AlertTriangle size={20} className="text-red-500" />
             </div>
             <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Delete this file?</h3>

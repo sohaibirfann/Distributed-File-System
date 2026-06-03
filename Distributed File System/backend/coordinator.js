@@ -1,212 +1,179 @@
 require("dotenv").config();
 
-if (!process.env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY.length !== 64) {
-  console.error("ERROR: ENCRYPTION_KEY missing or invalid in .env — must be a 64-char hex string");
-  process.exit(1);
-}
-
-const fs = require("fs");
+const fs     = require("fs");
 const crypto = require("crypto");
-const path = require("path");
-const axios = require("axios");
+const path   = require("path");
 
-const CHUNK_SIZE = 4 * 1024;
-const METADATA_FILE = path.join(__dirname, "metadata.json");
+const { saveFile, getGroupFileByName, getGroup, getNodeMap, getMemberNodeMap, getGroupMembers } = require("./db");
 
-const BACKEND_URL = "http://localhost:5000";
+const CHUNK_SIZE = 512 * 1024; // 512 KB
 
-const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, "hex");
+// Replication presets → how many copies of each chunk to store.
+// Capped to the number of nodes actually online ('max' = all of them).
+const PRESET_COPIES = { minimal: 2, balanced: 3, max: Infinity };
 
-// AES-256-GCM: output is base64(iv[12] + authTag[16] + ciphertext)
-function encrypt(buffer) {
-  const iv     = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv("aes-256-gcm", ENCRYPTION_KEY, iv);
-  const enc    = Buffer.concat([cipher.update(buffer), cipher.final()]);
-  return Buffer.concat([iv, cipher.getAuthTag(), enc]).toString("base64");
+function replicaCount(preset, nodeCount) {
+  const want = PRESET_COPIES[preset] ?? PRESET_COPIES.balanced;
+  return Math.max(1, Math.min(want, nodeCount));
 }
 
-// Load metadata
-
-async function getNodes() {
-  try {
-    const res = await axios.get(`${BACKEND_URL}/api/nodes`);
-
-    const nodes = res.data;
-
-    const map = {};
-
-    nodes.forEach((node) => {
-      map[node.name] = node.url;
-    });
-
-    return map;
-  } catch {
-    console.error("Failed to fetch nodes");
-    return {};
-  }
-}
-
-let metadata = {};
-
-if (fs.existsSync(METADATA_FILE)) {
-  metadata = JSON.parse(fs.readFileSync(METADATA_FILE, "utf8"));
-}
-
-function saveMetadata() {
-  fs.writeFileSync(METADATA_FILE, JSON.stringify(metadata, null, 2));
-}
-
-// Split file into chunks
 function chunkFile(filePath) {
-  const data = fs.readFileSync(filePath);
+  const data   = fs.readFileSync(filePath);
   const chunks = [];
-
-  let offset = 0;
-  let chunkId = 0;
+  let offset = 0, chunkId = 0;
 
   while (offset < data.length) {
     const slice = data.slice(offset, offset + CHUNK_SIZE);
-
-    const hash = crypto.createHash("sha256").update(slice).digest("hex");
-
     chunks.push({
       chunkId,
-      data: slice,
-      hash,
-      size: slice.length,
+      data:  slice,
+      hash:  crypto.createHash("sha256").update(slice).digest("hex"),
+      size:  slice.length,
     });
-
     offset += CHUNK_SIZE;
     chunkId++;
   }
-
   return chunks;
 }
 
-// ----------------------------
-// 🚀 UPLOAD (DISTRIBUTED)
-// ----------------------------
+/*
+|--------------------------------------------------------------------------
+| distributeFile — chunk, encrypt and spread a file across a group's nodes
+|--------------------------------------------------------------------------
+| Chunks are keyed on nodes by the file's unique id, so two groups can hold
+| files with the same name without colliding.
+*/
 
-if (process.argv[2] === "upload") {
-  (async () => {
-    const filePath = process.argv[3];
-
-    if (!fs.existsSync(filePath)) {
-      console.log("File not found");
-      process.exit(1);
-    }
-
-    const filename = path.basename(filePath);
-    const fileChunks = chunkFile(filePath);
-
-    console.log("File:", filename);
-    console.log("Total chunks:", fileChunks.length);
-
-    const NODE_MAP = await getNodes();
-    const USERS = Object.keys(NODE_MAP);
-
-    if (USERS.length === 0) {
-      console.error("No nodes available — start at least one node before uploading");
-      process.exit(1);
-    }
-
-    // Preserve old state — old chunks are only deleted after new ones are confirmed
-    const oldEntry  = metadata[filename] || null;
-    const oldChunks = oldEntry
-      ? (Array.isArray(oldEntry) ? oldEntry : (oldEntry?.chunks ?? []))
-      : [];
-
-    metadata[filename] = { uploadedAt: new Date().toISOString(), chunks: [] };
-
-    const distributed = []; // { user, chunkId } — for rollback on failure
-
-    for (const chunk of fileChunks) {
-      const first = USERS[chunk.chunkId % USERS.length];
-      const second = USERS[(chunk.chunkId + 1) % USERS.length];
-
-      const replicaUsers = [first, second];
-
-      let storedCount = 0;
-
-      for (const user of replicaUsers) {
-        const nodeUrl = NODE_MAP[user];
-
-        try {
-          await fetch(`${nodeUrl}/store-chunk`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              filename,
-              chunkId: chunk.chunkId,
-              data: encrypt(chunk.data),
-            }),
-            signal: AbortSignal.timeout(5000),
-          });
-
-          distributed.push({ user, chunkId: chunk.chunkId });
-          storedCount++;
-          console.log(`Chunk ${chunk.chunkId} sent to ${user}`);
-        } catch (err) {
-          console.error(`Failed to send chunk ${chunk.chunkId} to ${user}`);
-        }
-      }
-
-      if (storedCount === 0) {
-        console.error(`Upload failed: chunk ${chunk.chunkId} could not be stored on any node`);
-
-        for (const { user, chunkId } of distributed) {
-          try {
-            await fetch(`${NODE_MAP[user]}/delete-chunk`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ filename, chunkId }),
-              signal: AbortSignal.timeout(3000),
-            });
-          } catch {}
-        }
-
-        // Restore old metadata so the original file remains intact
-        if (oldEntry) {
-          metadata[filename] = oldEntry;
-        } else {
-          delete metadata[filename];
-        }
-        saveMetadata();
-        console.error("Rolled back all distributed chunks");
-        process.exit(1);
-      }
-
-      metadata[filename].chunks.push({
-        chunkId: chunk.chunkId,
-        hash: chunk.hash,
-        size: chunk.size,
-        users: replicaUsers,
-      });
-    }
-
-    // New chunks confirmed — now remove old ones
-    for (const chunk of oldChunks) {
-      for (const user of chunk.users) {
-        if (!NODE_MAP[user]) continue;
-        try {
-          await fetch(`${NODE_MAP[user]}/delete-chunk`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ filename, chunkId: chunk.chunkId }),
-            signal: AbortSignal.timeout(3000),
-          });
-        } catch {}
-      }
-    }
-
-    const cachedPath = path.join(__dirname, "shared", filename);
-    if (fs.existsSync(cachedPath)) fs.unlinkSync(cachedPath);
-
-    if (oldEntry) console.log("Replaced existing file — old chunks removed");
-
-    saveMetadata();
-    console.log("All chunks distributed successfully");
-  })();
+// ── Per-target upload lock ───────────────────────────────────────────────────
+// Serialises uploads that target the same (group, filename) so two concurrent
+// uploads of the same file can't interleave their chunk-push / save / old-chunk
+// cleanup steps and orphan each other's chunks. Different files/groups still run
+// in parallel. (better-sqlite3 writes are synchronous; the races are around the
+// awaited chunk transfers.)
+const uploadChains = new Map();
+function withUploadLock(key, fn) {
+  const run  = (uploadChains.get(key) || Promise.resolve()).then(fn, fn);
+  const tail = run.catch(() => {}); // non-throwing link so the queue keeps flowing
+  uploadChains.set(key, tail);
+  tail.then(() => { if (uploadChains.get(key) === tail) uploadChains.delete(key); });
+  return run;
 }
+
+function distributeFile(filePath, filename, groupId, uploadedBy, io) {
+  return withUploadLock(`${groupId}:${filename}`, () =>
+    distributeFileInner(filePath, filename, groupId, uploadedBy, io));
+}
+
+async function distributeFileInner(filePath, filename, groupId, uploadedBy, io) {
+  if (!fs.existsSync(filePath)) throw new Error("Uploaded file not found on disk");
+
+  const fileId     = crypto.randomUUID();
+  const group      = getGroup(groupId);
+  const preset     = group?.replication || "balanced";
+  const fileChunks = chunkFile(filePath);
+
+  // Prefer the group's own members' nodes ("files live on your group's machines").
+  // Fall back to the global pool while no member is contributing storage yet, so
+  // it keeps working (e.g. the dev node) — group-scoping kicks in once members do.
+  const memberIds  = getGroupMembers(groupId).map((m) => m.user_id);
+  const memberMap  = getMemberNodeMap(memberIds);
+  const scoped     = Object.keys(memberMap).length > 0;
+  const NODE_MAP   = scoped ? memberMap : getNodeMap();
+  const USERS      = Object.keys(NODE_MAP);
+
+  if (USERS.length === 0) {
+    throw new Error("No nodes available — a group member needs to enable storage (or start a node) before uploading");
+  }
+  io.emit("log", `[replication] using ${scoped ? "group-member" : "global (fallback)"} nodes: ${USERS.join(", ")}`);
+
+  const copies = replicaCount(preset, USERS.length);
+
+  io.emit("upload-progress", { filename, percent: 0, distributed: 0, total: fileChunks.length });
+
+  // Existing file with this name in the group — its chunks are cleaned up after
+  // the new version is confirmed stored.
+  const oldFile   = getGroupFileByName(groupId, filename);
+  const oldChunks = oldFile?.chunks ?? [];
+  const oldFileId = oldFile?.id ?? null;
+
+  const distributed = []; // for rollback on failure
+  const newChunks   = [];
+  const seenIds     = new Set();
+
+  for (const chunk of fileChunks) {
+    // Pick `copies` distinct nodes round-robin, offset by chunkId for spread.
+    const replicaUsers = [];
+    for (let i = 0; i < copies; i++) {
+      replicaUsers.push(USERS[(chunk.chunkId + i) % USERS.length]);
+    }
+
+    let storedCount = 0;
+    // The uploaded file is already ciphertext (encrypted client-side); the
+    // coordinator just chunks and relays it — it never holds a key.
+    const payload = chunk.data.toString("base64");
+
+    for (const user of replicaUsers) {
+      try {
+        const res = await fetch(`${NODE_MAP[user]}/store-chunk`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ fileId, chunkId: chunk.chunkId, data: payload }),
+          signal:  AbortSignal.timeout(5000),
+        });
+        if (!res.ok) throw new Error(`Node responded ${res.status}`);
+        distributed.push({ user, chunkId: chunk.chunkId });
+        storedCount++;
+      } catch (err) {
+        console.error(`Failed to send chunk ${chunk.chunkId} to ${user}: ${err.message}`);
+      }
+    }
+
+    if (storedCount === 0) {
+      await Promise.allSettled(distributed.map(({ user, chunkId }) =>
+        fetch(`${NODE_MAP[user]}/delete-chunk`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ fileId, chunkId }),
+          signal:  AbortSignal.timeout(3000),
+        }),
+      ));
+      throw new Error(`Chunk ${chunk.chunkId} could not be stored on any node — upload rolled back`);
+    }
+
+    seenIds.add(chunk.chunkId);
+    newChunks.push({ chunkId: chunk.chunkId, hash: chunk.hash, size: chunk.size, users: replicaUsers });
+
+    const percent = Math.min(99, Math.round((seenIds.size / fileChunks.length) * 100));
+    io.emit("upload-progress", { filename, percent, distributed: seenIds.size, total: fileChunks.length });
+  }
+
+  // Persist (replaces any same-name file in this group atomically).
+  saveFile(fileId, groupId, filename, uploadedBy, new Date().toISOString(), newChunks);
+
+  // Remove the old version's chunks from nodes now that the new one is confirmed.
+  if (oldFileId) {
+    await Promise.allSettled(
+      oldChunks.flatMap((chunk) =>
+        chunk.users.map((user) => {
+          const nodeUrl = NODE_MAP[user];
+          if (!nodeUrl) return Promise.resolve();
+          return fetch(`${nodeUrl}/delete-chunk`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ fileId: oldFileId, chunkId: chunk.chunkId }),
+            signal:  AbortSignal.timeout(3000),
+          });
+        }),
+      ),
+    );
+    const oldCache = path.join(__dirname, "shared", oldFileId);
+    if (fs.existsSync(oldCache)) fs.unlinkSync(oldCache);
+  }
+
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+  io.emit("upload-progress", { filename, percent: 100, done: true });
+  io.emit("log", `[replication] ${filename} · ${newChunks.length} chunks × ${copies} ${copies === 1 ? "copy" : "copies"} (${preset})`);
+}
+
+module.exports = { distributeFile };

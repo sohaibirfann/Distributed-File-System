@@ -2,43 +2,48 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 const ThemeContext = createContext(null);
 
+// Accent themes. "default" = Windows blue (no data-theme attribute); others map
+// to a [data-theme="…"] block in index.css that overrides the --accent vars.
+export const ACCENTS = [
+  { id: "default", label: "Default", swatch: "#0067C0" },
+  { id: "coral",   label: "Coral", swatch: "#e8533f" },
+  { id: "ember",   label: "Amber", swatch: "#e8a44d" },
+];
+const ACCENT_IDS = ACCENTS.map((a) => a.id);
+
+// Apply before React paints to avoid an accent flash on load.
+function applyAccent(id) {
+  const root = document.documentElement;
+  if (id && id !== "default") root.setAttribute("data-theme", id);
+  else root.removeAttribute("data-theme");
+}
+try {
+  const saved = localStorage.getItem("dfs_accent");
+  if (saved) applyAccent(saved);
+} catch { /* ignore */ }
+
+// Dark-only for now — light mode has been removed. The accent, however, is
+// themeable via the vars in index.css.
 export function ThemeProvider({ children }) {
-  const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem("theme");
-    return saved ? saved === "dark" : true;
+  const [accent, setAccentState] = useState(() => {
+    const a = localStorage.getItem("dfs_accent");
+    return ACCENT_IDS.includes(a) ? a : "default";
   });
 
   useEffect(() => {
-    const root = document.documentElement;
-    if (isDark) root.classList.add("dark");
-    else root.classList.remove("dark");
-    localStorage.setItem("theme", isDark ? "dark" : "light");
-  }, [isDark]);
+    document.documentElement.classList.add("dark");
+    localStorage.removeItem("theme");
+  }, []);
 
-  function toggleTheme() {
-    const next = !isDark;
+  useEffect(() => {
+    applyAccent(accent);
+    localStorage.setItem("dfs_accent", accent);
+  }, [accent]);
 
-    const apply = () => {
-      const root = document.documentElement;
-      if (next) root.classList.add("dark");
-      else root.classList.remove("dark");
-      localStorage.setItem("theme", next ? "dark" : "light");
-      setIsDark(next);
-    };
-
-    if (document.startViewTransition) {
-      document.startViewTransition(apply);
-    } else {
-      document.documentElement.classList.add("theme-transitioning");
-      apply();
-      setTimeout(() => {
-        document.documentElement.classList.remove("theme-transitioning");
-      }, 300);
-    }
-  }
+  const setAccent = (a) => setAccentState(ACCENT_IDS.includes(a) ? a : "default");
 
   return (
-    <ThemeContext.Provider value={{ isDark, toggleTheme }}>
+    <ThemeContext.Provider value={{ isDark: true, accent, setAccent }}>
       {children}
     </ThemeContext.Provider>
   );
