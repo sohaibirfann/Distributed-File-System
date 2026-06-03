@@ -1,19 +1,26 @@
 import { useState } from "react";
 import { Database, ArrowRight, Loader2 } from "lucide-react";
-import { setCoordinatorUrl, getStoredCoordinator } from "../lib/api";
+import { setCoordinatorUrl, getStoredCoordinator, pingCoordinator } from "../lib/api";
 
 // First-run gate (desktop): the app can't do anything until it knows which
 // coordinator to talk to. Shown only when none is configured.
 export default function CoordinatorSetup() {
-  const [value, setValue]   = useState(getStoredCoordinator());
-  const [error, setError]   = useState("");
-  const [busy, setBusy]     = useState(false);
+  const [value, setValue]     = useState(getStoredCoordinator());
+  const [error, setError]     = useState("");
+  const [busy, setBusy]       = useState(false);
+  const [canForce, setForce]  = useState(false); // allow saving despite a failed probe
 
-  async function connect(e) {
-    e.preventDefault();
+  async function connect(e, force = false) {
+    e?.preventDefault?.();
     setError("");
     setBusy(true);
     try {
+      if (!force && !(await pingCoordinator(value))) {
+        setError("Couldn't reach a DFS coordinator at that address. Double-check it.");
+        setForce(true);
+        setBusy(false);
+        return;
+      }
       await setCoordinatorUrl(value);
       // Reload so every module re-reads the new coordinator URL.
       window.location.reload();
@@ -38,7 +45,7 @@ export default function CoordinatorSetup() {
         <input
           autoFocus
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => { setValue(e.target.value); setForce(false); }}
           placeholder="https://coordinator.example.com"
           spellCheck={false}
           autoCapitalize="off"
@@ -53,6 +60,17 @@ export default function CoordinatorSetup() {
         >
           {busy ? <Loader2 size={16} className="animate-spin" /> : <>Connect <ArrowRight size={15} /></>}
         </button>
+
+        {canForce && (
+          <button
+            type="button"
+            onClick={(e) => connect(e, true)}
+            disabled={busy}
+            className="mt-2 text-xs text-gray-500 dark:text-neutral-400 hover:text-gray-700 dark:hover:text-neutral-200 hover:underline disabled:opacity-40"
+          >
+            Connect anyway
+          </button>
+        )}
 
         <p className="text-[11px] text-gray-400 dark:text-neutral-500 mt-4">
           You can change this later in Settings.

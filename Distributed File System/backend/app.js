@@ -46,6 +46,16 @@ app.use("/api/groups", groupRoutes);
 
 app.get("/", (req, res) => res.json({ message: "Distributed File System API" }));
 
+// Lightweight liveness probe — used by uptime checks and by the desktop app to
+// confirm a URL is actually a DFS coordinator before saving it. No DB, no auth.
+app.get("/api/health", (req, res) =>
+  res.json({
+    ok: true,
+    service: "dfs-coordinator",
+    uptime: Math.floor(process.uptime()),
+    time: new Date().toISOString(),
+  }));
+
 io.on("connection", (socket) => {
   console.log("Frontend connected:", socket.id);
   socket.emit("log", "Connected to distributed storage server");

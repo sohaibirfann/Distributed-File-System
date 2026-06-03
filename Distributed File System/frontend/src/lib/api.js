@@ -37,6 +37,26 @@ export function hasCoordinator() {
   return !!getApiUrl();
 }
 
+// Probe whether `raw` points at a reachable DFS coordinator (hits /api/health).
+// Returns true only for a live coordinator; false on bad URL, timeout, network
+// error, or a server that isn't ours.
+export async function pingCoordinator(raw, timeoutMs = 5000) {
+  const url = normalizeUrl(raw);
+  if (!url) return false;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url + "/api/health", { signal: ctrl.signal });
+    if (!res.ok) return false;
+    const data = await res.json().catch(() => null);
+    return !!(data && data.ok);
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Persist the coordinator URL for the renderer and, on desktop, for the main
 // process (so the storage node re-registers against it). Throws on invalid input.
 export async function setCoordinatorUrl(raw) {
