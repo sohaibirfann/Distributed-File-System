@@ -57,6 +57,7 @@ function createWindow() {
     frame: false,            // custom title bar drawn in the renderer
     backgroundColor: "#202020", // solid app surface (matches the renderer background)
     title: "DFS",
+    icon: path.join(__dirname, "icon.png"), // taskbar / window icon (Win/Linux)
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
