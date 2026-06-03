@@ -11,18 +11,41 @@
   --accent-hover:  #005ba1; /* button hover */
   --accent-bright: #4cc2ff; /* on-dark accents: pills, links, focus ring, icons */
   --on-accent:     #ffffff;
+  --bg:      #202020;             /* app content background */
+  --surface: #262626;             /* sidebar + title bar */
+  --glass:   rgba(43, 43, 43, 0.62); /* acrylic card/modal fill (dark) */
 }
-[data-theme="coral"] {
-  --accent:        #e8533f; /* salmon-coral (matches the landing) */
-  --accent-hover:  #cf432e;
-  --accent-bright: #ff9e8c; /* bright salmon for on-dark accents */
-  --on-accent:     #ffffff; /* white text reads on the coral fill */
+/* Themes retint BOTH the accent and the whole neutral palette (Tailwind v4 reads
+   its color utilities from --color-* vars, so overriding them shifts every
+   bg/text/border-neutral-* in the app). Semantic hues (blue/red/emerald/etc.) and
+   --color-white are left as-is. */
+:root[data-theme="coral"] {
+  --accent:        #e8533f; --accent-hover: #cf432e; --accent-bright: #ff9e8c; --on-accent: #ffffff;
+  --bg:      oklch(0.175 0.026 354);
+  --surface: oklch(0.228 0.032 356);
+  --glass:   oklch(0.245 0.034 356 / 0.72);
+  --color-neutral-300: oklch(0.87 0.020 352);
+  --color-neutral-400: oklch(0.72 0.025 352);
+  --color-neutral-500: oklch(0.57 0.030 352);
+  --color-neutral-600: oklch(0.46 0.032 354);
+  --color-neutral-700: oklch(0.36 0.035 355);
+  --color-neutral-800: oklch(0.29 0.035 356);
+  --color-neutral-900: oklch(0.238 0.032 356);
+  --color-neutral-950: oklch(0.185 0.028 354);
 }
-[data-theme="ember"] {
-  --accent:        #e8a44d; /* warm marigold */
-  --accent-hover:  #d8902f;
-  --accent-bright: #ffce8a; /* bright amber for on-dark accents */
-  --on-accent:     #2a1c05; /* amber is light → dark text/icons sit on it */
+:root[data-theme="ember"] {
+  --accent:        #e8a44d; --accent-hover: #d8902f; --accent-bright: #ffce8a; --on-accent: #2a1c05;
+  --bg:      oklch(0.168 0.013 62);
+  --surface: oklch(0.225 0.015 62);
+  --glass:   oklch(0.235 0.016 62 / 0.72);
+  --color-neutral-300: oklch(0.87 0.015 75);
+  --color-neutral-400: oklch(0.72 0.020 70);
+  --color-neutral-500: oklch(0.57 0.020 66);
+  --color-neutral-600: oklch(0.46 0.018 64);
+  --color-neutral-700: oklch(0.37 0.016 62);
+  --color-neutral-800: oklch(0.285 0.015 60);
+  --color-neutral-900: oklch(0.235 0.014 60);
+  --color-neutral-950: oklch(0.175 0.013 58);
 }
 
 
@@ -42,7 +65,7 @@ body {
 }
 
 .dark body {
-  background-color: #202020;
+  background-color: var(--bg);
 }
 
 /* Flat backdrop — Fluent surfaces sit directly on the Mica base, no gradient */
@@ -56,7 +79,7 @@ body::before {
 }
 
 .dark body::before {
-  background: #202020;
+  background: var(--bg);
 }
 
 
@@ -103,7 +126,7 @@ body::before {
 }
 
 .dark .glass {
-  background-color: rgba(43, 43, 43, 0.62);
+  background-color: var(--glass);
   border-color: rgba(255, 255, 255, 0.07);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }

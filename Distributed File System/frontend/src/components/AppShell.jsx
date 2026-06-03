@@ -100,7 +100,7 @@ export default function AppShell() {
     <div className="flex h-full overflow-hidden">
       {/* ── Sidebar ─────────────────────────────────────────────── */}
       <aside
-        className={`flex flex-col shrink-0 bg-[#f7f7f8] dark:bg-[#262626] border-r border-gray-200/70 dark:border-white/[0.06] transition-[width] duration-200 ease-out ${
+        className={`flex flex-col shrink-0 bg-[#f7f7f8] dark:bg-[var(--surface)] border-r border-gray-200/70 dark:border-white/[0.06] transition-[width] duration-200 ease-out ${
           collapsed ? "w-16" : "w-60"
         } ${showLabels ? "labels-in" : ""}`}
       >
@@ -242,7 +242,7 @@ export default function AppShell() {
       {/* ── Main panel ──────────────────────────────────────────── */}
       {/* Solid fill so it covers the window's Mica — only the sidebar +
           title bar stay translucent (transparent → Mica shows through). */}
-      <main className="flex-1 overflow-y-auto bg-[#f3f3f3] dark:bg-[#202020]">
+      <main className="flex-1 overflow-y-auto bg-[#f3f3f3] dark:bg-[var(--bg)]">
         <Outlet context={{ refreshGroups: fetchGroups, groups, openNew: () => setModal("new"), openJoin: () => setModal("join") }} />
       </main>
 

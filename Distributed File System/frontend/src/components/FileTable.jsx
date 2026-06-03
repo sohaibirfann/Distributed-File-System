@@ -330,7 +330,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
         </div>
       ) : (
       <table className="w-full text-sm">
-        <thead className="sticky top-0 z-10 bg-[#f3f3f3]/80 dark:bg-[#202020]/70 backdrop-blur-xl border-b border-gray-200/70 dark:border-neutral-800">
+        <thead className="sticky top-0 z-10 bg-[#f3f3f3]/80 dark:bg-[var(--bg)]/70 backdrop-blur-xl border-b border-gray-200/70 dark:border-neutral-800">
               <tr>
                 {[
                   { label: "Name",   col: "filename",   cls: "" },

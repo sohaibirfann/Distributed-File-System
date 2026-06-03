@@ -23,7 +23,7 @@ export default function TitleBar() {
   return (
     <div
       style={drag}
-      className="flex items-center justify-between h-8 shrink-0 select-none bg-[#f7f7f8] dark:bg-[#262626] border-b border-gray-200/60 dark:border-white/[0.06]"
+      className="flex items-center justify-between h-8 shrink-0 select-none bg-[#f7f7f8] dark:bg-[var(--surface)] border-b border-gray-200/60 dark:border-white/[0.06]"
     >
       <div className="flex items-center gap-2 px-3">
         <div className="w-4 h-4 bg-blue-600 dark:bg-[var(--accent)] rounded-[5px] flex items-center justify-center">
