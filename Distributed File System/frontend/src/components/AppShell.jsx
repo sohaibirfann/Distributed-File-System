@@ -12,7 +12,8 @@ import {
   PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 
-const API = import.meta.env.VITE_API_URL;
+import { getApiUrl } from "../lib/api";
+const API = getApiUrl();
 
 // Deterministic per-group color so each group keeps a stable visual identity.
 const PALETTE = ["#6366f1", "#10b981", "#f59e0b", "#f43f5e", "#0ea5e9", "#8b5cf6", "#14b8a6", "#f97316", "#ec4899", "#84cc16"];

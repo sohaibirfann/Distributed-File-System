@@ -4,8 +4,9 @@ import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { useTheme, ACCENTS } from "../context/ThemeContext";
 import { isDesktop } from "../lib/platform";
+import { getApiUrl, getStoredCoordinator, setCoordinatorUrl } from "../lib/api";
 import {
-  User, Power, HardDrive, FolderOpen, LogOut, Palette,
+  User, Power, HardDrive, FolderOpen, LogOut, Palette, Server,
 } from "lucide-react";
 
 const desktop = isDesktop();
@@ -66,6 +67,9 @@ export default function Settings() {
   const navigate                = useNavigate();
   const { accent, setAccent }   = useTheme();
 
+  const [coordInput, setCoordInput] = useState(getStoredCoordinator() || getApiUrl());
+  const [savingCoord, setSavingCoord] = useState(false);
+
   const [cfg, setCfg]         = useState(null);   // desktop settings
   const [startup, setStartup] = useState(false);
   const [nodeStatus, setNodeStatus] = useState(null);
@@ -108,6 +112,18 @@ export default function Settings() {
     if (dir) { await patch({ storageDir: dir }); notify.success("Storage folder updated"); }
   }
 
+  async function saveCoordinator() {
+    setSavingCoord(true);
+    try {
+      await setCoordinatorUrl(coordInput);
+      notify.success("Coordinator updated — reconnecting…");
+      setTimeout(() => window.location.reload(), 400);
+    } catch (e) {
+      notify.error(e.message || "Enter a valid address");
+      setSavingCoord(false);
+    }
+  }
+
   return (
     <div className="max-w-3xl w-full mx-auto px-6 py-8 space-y-6">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
@@ -126,6 +142,34 @@ export default function Settings() {
           </button>
         </Row>
       </Section>
+
+      {/* Connection (desktop only) */}
+      {desktop && (
+        <Section icon={Server} title="Connection">
+          <Row label="Coordinator" hint="The server this app connects to — it holds no files or keys.">
+            <span className="text-xs font-mono text-gray-500 dark:text-neutral-400 truncate max-w-[15rem]" title={getApiUrl()}>
+              {getApiUrl() || "Not set"}
+            </span>
+          </Row>
+          <div className="flex items-center gap-2">
+            <input
+              value={coordInput}
+              onChange={(e) => setCoordInput(e.target.value)}
+              placeholder="https://coordinator.example.com"
+              spellCheck={false}
+              autoCapitalize="off"
+              className="flex-1 min-w-0 px-3 py-2 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)]"
+            />
+            <button
+              onClick={saveCoordinator}
+              disabled={savingCoord || !coordInput.trim() || coordInput.trim() === getApiUrl()}
+              className="shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 dark:bg-[var(--accent)] dark:hover:bg-[var(--accent-hover)] text-[var(--on-accent)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {savingCoord ? "Saving…" : "Save & reconnect"}
+            </button>
+          </div>
+        </Section>
+      )}
 
       {/* Appearance */}
       <Section icon={Palette} title="Appearance">

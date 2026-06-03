@@ -7,7 +7,8 @@ import { encryptBytes } from "../lib/crypto";
 import { Upload, X, FileIcon, CheckCircle, Loader2, AlertCircle, AlertTriangle, RotateCw } from "lucide-react";
 import { useDialog } from "../lib/useDialog";
 
-const API     = import.meta.env.VITE_API_URL;
+import { getApiUrl } from "../lib/api";
+const API = getApiUrl();
 const MAX_SIZE = 500 * 1024 * 1024;
 
 function formatSize(bytes) {

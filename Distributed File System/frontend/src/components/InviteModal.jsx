@@ -5,7 +5,8 @@ import { buildInvite, getKeyB64 } from "../lib/groupKeys";
 import { useDialog } from "../lib/useDialog";
 import { X, Copy, Check, UserPlus, ShieldAlert } from "lucide-react";
 
-const API = import.meta.env.VITE_API_URL;
+import { getApiUrl } from "../lib/api";
+const API = getApiUrl();
 
 function inviteMessage(groupName, invite) {
   return `Join my "${groupName}" group on DFS 🔒

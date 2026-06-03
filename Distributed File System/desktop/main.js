@@ -23,7 +23,9 @@ function loadBackendEnv() {
 loadBackendEnv();
 
 const NODE_PORT    = Number(process.env.DFS_NODE_PORT || 7330);
-const coordUrl     = () => process.env.DFS_API_URL || process.env.BACKEND_URL || "http://localhost:5000";
+// The coordinator the embedded node registers with. A URL set in the app
+// (Settings → Connection) wins; otherwise fall back to env / the dev default.
+const coordUrl     = () => readSettings().coordinatorUrl || process.env.DFS_API_URL || process.env.BACKEND_URL || "http://localhost:5000";
 const nodeSecret   = () => process.env.NODE_SECRET || process.env.DFS_NODE_SECRET || "";
 
 // ── Window bounds persistence ───────────────────────────────────────────────
@@ -100,6 +102,7 @@ function defaultSettings() {
     contribute: false,
     storageDir: path.join(app.getPath("userData"), "storage"),
     quotaGB: 5,
+    coordinatorUrl: "",
   };
 }
 function readSettings() {

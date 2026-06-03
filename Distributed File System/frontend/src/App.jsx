@@ -9,8 +9,10 @@ import AppShell   from "./components/AppShell";
 import GroupsHome from "./pages/GroupsHome";
 import GroupView  from "./pages/GroupView";
 import Settings   from "./pages/Settings";
+import CoordinatorSetup from "./pages/CoordinatorSetup";
 import TitleBar   from "./components/TitleBar";
 import { isDesktop } from "./lib/platform";
+import { hasCoordinator } from "./lib/api";
 
 // The app (login + groups) lives in the desktop client. On the production web
 // build it's gated off — only the landing page is served there. Dev keeps it
@@ -35,6 +37,7 @@ function App() {
           <div className="flex flex-col h-screen">
             {isDesktop() && <TitleBar />}
             <div className="flex-1 min-h-0 overflow-y-auto">
+          {isDesktop() && !hasCoordinator() ? <CoordinatorSetup /> : (
           <Routes>
             <Route path="/"       element={isDesktop() ? <Navigate to="/login" replace /> : <Landing />} />
             <Route path="/login"  element={<RequireApp><Login /></RequireApp>} />
@@ -47,6 +50,7 @@ function App() {
             <Route path="/user"       element={<Navigate to="/groups" replace />} />
             <Route path="*"       element={<Navigate to="/" replace />} />
           </Routes>
+          )}
             </div>
           </div>
           </TitleProvider>

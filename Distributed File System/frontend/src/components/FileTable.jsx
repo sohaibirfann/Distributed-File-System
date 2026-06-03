@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import { useDialog } from "../lib/useDialog";
 
-const API = import.meta.env.VITE_API_URL;
+import { getApiUrl } from "../lib/api";
+const API = getApiUrl();
 
 const TYPE_MAP = {
   // images

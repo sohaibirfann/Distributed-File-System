@@ -4,7 +4,8 @@ import { useAuth }  from "../context/AuthContext";
 import { Database, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { isDesktop } from "../lib/platform";
 
-const API = import.meta.env.VITE_API_URL;
+import { getApiUrl } from "../lib/api";
+const API = getApiUrl();
 
 export default function Login() {
   const { login, user }         = useAuth();

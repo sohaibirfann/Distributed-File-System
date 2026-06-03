@@ -12,7 +12,8 @@ import Skeleton    from "../components/Skeleton";
 import Kbd         from "../components/Kbd";
 import { Users, Crown, UserPlus, Upload, Shield, Search, X, List, LayoutGrid, MoreHorizontal, Pencil, Trash2, LogOut, KeyRound, Files, Lock } from "lucide-react";
 
-const API = import.meta.env.VITE_API_URL;
+import { getApiUrl } from "../lib/api";
+const API = getApiUrl();
 
 const PRESETS = {
   minimal:  "Minimal",
