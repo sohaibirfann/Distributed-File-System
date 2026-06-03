@@ -5,6 +5,7 @@ import { useAuth }   from "../context/AuthContext";
 import { loadKey }     from "../lib/groupKeys";
 import { encryptBytes } from "../lib/crypto";
 import { Upload, X, FileIcon, CheckCircle, Loader2, AlertCircle, AlertTriangle, RotateCw } from "lucide-react";
+import { useDialog } from "../lib/useDialog";
 
 const API     = import.meta.env.VITE_API_URL;
 const MAX_SIZE = 500 * 1024 * 1024;
@@ -23,7 +24,8 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
   const [items, setItems] = useState(() => initialFiles.map(toItem));
   const [drag, setDrag]   = useState(false);
   const [running, setRunning] = useState(false);
-  const [confirm, setConfirm] = useState(null); // { names: [], resolve } — overwrite prompt
+  const [confirm, setConfirm] = useState(null);
+  const overwriteRef = useDialog(!!confirm, () => { confirm?.resolve(false); setConfirm(null); }); // { names: [], resolve } — overwrite prompt
   const socketRef = useRef(null);
 
   // Resolves true (replace) / false (cancel) once the user answers the prompt.
@@ -226,7 +228,7 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
     {confirm && (
       <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4"
         onClick={() => { confirm.resolve(false); setConfirm(null); }}>
-        <div onClick={(e) => e.stopPropagation()}
+        <div ref={overwriteRef} role="dialog" aria-modal="true" aria-label="Replace existing files?" onClick={(e) => e.stopPropagation()}
           className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6">
           <div className="w-11 h-11 bg-amber-50 dark:bg-amber-500/10 rounded-xl flex items-center justify-center mb-4">
             <AlertTriangle size={20} className="text-amber-500" />

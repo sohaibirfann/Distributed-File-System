@@ -9,6 +9,7 @@ import {
   FileText, Image, Film, Music, Archive, Code, File, HardDrive,
   ChevronUp, ChevronDown, ChevronsUpDown, Loader2, RotateCw,
 } from "lucide-react";
+import { useDialog } from "../lib/useDialog";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -115,6 +116,8 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   const [previewUrl, setPreviewUrl]         = useState(null);
   const [downloading, setDownloading]       = useState([]);
   const [failedDl, setFailedDl]             = useState([]);   // downloads that errored — show a Retry
+  const previewRef = useDialog(!!previewFile,  closePreview);
+  const deleteRef  = useDialog(!!fileToDelete, () => { if (!deleting) setFileToDelete(null); });
 
   const base = `${API}/api/groups/${groupId}/files`;
 
@@ -501,6 +504,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
           onClick={closePreview}
         >
           <div
+            ref={previewRef} role="dialog" aria-modal="true" aria-label={`Preview: ${previewFile}`}
             className={`glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 flex flex-col ${previewType === "image" ? "max-w-[90vw]" : "w-full max-w-3xl max-h-[80vh]"}`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -566,6 +570,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
           onClick={() => !deleting && setFileToDelete(null)}
         >
           <div
+            ref={deleteRef} role="dialog" aria-modal="true" aria-label="Delete file"
             className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6"
             onClick={(e) => e.stopPropagation()}
           >

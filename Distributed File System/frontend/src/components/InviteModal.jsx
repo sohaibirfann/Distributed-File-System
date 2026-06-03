@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { buildInvite, getKeyB64 } from "../lib/groupKeys";
+import { useDialog } from "../lib/useDialog";
 import { X, Copy, Check, UserPlus, ShieldAlert } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
@@ -26,6 +27,7 @@ export default function InviteModal({ groupId, groupName, onClose }) {
   const [invite, setInvite]   = useState("");   // joinCode#key
   const [error, setError]     = useState("");
   const [copied, setCopied]   = useState("");   // "" | "invite" | "code"
+  const panelRef = useDialog(true, onClose);     // mounted == open
 
   useEffect(() => {
     const keyB64 = getKeyB64(groupId);
@@ -54,7 +56,7 @@ export default function InviteModal({ groupId, groupName, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-label={`Invite to ${groupName}`} className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-1">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-[var(--accent)]/10 flex items-center justify-center">

@@ -4,6 +4,7 @@ import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { useTitle }  from "../context/TitleContext";
 import { hasKey }    from "../lib/groupKeys";
+import { useDialog } from "../lib/useDialog";
 import FileTable   from "../components/FileTable";
 import UploadPanel from "../components/UploadPanel";
 import InviteModal from "../components/InviteModal";
@@ -58,6 +59,11 @@ export default function GroupView() {
   const [dropNonce, setDropNonce] = useState(0);
   const dragCount = useRef(0);
   const searchRef = useRef(null);
+
+  // Modal a11y: Esc-to-close, focus trap, focus restore.
+  const renameRef   = useDialog(renameOpen,    () => { if (!renaming)    setRenameOpen(false); });
+  const confirmRef  = useDialog(!!confirm,      () => { if (!confirming)  setConfirm(null); });
+  const transferRef = useDialog(!!transferTo,   () => { if (!transferring) setTransferTo(null); });
 
   useEffect(() => { fetchGroup(); }, [id]);
 
@@ -413,7 +419,7 @@ export default function GroupView() {
       {/* Rename modal */}
       {renameOpen && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={() => !renaming && setRenameOpen(false)}>
-          <form onClick={(e) => e.stopPropagation()} onSubmit={doRename}
+          <form ref={renameRef} role="dialog" aria-modal="true" aria-label="Rename group" onClick={(e) => e.stopPropagation()} onSubmit={doRename}
             className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6">
             <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Rename group</h3>
             <input
@@ -439,7 +445,7 @@ export default function GroupView() {
       {/* Delete / Leave confirm */}
       {confirm && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={() => !confirming && setConfirm(null)}>
-          <div onClick={(e) => e.stopPropagation()}
+          <div ref={confirmRef} role="dialog" aria-modal="true" aria-label={confirm === "delete" ? "Delete group" : "Leave group"} onClick={(e) => e.stopPropagation()}
             className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6">
             <div className="w-11 h-11 bg-red-50 dark:bg-red-500/10 rounded-xl flex items-center justify-center mb-4">
               {confirm === "delete" ? <Trash2 size={20} className="text-red-500" /> : <LogOut size={20} className="text-red-500" />}
@@ -471,7 +477,7 @@ export default function GroupView() {
       {/* Transfer ownership confirm */}
       {transferTo && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={() => !transferring && setTransferTo(null)}>
-          <div onClick={(e) => e.stopPropagation()}
+          <div ref={transferRef} role="dialog" aria-modal="true" aria-label="Transfer ownership" onClick={(e) => e.stopPropagation()}
             className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6">
             <div className="w-11 h-11 bg-amber-50 dark:bg-amber-500/10 rounded-xl flex items-center justify-center mb-4">
               <Crown size={20} className="text-amber-500" />

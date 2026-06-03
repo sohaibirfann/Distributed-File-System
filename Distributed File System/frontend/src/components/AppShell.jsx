@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { createKeyForGroup, storeKeyB64, parseInvite } from "../lib/groupKeys";
+import { useDialog } from "../lib/useDialog";
 import Kbd from "./Kbd";
 import Skeleton from "./Skeleton";
 import CommandPalette from "./CommandPalette";
@@ -76,6 +77,17 @@ export default function AppShell() {
     });
   }
 
+  // Arrow-key roving between group buttons when one is focused.
+  function onGroupsKeyDown(e) {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const btns = Array.from(e.currentTarget.querySelectorAll("button[data-group]"));
+    const i = btns.indexOf(document.activeElement);
+    if (i === -1) return;
+    e.preventDefault();
+    const next = e.key === "ArrowDown" ? Math.min(i + 1, btns.length - 1) : Math.max(i - 1, 0);
+    btns[next]?.focus();
+  }
+
   // Collapsing hides labels at once; expanding reveals them after the width
   // transition (~200ms) so they fade in at full width instead of popping in.
   useEffect(() => {
@@ -144,7 +156,7 @@ export default function AppShell() {
             </p>
           )}
 
-          <div className="space-y-0.5">
+          <div className="space-y-0.5" onKeyDown={onGroupsKeyDown}>
             {loadingGroups && groups.length === 0 &&
               Array.from({ length: 4 }).map((_, i) => (
                 <div key={`gsk-${i}`} className={`flex items-center gap-2.5 ${collapsed ? "justify-center p-2" : "px-2.5 py-2"}`}>
@@ -157,6 +169,8 @@ export default function AppShell() {
               return (
                 <button
                   key={g.id}
+                  data-group
+                  aria-current={active ? "page" : undefined}
                   onClick={() => navigate(`/groups/${g.id}`)}
                   title={collapsed ? g.name : undefined}
                   className={`relative w-full flex items-center gap-2.5 rounded-xl transition-colors ${collapsed ? "justify-center p-2" : "px-2.5 py-2"} ${
@@ -277,6 +291,7 @@ function NewJoinModal({ mode, onClose, onDone }) {
   const [rep, setRep]       = useState("balanced");
   const [busy, setBusy]     = useState(false);
   const isNew = mode === "new";
+  const panelRef = useDialog(true, onClose); // mounted == open
 
   async function submit(e) {
     e.preventDefault();
@@ -314,7 +329,7 @@ function NewJoinModal({ mode, onClose, onDone }) {
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-label={isNew ? "Create a group" : "Join with a code"} className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-gray-900 dark:text-white">{isNew ? "Create a group" : "Join with a code"}</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800"><X size={15} /></button>
