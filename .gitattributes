@@ -1,2 +1,17 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Normalize line endings: store text as LF and keep LF on checkout, so the repo
+# is consistent across Windows/macOS/Linux (and no more "LF -> CRLF" warnings).
+* text=auto eol=lf
+
+# Treat these as binary — never line-ending-normalize them.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.icns binary
+*.woff  binary
+*.woff2 binary
+*.ttf  binary
+*.eot  binary
+*.pdf  binary
+*.db   binary

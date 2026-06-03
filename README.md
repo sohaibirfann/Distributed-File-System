@@ -1,440 +1,105 @@
-﻿# Distributed File System (DFS)
+# DFS — Distributed File System
 
-A local-network distributed file storage system that splits files into encrypted chunks and replicates them across multiple peer nodes. Files are reassembled on demand and served through a web interface with an admin dashboard and a public user view.
+A private, invite-only app for sharing files inside a small group, where every
+file is **end-to-end encrypted on your device** and stored **across the group
+members' own machines** instead of a company's cloud.
 
----
+> Mental model: *"WhatsApp groups, but for file storage."* You make a group,
+> invite a few people, and your files live distributed across just those members.
 
-## Table of Contents
+## How it works
 
-- [Features](#features)
-- [How It Works](#how-it-works)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Setup Instructions](#setup-instructions)
-  - [Prerequisites](#prerequisites)
-  - [Backend](#backend)
-  - [Node Server](#node-server)
-  - [Frontend](#frontend)
-- [Environment Variables](#environment-variables)
-- [Running the System](#running-the-system)
-- [Demo / Quick-Start Checklist](#demo--quick-start-checklist)
-- [API Endpoints](#api-endpoints)
-- [Key Concepts](#key-concepts)
-- [Limitations](#limitations)
-- [Future Improvements](#future-improvements)
+1. **Encrypt** — A file is encrypted in the browser (AES-256-GCM, Web Crypto)
+   with the group's key, then split into chunks. Plaintext never leaves the device.
+2. **Distribute** — Encrypted chunks are spread across the group's machines with
+   configurable replication, so a file survives members going offline.
+3. **Access** — Any member fetches the chunks and decrypts on-device with the
+   shared group key.
 
----
+The **coordinator** is a lightweight cloud service that acts as a phonebook +
+traffic controller: it tracks which groups/members exist, who's online, and which
+encrypted chunk lives where. It holds **no files and no keys**. Group keys live
+only on members' devices, delivered through a group's invite.
 
-## Features
+> Honest nuance: today the coordinator may briefly relay **encrypted** chunks;
+> moving transfers fully peer-to-peer (WebRTC) is on the roadmap. Either way it
+> never touches plaintext or keys.
 
-- **Chunked file distribution** — files are split into 4 KB chunks and distributed across connected storage nodes with 2-replica redundancy
-- **AES-256-GCM encryption** — every chunk is encrypted before leaving the backend; nodes store only ciphertext
-- **Download cache** — assembled files are cached in a shared folder (200 MB LRU limit) so repeated downloads skip reassembly; files larger than the cache cap are served directly without evicting existing entries
-- **Duplicate upload handling** — re-uploading a file with the same name cleanly removes old chunks from all nodes before distributing the new version
-- **Node heartbeat system** — nodes send a heartbeat every 15 seconds; the backend automatically deregisters any node silent for more than 60 seconds
-- **Real-time latency monitoring** — the backend pings each node on every status poll and reports live latency
-- **Live activity log** — all system events streamed to the UI via Socket.io with log export
-- **Admin dashboard** with four tabs: Overview, Files, Nodes, Logs
-- **Overview tab** — stat cards (nodes, files, chunks), last-uploaded file, distributed storage size, cache usage bar (color-coded), and a "Clear cache" button
-- **File table** with search, column sorting, file type badges, relative upload timestamps, and a "cached" badge on files currently in the LRU cache
-- **File preview** — line-numbered text preview and image preview (inline, no download required)
-- **Two-phase upload progress** — separate bars for HTTP transfer and chunk distribution across nodes (streamed in real time via Socket.io)
-- **500 MB file size limit** enforced across all peers
-- **Dark / light theme**
+## Repo layout
 
----
+| Path        | What it is |
+|-------------|-----------|
+| `backend/`  | The coordinator (Express + SQLite + Socket.io) and a standalone storage-node server (`nodeServer.js`) for dev/headless use. |
+| `frontend/` | The React + Vite app (UI). Bundled into the desktop client; also runs in the browser for dev. |
+| `desktop/`  | The Electron shell — frameless window, settings, and an **embedded storage node**. |
+| `landing/`  | A self-contained static landing page (`index.html`, all assets inline). |
+| `spike/`    | WebRTC signaling/peer experiments (not part of the app yet). |
 
-## How It Works
+## Quick start (dev)
 
-### Upload
-1. The file is received by the backend via multipart upload and written to a temporary location.
-2. `coordinator.js` reads the file, splits it into 4 KB chunks, and generates a SHA-256 hash for each chunk.
-3. Each chunk is encrypted with AES-256-GCM (unique IV per chunk).
-4. Chunks are distributed round-robin across connected nodes with 2 replicas per chunk — chunk `n` goes to nodes `n % total` and `(n+1) % total`.
-5. If both replicas of any chunk fail to store, all chunks sent so far are rolled back (deleted from nodes), the metadata entry is removed, and the temporary file is cleaned up. The client receives a specific error message.
-6. Chunk metadata (chunk ID, hash, size, node assignments) plus the upload timestamp are saved to `metadata.json` only after all chunks are successfully distributed.
+**Prerequisites:** Node.js 18+.
 
-### Download
-1. The backend checks the shared cache folder first. On a cache hit, the file is served directly and its last-accessed time is refreshed for LRU tracking.
-2. On a cache miss, the backend reads `metadata.json`, fetches each encrypted chunk from the assigned nodes, decrypts them, verifies the SHA-256 hash against the stored value, and concatenates the buffers. If a chunk fails its hash check, the next replica is tried automatically. If all replicas fail, the download is aborted with a specific error ("integrity check failed" vs "unavailable on all nodes").
-3. If the assembled file fits within the 200 MB cache cap, it is written to the cache (evicting oldest files first if necessary) and then sent to the client. Files larger than the cap are sent directly without touching the cache.
+```bash
+# 1. Install deps (root + each package)
+npm install
+npm --prefix backend install
+npm --prefix frontend install
+npm --prefix desktop install
 
-### Node Registration
-- When a node server starts, it registers its name and URL with the backend (`POST /api/register-node`).
-- It then sends a heartbeat every 15 seconds (`POST /api/heartbeat`).
-- The backend runs a cleanup interval every 30 seconds and removes any node not heard from in over 60 seconds.
+# 2. Configure the coordinator's secrets
+cp backend/.env.example backend/.env
+# then fill JWT_SECRET and NODE_SECRET — generate each with:
+#   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
----
+# 3a. Run everything (coordinator + a storage node + web UI + desktop app)
+npm run dev
 
-## Tech Stack
-
-### Backend
-| Package | Purpose |
-|---|---|
-| Node.js + Express 5 | HTTP server and routing |
-| Socket.io | Real-time log streaming to the frontend |
-| multer | Multipart file upload handling |
-| axios | HTTP requests from coordinator to node servers |
-| dotenv | Environment variable loading |
-| crypto (built-in) | AES-256-GCM encryption, SHA-256 chunk hashing |
-
-### Node Server
-| Package | Purpose |
-|---|---|
-| Node.js + Express | Lightweight HTTP server |
-| cors | Cross-origin request handling |
-| axios | Registration and heartbeat requests to backend |
-| dotenv | Environment variable loading |
-
-### Frontend
-| Package | Purpose |
-|---|---|
-| React 19 + Vite 8 | UI framework and build tool |
-| Tailwind CSS v4 | Utility-first styling |
-| React Router v7 | Client-side routing |
-| Socket.io client | Real-time log subscription |
-| lucide-react | Icons |
-| Custom NotificationContext | In-app toast banners (success, error, loading) |
-
----
-
-## Project Structure
-
-```
-Distributed File System/
-├── backend/
-│   ├── controllers/
-│   │   ├── fileController.js     # Upload, download, delete, cache logic
-│   │   └── healthController.js   # Health stats endpoint
-│   ├── middleware/
-│   │   └── upload.js             # Multer config (500 MB limit, shared folder destination)
-│   ├── routes/
-│   │   ├── fileRoutes.js         # /api/files/* routes + request logging
-│   │   └── healthRoutes.js       # /api/health route
-│   ├── app.js                    # Express + Socket.io server, node registry, heartbeat cleanup
-│   ├── coordinator.js            # Chunking, encryption, and chunk distribution logic
-│   ├── nodeServer.js             # Standalone node storage server
-│   ├── .env                      # Encryption key (git-ignored)
-│   ├── .env.example              # Template for .env
-│   └── package.json
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── FileTable.jsx     # File list with sort, search, preview, delete
-│   │   │   ├── LogsPanel.jsx     # Live log stream with export
-│   │   │   ├── NodesGrid.jsx     # Node status cards with latency
-│   │   │   └── UploadPanel.jsx   # Drag & drop upload with progress bar
-│   │   ├── context/
-│   │   │   ├── NotificationContext.jsx
-│   │   │   └── ThemeContext.jsx
-│   │   ├── hooks/
-│   │   │   └── useApiStatus.js   # Backend connectivity indicator
-│   │   ├── pages/
-│   │   │   ├── Admin.jsx         # Admin dashboard (Overview, Files, Nodes, Logs tabs)
-│   │   │   ├── Login.jsx         # Landing / login page
-│   │   │   └── User.jsx          # Public file browser (download only)
-│   │   └── main.jsx
-│   ├── .env                      # VITE_API_URL (git-ignored)
-│   ├── .env.example              # Template for .env
-│   └── package.json
+# 3b. …or just the web stack, no Electron window
+npm run dev:web
 ```
 
----
+Default ports: coordinator on **5000**, web UI on **5173**, the dev storage node
+on **7001**.
 
-## Setup Instructions
+### Useful scripts
 
-### Prerequisites
-
-- Node.js v18 or later
-- npm
-- All machines must be on the same local network
-
----
-
-### Backend
-
-1. **Navigate to the backend folder**
-   ```bash
-   cd "Distributed File System/backend"
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Create the environment file**
-
-   Copy the example file:
-   ```bash
-   cp .env.example .env
-   ```
-
-   Generate a 32-byte encryption key:
-   ```bash
-   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-   ```
-
-   Paste the output into `.env`:
-   ```
-   ENCRYPTION_KEY=your_64_char_hex_key_here
-   ```
-
-   Keep this key safe. If it is lost, all stored files become unrecoverable.
-
-4. **Start the backend**
-   ```bash
-   node app.js
-   ```
-
-   The server starts on port **5000**. You should see:
-   ```
-   Backend running on port 5000
-   ```
-
----
-
-### Node Server
-
-Each machine that will act as a storage node only needs three files:
-
-```
-nodeServer.js
-package.json
-node_modules/   (after npm install)
-```
-
-1. **Copy `nodeServer.js` and `package.json` to the node machine**
-
-   The node server requires four dependencies: `express`, `cors`, `axios`, `dotenv`. You can use the backend `package.json` as-is or create a minimal one:
-   ```json
-   {
-     "dependencies": {
-       "express": "^5.1.0",
-       "cors": "^2.8.5",
-       "axios": "^1.16.1",
-       "dotenv": "^16.0.0"
-     }
-   }
-   ```
-
-2. **Install dependencies on the node machine**
-   ```bash
-   npm install
-   ```
-
-3. **Create the environment file**
-
-   Create a `.env` file in the same folder as `nodeServer.js`:
-   ```
-   BACKEND_URL=http://<backend-machine-ip>:5000
-   ```
-
-   Replace `<backend-machine-ip>` with the local IP of the machine running the backend. On Windows, find it with `ipconfig`.
-
-4. **Start the node server**
-   ```bash
-   node nodeServer.js <username> <port>
-   ```
-
-   Examples:
-   ```bash
-   node nodeServer.js user1 7001
-   node nodeServer.js user2 7002
-   ```
-
-   - `username` — a unique name for this node (used as the storage folder name and displayed in the dashboard)
-   - `port` — any available port
-
-   On startup the node will:
-   - Create a `node_storage/<username>/` folder automatically
-   - Register itself with the backend
-   - Begin sending heartbeats every 15 seconds
-
-   If registration fails (e.g. backend not yet running), the node logs the error and continues. It will not appear in the dashboard or receive any chunks until a successful registration. Restart the node once the backend is up.
-
-   You can run multiple nodes on the same machine using different usernames and ports.
-
----
-
-### Frontend
-
-1. **Navigate to the frontend folder**
-   ```bash
-   cd "Distributed File System/frontend"
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Create the environment file**
-
-   Copy the example file:
-   ```bash
-   cp .env.example .env
-   ```
-
-   Then set the backend IP in `frontend/.env`:
-   ```
-   VITE_API_URL=http://<backend-machine-ip>:5000
-   ```
-
-   Replace `<backend-machine-ip>` with the local IP of the machine running the backend. On Windows, find it with `ipconfig`.
-
-4. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-
-   Or build for production:
-   ```bash
-   npm run build
-   npm run preview
-   ```
-
----
-
-## Environment Variables
-
-### Backend — `backend/.env`
-
-| Variable | Description | Example |
+| Command | Where | Does |
 |---|---|---|
-| `ENCRYPTION_KEY` | 64-character hex string (32 bytes). Used for AES-256-GCM chunk encryption. | `5832bbc4b945...` |
+| `npm run dev` | root | coordinator + storage node + web + desktop |
+| `npm run dev:web` | root | coordinator + storage node + web (no desktop) |
+| `npm start` | `backend/` | run the coordinator (`node app.js`) |
+| `npm run node1` | `backend/` | run a standalone storage node on :7001 |
+| `npm test` | `backend/` | backend group tests |
+| `npm run dev` / `build` | `frontend/` | Vite dev server / production build |
+| `npm start` | `desktop/` | launch the Electron app |
 
-The backend will refuse to start with a missing or malformed key.
+## Pointing the app at a coordinator
 
-### Node Server — `.env` (alongside `nodeServer.js`)
+The coordinator address is **runtime-configurable** on desktop — no rebuild needed:
 
-| Variable | Description | Example |
-|---|---|---|
-| `BACKEND_URL` | Full URL of the backend server that this node should register with. | `http://192.168.1.10:5000` |
+- **First run:** the app shows a "Connect to a coordinator" screen.
+- **Anytime:** Settings → **Connection**.
 
-### Frontend — `frontend/.env`
+The build-time default lives in `frontend/.env` (`VITE_API_URL`) and is only a
+fallback; the in-app value (stored per-device) overrides it.
 
-| Variable | Description | Example |
-|---|---|---|
-| `VITE_API_URL` | Full URL of the backend server | `http://192.168.1.10:5000` |
+To test against a deployed-feeling coordinator without a server, expose your
+local coordinator with a free tunnel and paste the URL into the app:
 
----
-
-## Running the System
-
-Minimum setup to get files uploading and downloading:
-
-1. Start the backend on one machine
-2. Start at least one node server (on any machine on the network)
-3. Start the frontend
-4. Open the frontend in a browser **on the backend machine** and go to **Admin** (password: `admin`) — admin access is restricted to `localhost` / `127.0.0.1` and will be blocked from any other device
-5. Upload a file — it will be chunked, encrypted, and distributed to connected nodes
-
-The system works with one node but there is no redundancy until there are at least two nodes (each chunk needs two replicas).
-
----
-
-## Demo / Quick-Start Checklist
-
-Use this order every time — starting nodes before the backend means registration will fail.
-
-**1. Backend machine**
-- [ ] `cd "Distributed File System/backend" && node app.js`
-- [ ] Confirm: `Backend running on port 5000`
-
-**2. Each node machine** (repeat for every device)
-- [ ] Ensure `.env` has the correct `BACKEND_URL`
-- [ ] `node nodeServer.js <username> <port>` (e.g. `node nodeServer.js user1 7001`)
-- [ ] Confirm: `<username> node running on port <port>` and `Registered: <username> → http://...`
-
-**3. Frontend** (run on the backend machine for admin access)
-- [ ] `cd "Distributed File System/frontend" && npm run dev`
-- [ ] Open `http://localhost:5173` in a browser
-- [ ] **Admin** tab: verify all nodes appear as online in the Nodes view
-
-**Demonstrating fault tolerance**
-- Upload a file with all nodes online
-- Stop one node process (Ctrl+C)
-- Wait a few seconds, then download the same file — it should still succeed
-- The Logs tab will show the node deregistering after ~60 seconds
-
----
-
-## API Endpoints
-
-### Backend (`http://localhost:5000`)
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/` | Server status check |
-| `GET` | `/api/health` | Files, chunks, node count, distributed bytes, cache usage, cached file list, and last uploaded file |
-| `GET` | `/api/nodes` | All registered nodes with status, latency (ms), and chunk count |
-| `POST` | `/api/register-node` | Register a new node `{ name, url }` |
-| `POST` | `/api/heartbeat` | Node heartbeat `{ name }` |
-| `POST` | `/api/files/upload` | Upload a file (multipart/form-data, field: `file`, max 500 MB) |
-| `GET` | `/api/files/` | List all files with size, chunk count, upload timestamp, and cache status |
-| `GET` | `/api/files/download/:filename` | Download a file (served from cache or assembled from nodes) |
-| `DELETE` | `/api/files/delete/:filename` | Delete a file and remove all its chunks from every node |
-| `DELETE` | `/api/files/cache` | Clear all files from the download cache |
-
-### Node Server (`http://<node-ip>:<port>`)
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/store-chunk` | Store an encrypted chunk `{ filename, chunkId, data }` |
-| `GET` | `/get-chunk` | Retrieve a chunk `?filename=&chunkId=` |
-| `GET` | `/stats` | Returns `{ user, chunks }` — count of stored chunks |
-| `POST` | `/delete-chunk` | Delete a specific chunk `{ filename, chunkId }` |
-
----
-
-## Key Concepts
-
-### Chunking
-Files are split into **4 KB chunks**. Each chunk gets a SHA-256 hash stored in metadata for integrity identification.
-
-### Replication
-Each chunk is stored on **2 nodes**. The first replica goes to node `chunkId % nodeCount`, the second to `(chunkId + 1) % nodeCount`. This means any single node can go offline and all files remain fully recoverable.
-
-### Encryption
-Chunks are encrypted with **AES-256-GCM** before being sent to nodes. The encrypted payload is structured as:
-
-```
-[ IV (12 bytes) ][ Auth Tag (16 bytes) ][ Ciphertext ]
+```bash
+cloudflared tunnel --url http://localhost:5000
 ```
 
-This buffer is then **base64-encoded** for transmission. The auth tag ensures integrity — a tampered chunk will fail decryption. The key never leaves the backend machine.
+## Security model
 
-After decryption, the backend recomputes a SHA-256 hash of the plaintext and compares it against the hash stored in `metadata.json` at upload time. If they differ, that replica is rejected and the next replica is tried automatically. If every replica of a chunk fails the hash check, the download is aborted with an error.
+- **AES-256-GCM**, client-side, before anything is uploaded.
+- **Keys live only on devices**, shared through a group's invite — never sent to
+  or stored on a server.
+- **Zero-knowledge coordinator** — metadata only (groups, presence, chunk map).
+- **Group isolation** — two groups can't see or decrypt each other's data.
 
-### LRU Download Cache
-Assembled files are written to a `shared/` folder on the backend. On a cache hit the file is served directly. The folder is capped at **200 MB** — when a new file would exceed the limit, the least recently accessed files are deleted first to make room. Files larger than the 200 MB cap are served directly and never written to the cache, so they cannot evict smaller files that are already cached. The admin Overview tab shows current cache usage and a "Clear cache" button to wipe it on demand.
+## Status
 
-### Heartbeat and Node Deregistration
-Nodes send `POST /api/heartbeat` every **15 seconds**. The backend checks every **30 seconds** and removes any node not heard from in over **60 seconds**. Deregistered nodes emit a log event visible in the Logs tab.
-
----
-
-## Limitations
-
-- **No HTTPS** — all traffic between frontend, backend, and nodes is plain HTTP. Acceptable on a trusted LAN but not suitable for the open internet.
-- **File-based metadata** — `metadata.json` is read/written on every operation. Not suitable for high concurrency or large numbers of files.
-- **Single backend** — the backend is a single point of failure. If it goes down, uploads and downloads stop even if all nodes are healthy.
-- **Admin authentication** — the admin panel is protected only by a `localStorage` flag. It is not secure against a determined user on the same machine.
-- **Admin is localhost-only** — the admin panel is blocked on any browser not running on the backend machine itself. The guest (read-only) view is accessible from any device.
-- **Dead-node deregistration window** — when a node goes offline it takes up to 60 seconds to be deregistered. During that window it is still attempted as a replica source, but each fetch is capped at a **3-second timeout** before falling back to the next replica, so downloads remain responsive.
-- **Fixed replication factor** — always 2 replicas. Cannot be configured without code changes.
-
----
-
-## Future Improvements
-
-- HTTPS / TLS for all traffic
-- Proper authentication with hashed passwords or tokens
-- Configurable replication factor
-- Replace `metadata.json` with a proper database (SQLite or similar)
-- File versioning — keep previous versions when a file is re-uploaded
-- Configurable chunk size and file size limit
-- Backend clustering / failover for high availability
-- Upload queue for concurrent multi-file uploads
+Desktop client with end-to-end encrypted, replicated, group-based file sharing.
+Works today over HTTP on the same network as the coordinator; cross-network
+peer-to-peer transfer (WebRTC) and packaged installers are next.
