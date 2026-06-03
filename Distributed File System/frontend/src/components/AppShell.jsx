@@ -108,8 +108,8 @@ export default function AppShell() {
         <div className={`flex items-center h-14 shrink-0 ${collapsed ? "justify-center" : "justify-between px-3"}`}>
           {showLabels && (
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 bg-blue-600 dark:bg-[#0067C0] rounded-lg flex items-center justify-center">
-                <Database size={14} className="text-white" />
+              <div className="w-7 h-7 bg-blue-600 dark:bg-[var(--accent)] rounded-lg flex items-center justify-center">
+                <Database size={14} className="text-[var(--on-accent)]" />
               </div>
               <span className="font-bold text-gray-900 dark:text-white text-sm">DFS</span>
             </div>
@@ -166,7 +166,7 @@ export default function AppShell() {
                   }`}
                 >
                   {active && showLabels && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-full bg-blue-600 dark:bg-[#60cdff]" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-full bg-blue-600 dark:bg-[var(--accent-bright)]" />
                   )}
                   <div
                     className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold text-white"
@@ -222,7 +222,7 @@ export default function AppShell() {
             }`}
           >
             {onSettings && showLabels && (
-              <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-full bg-blue-600 dark:bg-[#60cdff]" />
+              <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-full bg-blue-600 dark:bg-[var(--accent-bright)]" />
             )}
             <div className="w-7 h-7 flex items-center justify-center shrink-0"><Settings size={15} /></div>
             {showLabels && <span className="text-sm font-medium flex-1 text-left">Settings</span>}
@@ -231,7 +231,7 @@ export default function AppShell() {
           <button
             onClick={() => { logout(); navigate("/"); }}
             title={collapsed ? "Sign out" : undefined}
-            className={`w-full flex items-center gap-2.5 rounded-xl text-gray-500 dark:text-neutral-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-[#0067C0]/10 transition-colors ${collapsed ? "justify-center p-2" : "px-2.5 py-2"}`}
+            className={`w-full flex items-center gap-2.5 rounded-xl text-gray-500 dark:text-neutral-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-[var(--accent)]/10 transition-colors ${collapsed ? "justify-center p-2" : "px-2.5 py-2"}`}
           >
             <div className="w-7 h-7 flex items-center justify-center shrink-0"><LogOut size={15} /></div>
             {showLabels && <span className="text-sm font-medium">Sign out</span>}
@@ -325,7 +325,7 @@ function NewJoinModal({ mode, onClose, onDone }) {
             onChange={(e) => setValue(e.target.value)}
             autoFocus
             placeholder={isNew ? "Group name" : "Invite code"}
-            className={`w-full px-3.5 py-2.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[#0067C0] ${isNew ? "" : "font-mono"}`}
+            className={`w-full px-3.5 py-2.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)] ${isNew ? "" : "font-mono"}`}
           />
 
           {isNew && (
@@ -341,7 +341,7 @@ function NewJoinModal({ mode, onClose, onDone }) {
                       onClick={() => setRep(pr.key)}
                       className={`flex-1 px-2 py-2 rounded-xl text-xs font-medium transition-colors ${
                         active
-                          ? "bg-blue-600 dark:bg-[#0067C0] text-white"
+                          ? "bg-blue-600 dark:bg-[var(--accent)] text-[var(--on-accent)]"
                           : "bg-white/60 dark:bg-neutral-800/60 text-gray-600 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700"
                       }`}
                     >
@@ -358,7 +358,7 @@ function NewJoinModal({ mode, onClose, onDone }) {
           <button
             type="submit"
             disabled={busy || !value.trim()}
-            className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 dark:bg-[#0067C0] dark:hover:bg-[#005ba1] disabled:opacity-40 text-white text-sm font-medium rounded-xl transition-colors"
+            className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 dark:bg-[var(--accent)] dark:hover:bg-[var(--accent-hover)] disabled:opacity-40 text-[var(--on-accent)] text-sm font-medium rounded-xl transition-colors"
           >
             {busy ? "…" : isNew ? "Create group" : "Join group"}
           </button>

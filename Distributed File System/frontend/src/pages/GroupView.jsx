@@ -173,7 +173,7 @@ export default function GroupView() {
       <div className="h-full flex flex-col items-center justify-center gap-3">
         <Shield size={28} className="text-gray-300 dark:text-neutral-600" />
         <p className="text-sm text-gray-500 dark:text-neutral-400">You're not a member of this group.</p>
-        <button onClick={() => navigate("/groups")} className="text-sm text-blue-600 dark:text-[#4cc2ff] hover:underline">← Back to groups</button>
+        <button onClick={() => navigate("/groups")} className="text-sm text-blue-600 dark:text-[var(--accent-bright)] hover:underline">← Back to groups</button>
       </div>
     );
   }
@@ -264,7 +264,7 @@ export default function GroupView() {
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
               showUpload
                 ? "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300"
-                : "bg-blue-600 hover:bg-blue-500 dark:bg-[#0067C0] dark:hover:bg-[#005ba1] text-white"
+                : "bg-blue-600 hover:bg-blue-500 dark:bg-[var(--accent)] dark:hover:bg-[var(--accent-hover)] text-[var(--on-accent)]"
             }`}
           >
             <Upload size={13} /> {showUpload ? "Cancel" : "Upload"}
@@ -344,7 +344,7 @@ export default function GroupView() {
 
       {/* ── Search bar ──────────────────────────────────────────── */}
       <div className="shrink-0 flex items-center gap-3 px-6 py-2.5 border-b border-gray-200/70 dark:border-white/[0.06]">
-        <div className="flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-lg border bg-white/60 dark:bg-neutral-800/40 border-gray-200 dark:border-neutral-700 transition-all duration-150 focus-within:bg-white dark:focus-within:bg-neutral-800/70 focus-within:border-blue-500 dark:focus-within:border-[#0067C0] focus-within:ring-2 focus-within:ring-blue-500/20 dark:focus-within:ring-[#0067C0]/30">
+        <div className="flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-lg border bg-white/60 dark:bg-neutral-800/40 border-gray-200 dark:border-neutral-700 transition-all duration-150 focus-within:bg-white dark:focus-within:bg-neutral-800/70 focus-within:border-blue-500 dark:focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-blue-500/20 dark:focus-within:ring-[var(--accent)]/30">
           <Search size={15} className="text-gray-400 dark:text-neutral-500 shrink-0" />
           <input
             ref={searchRef}
@@ -384,11 +384,11 @@ export default function GroupView() {
       {/* ── File area ───────────────────────────────────────────── */}
       <div className="relative flex-1 min-h-0 overflow-y-auto">
         {dragOver && (
-          <div className="absolute inset-0 z-40 pointer-events-none flex flex-col items-center justify-center gap-3 bg-blue-500/10 dark:bg-[#0067C0]/10 backdrop-blur-sm border-2 border-dashed border-blue-400/70 dark:border-[#0067C0]/70 m-2 rounded-xl">
-            <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-[#0067C0]/15 flex items-center justify-center">
-              <Upload size={26} className="text-blue-500 dark:text-[#4cc2ff]" />
+          <div className="absolute inset-0 z-40 pointer-events-none flex flex-col items-center justify-center gap-3 bg-blue-500/10 dark:bg-[var(--accent)]/10 backdrop-blur-sm border-2 border-dashed border-blue-400/70 dark:border-[var(--accent)]/70 m-2 rounded-xl">
+            <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-[var(--accent)]/15 flex items-center justify-center">
+              <Upload size={26} className="text-blue-500 dark:text-[var(--accent-bright)]" />
             </div>
-            <p className="text-base font-semibold text-blue-600 dark:text-[#4cc2ff]">Drop to upload to {group?.name}</p>
+            <p className="text-base font-semibold text-blue-600 dark:text-[var(--accent-bright)]">Drop to upload to {group?.name}</p>
           </div>
         )}
 
@@ -420,7 +420,7 @@ export default function GroupView() {
               autoFocus
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[#0067C0]"
+              className="w-full px-3.5 py-2.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)]"
             />
             <div className="flex gap-2.5 mt-4">
               <button type="button" onClick={() => setRenameOpen(false)} disabled={renaming}
@@ -428,7 +428,7 @@ export default function GroupView() {
                 Cancel
               </button>
               <button type="submit" disabled={renaming || !renameValue.trim()}
-                className="flex-1 py-2.5 text-sm font-medium bg-blue-600 hover:bg-blue-500 dark:bg-[#0067C0] dark:hover:bg-[#005ba1] text-white rounded-xl transition-colors disabled:opacity-40">
+                className="flex-1 py-2.5 text-sm font-medium bg-blue-600 hover:bg-blue-500 dark:bg-[var(--accent)] dark:hover:bg-[var(--accent-hover)] text-[var(--on-accent)] rounded-xl transition-colors disabled:opacity-40">
                 {renaming ? "Saving…" : "Save"}
               </button>
             </div>

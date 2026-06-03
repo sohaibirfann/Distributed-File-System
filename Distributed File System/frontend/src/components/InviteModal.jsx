@@ -57,8 +57,8 @@ export default function InviteModal({ groupId, groupName, onClose }) {
       <div className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-1">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-[#0067C0]/10 flex items-center justify-center">
-              <UserPlus size={16} className="text-blue-600 dark:text-[#4cc2ff]" />
+            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-[var(--accent)]/10 flex items-center justify-center">
+              <UserPlus size={16} className="text-blue-600 dark:text-[var(--accent-bright)]" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">Invite to {groupName}</h3>
@@ -82,7 +82,7 @@ export default function InviteModal({ groupId, groupName, onClose }) {
             <div className="flex gap-2">
               <button
                 onClick={() => copy("invite")}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-500 dark:bg-[#0067C0] dark:hover:bg-[#005ba1] text-white text-sm font-semibold rounded-xl transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-500 dark:bg-[var(--accent)] dark:hover:bg-[var(--accent-hover)] text-[var(--on-accent)] text-sm font-semibold rounded-xl transition-colors"
               >
                 {copied === "invite" ? <Check size={15} /> : <Copy size={15} />}
                 {copied === "invite" ? "Copied!" : "Copy invite"}

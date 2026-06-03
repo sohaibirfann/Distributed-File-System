@@ -26,8 +26,8 @@ export default function TitleBar() {
       className="flex items-center justify-between h-8 shrink-0 select-none bg-[#f7f7f8] dark:bg-[#262626] border-b border-gray-200/60 dark:border-white/[0.06]"
     >
       <div className="flex items-center gap-2 px-3">
-        <div className="w-4 h-4 bg-blue-600 dark:bg-[#0067C0] rounded-[5px] flex items-center justify-center">
-          <Database size={9} className="text-white" />
+        <div className="w-4 h-4 bg-blue-600 dark:bg-[var(--accent)] rounded-[5px] flex items-center justify-center">
+          <Database size={9} className="text-[var(--on-accent)]" />
         </div>
         <span className="text-[11px] font-semibold text-gray-600 dark:text-neutral-300 tracking-wide truncate max-w-[40vw]">
           {title || "DFS"}

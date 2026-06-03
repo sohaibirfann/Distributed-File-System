@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
+import { useTheme, ACCENTS } from "../context/ThemeContext";
 import { isDesktop } from "../lib/platform";
 import {
-  User, Power, HardDrive, FolderOpen, LogOut,
+  User, Power, HardDrive, FolderOpen, LogOut, Palette,
 } from "lucide-react";
 
 const desktop = isDesktop();
@@ -28,7 +29,7 @@ function Switch({ checked, onChange, disabled }) {
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`relative w-10 h-6 rounded-full transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${
-        checked ? "bg-blue-600 dark:bg-[#0067C0]" : "bg-gray-300 dark:bg-neutral-700"
+        checked ? "bg-blue-600 dark:bg-[var(--accent)]" : "bg-gray-300 dark:bg-neutral-700"
       }`}
     >
       <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-4" : ""}`} />
@@ -63,6 +64,7 @@ export default function Settings() {
   const { user, logout }        = useAuth();
   const notify                  = useNotify();
   const navigate                = useNavigate();
+  const { accent, setAccent }   = useTheme();
 
   const [cfg, setCfg]         = useState(null);   // desktop settings
   const [startup, setStartup] = useState(false);
@@ -118,10 +120,32 @@ export default function Settings() {
         <Row label="Sign out" hint="Return to the login screen">
           <button
             onClick={() => { logout(); navigate("/"); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-[#0067C0]/10 border border-gray-200 dark:border-neutral-700 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-[var(--accent)]/10 border border-gray-200 dark:border-neutral-700 transition-colors"
           >
             <LogOut size={13} /> Sign out
           </button>
+        </Row>
+      </Section>
+
+      {/* Appearance */}
+      <Section icon={Palette} title="Appearance">
+        <Row label="Accent color" hint="The app's highlight color">
+          <div className="flex items-center gap-2">
+            {ACCENTS.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => setAccent(a.id)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+                  accent === a.id
+                    ? "border-[var(--accent)] text-gray-900 dark:text-white bg-black/[0.03] dark:bg-white/[0.06]"
+                    : "border-gray-200 dark:border-neutral-700 text-gray-600 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800"
+                }`}
+              >
+                <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ backgroundColor: a.swatch }} />
+                {a.label}
+              </button>
+            ))}
+          </div>
         </Row>
       </Section>
 
@@ -154,7 +178,7 @@ export default function Settings() {
               disabled={!desktop}
               onChange={(e) => setCfg((c) => ({ ...c, quotaGB: Number(e.target.value) }))}
               onBlur={(e) => patch({ quotaGB: Number(e.target.value) })}
-              className="w-20 px-2.5 py-1.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-lg text-sm text-right text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[#0067C0] disabled:opacity-40"
+              className="w-20 px-2.5 py-1.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-lg text-sm text-right text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)] disabled:opacity-40"
             />
             <span className="text-sm text-gray-400 dark:text-neutral-500">GB</span>
           </div>

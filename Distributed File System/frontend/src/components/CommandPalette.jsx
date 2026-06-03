@@ -53,7 +53,7 @@ function Item({ children, onSelect, icon, hint }) {
     <Command.Item
       onSelect={onSelect}
       className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer text-gray-700 dark:text-neutral-200
-                 aria-selected:bg-blue-100/70 dark:aria-selected:bg-[#0067C0]/15 aria-selected:text-blue-700 dark:aria-selected:text-[#4cc2ff]"
+                 aria-selected:bg-blue-100/70 dark:aria-selected:bg-[var(--accent)]/15 aria-selected:text-blue-700 dark:aria-selected:text-[var(--accent-bright)]"
     >
       <span className="shrink-0 text-gray-400 dark:text-neutral-500">{icon}</span>
       <span className="flex-1 truncate">{children}</span>

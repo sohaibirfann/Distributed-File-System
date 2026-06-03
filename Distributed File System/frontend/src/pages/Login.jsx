@@ -87,8 +87,8 @@ export default function Login() {
         </button>
       )}
       <div className="flex-1 flex flex-col items-center justify-center px-4">
-        <div className="w-16 h-16 bg-blue-600 dark:bg-[#0067C0] rounded-2xl flex items-center justify-center mb-5 shadow-lg shadow-blue-500/20 dark:shadow-[#0067C0]/20">
-          <Database size={28} className="text-white" />
+        <div className="w-16 h-16 bg-blue-600 dark:bg-[var(--accent)] rounded-2xl flex items-center justify-center mb-5 shadow-lg shadow-blue-500/20 dark:shadow-[var(--accent)]/20">
+          <Database size={28} className="text-[var(--on-accent)]" />
         </div>
 
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
@@ -114,7 +114,7 @@ export default function Login() {
               placeholder="Username"
               autoFocus
               autoComplete="username"
-              className="w-full px-4 py-3 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[#0067C0] focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-[#0067C0]/20 transition-all"
+              className="w-full px-4 py-3 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)] focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-[var(--accent)]/20 transition-all"
             />
 
             <div className="relative">
@@ -124,7 +124,7 @@ export default function Login() {
                 onChange={(e) => { setPassword(e.target.value); setError(""); }}
                 placeholder="Password"
                 autoComplete={isRegister ? "new-password" : "current-password"}
-                className="w-full px-4 py-3 pr-10 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[#0067C0] focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-[#0067C0]/20 transition-all"
+                className="w-full px-4 py-3 pr-10 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)] focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-[var(--accent)]/20 transition-all"
               />
               <button
                 type="button"
@@ -142,7 +142,7 @@ export default function Login() {
                 onChange={(e) => { setConfirm(e.target.value); setError(""); }}
                 placeholder="Confirm password"
                 autoComplete="new-password"
-                className="w-full px-4 py-3 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[#0067C0] focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-[#0067C0]/20 transition-all"
+                className="w-full px-4 py-3 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)] focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-[var(--accent)]/20 transition-all"
               />
             )}
 
@@ -151,7 +151,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading || !username || !password || (isRegister && !confirm)}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-500 dark:bg-[#0067C0] dark:hover:bg-[#005ba1] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-medium text-sm transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 disabled:hover:translate-y-0"
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 dark:bg-[var(--accent)] dark:hover:bg-[var(--accent-hover)] disabled:opacity-40 disabled:cursor-not-allowed text-[var(--on-accent)] rounded-xl font-medium text-sm transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 disabled:hover:translate-y-0"
             >
               {loading
                 ? (isRegister ? "Creating account…" : "Signing in…")
@@ -164,7 +164,7 @@ export default function Login() {
             <button
               type="button"
               onClick={() => switchMode(isRegister ? "login" : "register")}
-              className="font-semibold text-blue-600 dark:text-[#4cc2ff] hover:underline underline-offset-2"
+              className="font-semibold text-blue-600 dark:text-[var(--accent-bright)] hover:underline underline-offset-2"
             >
               {isRegister ? "Sign in" : "Sign up"}
             </button>

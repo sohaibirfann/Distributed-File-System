@@ -47,7 +47,7 @@ const TYPE_MAP = {
   html: { icon: Code,     bg: "bg-orange-50 dark:bg-orange-950/40", color: "text-orange-500"                      },
   css:  { icon: Code,     bg: "bg-sky-50 dark:bg-sky-950/40",       color: "text-sky-500"                         },
 };
-const DEFAULT_TYPE = { icon: File, bg: "bg-blue-50 dark:bg-[#0067C0]/10", color: "text-blue-500 dark:text-[#4cc2ff]" };
+const DEFAULT_TYPE = { icon: File, bg: "bg-blue-50 dark:bg-[var(--accent)]/10", color: "text-blue-500 dark:text-[var(--accent-bright)]" };
 
 function getType(filename) {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
@@ -239,8 +239,8 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   function SortIcon({ col }) {
     if (sort.col !== col) return <ChevronsUpDown size={11} className="text-gray-300 dark:text-neutral-600" />;
     return sort.dir === "asc"
-      ? <ChevronUp   size={11} className="text-blue-500 dark:text-[#4cc2ff]" />
-      : <ChevronDown size={11} className="text-blue-500 dark:text-[#4cc2ff]" />;
+      ? <ChevronUp   size={11} className="text-blue-500 dark:text-[var(--accent-bright)]" />
+      : <ChevronDown size={11} className="text-blue-500 dark:text-[var(--accent-bright)]" />;
   }
 
   const filtered = files.filter((f) =>
@@ -268,7 +268,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   const emptyState = (
     apiError && files.length === 0 ? (
       <>
-        <WifiOff size={28} className="mx-auto mb-3 text-red-400 dark:text-[#4cc2ff]" />
+        <WifiOff size={28} className="mx-auto mb-3 text-red-400 dark:text-[var(--accent-bright)]" />
         <p className="text-sm font-medium text-gray-400 dark:text-neutral-500">Can't reach server</p>
       </>
     ) : (
@@ -311,7 +311,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                       <button onClick={() => handlePreview(file.filename)} title="Preview" className="p-1.5 rounded-lg text-gray-500 dark:text-neutral-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600"><Eye size={14} /></button>
                     )}
                     {canManage && (
-                      <button onClick={() => setFileToDelete(file.filename)} title="Delete" className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-[#0067C0]/10 hover:text-red-500"><Trash2 size={14} /></button>
+                      <button onClick={() => setFileToDelete(file.filename)} title="Delete" className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-[var(--accent)]/10 hover:text-red-500"><Trash2 size={14} /></button>
                     )}
                   </div>
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${bg}`}><Icon size={22} className={color} /></div>
@@ -373,7 +373,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                   <td colSpan="5" className="px-6 py-16 text-center">
                     {apiError && files.length === 0 ? (
                       <>
-                        <WifiOff size={28} className="mx-auto mb-3 text-red-400 dark:text-[#4cc2ff]" />
+                        <WifiOff size={28} className="mx-auto mb-3 text-red-400 dark:text-[var(--accent-bright)]" />
                         <p className="text-sm font-medium text-gray-400 dark:text-neutral-500">Can't reach server</p>
                         <p className="text-xs text-gray-300 dark:text-neutral-600 mt-1">Make sure the backend is running</p>
                       </>
@@ -479,7 +479,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                             <button
                               onClick={() => setFileToDelete(file.filename)}
                               title="Delete"
-                              className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-[#0067C0]/10 hover:text-red-500 transition-colors"
+                              className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-[var(--accent)]/10 hover:text-red-500 transition-colors"
                             >
                               <Trash2 size={13} />
                             </button>
@@ -569,7 +569,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
             className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-11 h-11 bg-red-50 dark:bg-[#0067C0]/10 rounded-xl flex items-center justify-center mb-4">
+            <div className="w-11 h-11 bg-red-50 dark:bg-[var(--accent)]/10 rounded-xl flex items-center justify-center mb-4">
               <AlertTriangle size={20} className="text-red-500" />
             </div>
             <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Delete this file?</h3>

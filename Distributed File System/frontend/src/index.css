@@ -2,6 +2,29 @@
 
 @custom-variant dark (.dark &);
 
+/* ── Accent theme tokens ────────────────────────────────────── */
+/* The accent lives in CSS vars so a theme can swap it by setting data-theme on
+   <html>. Components reference var(--accent) / --accent-bright / --accent-hover
+   instead of hardcoded hexes. Default = Windows blue. */
+:root {
+  --accent:        #0067C0; /* solid fill (buttons, logo) — white text sits on it */
+  --accent-hover:  #005ba1; /* button hover */
+  --accent-bright: #4cc2ff; /* on-dark accents: pills, links, focus ring, icons */
+  --on-accent:     #ffffff;
+}
+[data-theme="coral"] {
+  --accent:        #e8533f; /* salmon-coral (matches the landing) */
+  --accent-hover:  #cf432e;
+  --accent-bright: #ff9e8c; /* bright salmon for on-dark accents */
+  --on-accent:     #ffffff; /* white text reads on the coral fill */
+}
+[data-theme="ember"] {
+  --accent:        #e8a44d; /* warm marigold */
+  --accent-hover:  #d8902f;
+  --accent-bright: #ffce8a; /* bright amber for on-dark accents */
+  --on-accent:     #2a1c05; /* amber is light → dark text/icons sit on it */
+}
+
 
 html {
   font-size: 100%;
@@ -41,7 +64,7 @@ body::before {
 /* Shows only for keyboard navigation, not mouse clicks. Inputs keep their own
    focus styles — their `outline-none` utility (higher specificity) overrides this. */
 :focus-visible {
-  outline: 2px solid #4cc2ff;
+  outline: 2px solid var(--accent-bright);
   outline-offset: 2px;
 }
 
