@@ -24,3 +24,9 @@ dist-ssr
 *.sw?
 
 .env
+
+# Scratch / throwaway test artifacts (Playwright scripts, screenshots, etc.)
+_*.cjs
+_*.mjs
+_*.html
+_*.png
