@@ -83,6 +83,10 @@ db.exec(`
 
 // Back-fill the user_id column on databases created before node↔user identity.
 try { db.exec(`ALTER TABLE nodes ADD COLUMN user_id INTEGER`); } catch { /* already present */ }
+// Optional per-group identity (custom avatar). Null = auto (deterministic color
+// + first letter of the name).
+try { db.exec(`ALTER TABLE groups ADD COLUMN emoji TEXT`); } catch { /* already present */ }
+try { db.exec(`ALTER TABLE groups ADD COLUMN color TEXT`); } catch { /* already present */ }
 
 // ── Nodes ─────────────────────────────────────────────────────────────────────
 
@@ -119,10 +123,11 @@ const stmts = {
   getUserByName:    db.prepare(`SELECT * FROM users WHERE username = ?`),
 
   // Groups
-  insertGroup:      db.prepare(`INSERT INTO groups (id, name, created_by, replication) VALUES (?, ?, ?, ?)`),
+  insertGroup:      db.prepare(`INSERT INTO groups (id, name, created_by, replication, emoji, color) VALUES (?, ?, ?, ?, ?, ?)`),
   getGroupById:     db.prepare(`SELECT * FROM groups WHERE id = ?`),
   deleteGroupById:  db.prepare(`DELETE FROM groups WHERE id = ?`),
   renameGroupById:  db.prepare(`UPDATE groups SET name = ? WHERE id = ?`),
+  updateGroupMeta:  db.prepare(`UPDATE groups SET name = ?, emoji = ?, color = ? WHERE id = ?`),
   setReplication:   db.prepare(`UPDATE groups SET replication = ? WHERE id = ?`),
   userGroups:       db.prepare(`SELECT g.* FROM groups g
                                   JOIN group_members m ON m.group_id = g.id
@@ -240,16 +245,44 @@ function getUserByUsername(username) {
 const REPLICATION_PRESETS = ["minimal", "balanced", "max"];
 
 // Creates a group and adds its creator as the 'owner' member, atomically.
-const createGroup = db.transaction((name, createdByUserId, replication = "balanced") => {
+// Normalize optional group-identity inputs. Emoji: trim + cap length (a couple
+// codepoints). Color: only accept #rrggbb, else null.
+function normEmoji(e) {
+  if (e == null) return null;
+  const s = String(e).trim();
+  if (!s) return null;
+  return Array.from(s).slice(0, 4).join("");
+}
+function normColor(c) {
+  if (c == null) return null;
+  const s = String(c).trim();
+  return /^#[0-9a-fA-F]{6}$/.test(s) ? s.toLowerCase() : null;
+}
+
+const createGroup = db.transaction((name, createdByUserId, replication = "balanced", emoji = null, color = null) => {
   const preset = REPLICATION_PRESETS.includes(replication) ? replication : "balanced";
   const id = crypto.randomUUID();
-  stmts.insertGroup.run(id, name, createdByUserId, preset);
+  const em  = normEmoji(emoji);
+  const col = normColor(color);
+  stmts.insertGroup.run(id, name, createdByUserId, preset, em, col);
   stmts.addMember.run(id, createdByUserId, "owner");
-  return { id, name, created_by: createdByUserId, replication: preset };
+  return { id, name, created_by: createdByUserId, replication: preset, emoji: em, color: col };
 });
 
 function getGroup(id) {
   return stmts.getGroupById.get(id) || null;
+}
+
+// Update name (+ optionally emoji/color). `undefined` fields are left unchanged;
+// pass null or "" to clear emoji/color back to auto.
+function updateGroup(groupId, { name, emoji, color } = {}) {
+  const cur = stmts.getGroupById.get(groupId);
+  if (!cur) return null;
+  const nm  = (name != null && String(name).trim()) ? String(name).trim() : cur.name;
+  const em  = emoji === undefined ? cur.emoji : normEmoji(emoji);
+  const col = color === undefined ? cur.color : normColor(color);
+  stmts.updateGroupMeta.run(nm, em, col, groupId);
+  return getGroup(groupId);
 }
 
 function setGroupReplication(groupId, replication) {
@@ -339,6 +372,7 @@ module.exports = {
   getGroup,
   setGroupReplication,
   renameGroup,
+  updateGroup,
   getUserGroups,
   isMember,
   getMemberRole,

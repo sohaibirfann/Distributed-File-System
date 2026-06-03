@@ -5,6 +5,7 @@ import { useNotify } from "../context/NotificationContext";
 import { useTitle }  from "../context/TitleContext";
 import { hasKey }    from "../lib/groupKeys";
 import { useDialog } from "../lib/useDialog";
+import { COLOR_PALETTE, autoColor } from "../lib/groupAvatar";
 import FileTable   from "../components/FileTable";
 import UploadPanel from "../components/UploadPanel";
 import InviteModal from "../components/InviteModal";
@@ -44,6 +45,8 @@ export default function GroupView() {
   const [menuOpen, setMenuOpen]   = useState(false);
   const [renameOpen, setRenameOpen]   = useState(false);
   const [renameValue, setRenameValue] = useState("");
+  const [emojiInput, setEmojiInput]   = useState("");
+  const [colorInput, setColorInput]   = useState(null);
   const [renaming, setRenaming]       = useState(false);
   const [confirm, setConfirm]         = useState(null); // null | "delete" | "leave"
   const [confirming, setConfirming]   = useState(false);
@@ -98,17 +101,21 @@ export default function GroupView() {
   async function doRename(e) {
     e?.preventDefault?.();
     const name = renameValue.trim();
-    if (!name || name === group?.name) { setRenameOpen(false); return; }
+    const em  = emojiInput.trim() || null;
+    const col = colorInput || null;
+    if (!name) { setRenameOpen(false); return; }
+    const unchanged = name === group?.name && em === (group?.emoji || null) && col === (group?.color || null);
+    if (unchanged) { setRenameOpen(false); return; }
     setRenaming(true);
     try {
       const res = await authFetch(`${API}/api/groups/${id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, emoji: em, color: col }),
       });
       if (!res.ok) throw new Error();
-      setGroup((g) => ({ ...g, name }));
+      setGroup((g) => ({ ...g, name, emoji: em, color: col }));
       refreshGroups?.();
-      notify.success("Group renamed");
+      notify.success("Group updated");
       setRenameOpen(false);
     } catch { notify.error("Couldn't rename group"); }
     finally { setRenaming(false); }
@@ -324,7 +331,7 @@ export default function GroupView() {
               {isOwner ? (
                 <>
                   <button
-                    onClick={() => { setRenameValue(group.name); setRenameOpen(true); setMenuOpen(false); }}
+                    onClick={() => { setRenameValue(group.name); setEmojiInput(group.emoji || ""); setColorInput(group.color || null); setRenameOpen(true); setMenuOpen(false); }}
                     className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-gray-700 dark:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
                   >
                     <Pencil size={14} /> Rename group
@@ -420,15 +427,42 @@ export default function GroupView() {
       {/* Rename modal */}
       {renameOpen && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={() => !renaming && setRenameOpen(false)}>
-          <form ref={renameRef} role="dialog" aria-modal="true" aria-label="Rename group" onClick={(e) => e.stopPropagation()} onSubmit={doRename}
+          <form ref={renameRef} role="dialog" aria-modal="true" aria-label="Edit group" onClick={(e) => e.stopPropagation()} onSubmit={doRename}
             className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6">
-            <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Rename group</h3>
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Edit group</h3>
             <input
               autoFocus
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               className="w-full px-3.5 py-2.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)]"
             />
+            <p className="text-xs font-medium text-gray-500 dark:text-neutral-400 mt-3 mb-1.5">Appearance</p>
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-white font-bold text-base"
+                style={{ backgroundColor: colorInput || autoColor(id) }}
+              >
+                {emojiInput.trim() || (renameValue.trim().slice(0, 1).toUpperCase() || "?")}
+              </div>
+              <input
+                value={emojiInput}
+                onChange={(e) => setEmojiInput(e.target.value)}
+                placeholder="Emoji"
+                className="w-16 px-2 py-2 text-center bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-base text-gray-900 dark:text-white placeholder:text-xs placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)]"
+              />
+              <div className="flex flex-wrap gap-1.5 flex-1">
+                {COLOR_PALETTE.map((c) => (
+                  <button
+                    type="button"
+                    key={c}
+                    onClick={() => setColorInput(colorInput === c ? null : c)}
+                    aria-label={`Use color ${c}`}
+                    className={`w-5 h-5 rounded-full transition-transform hover:scale-110 ${colorInput === c ? "ring-2 ring-offset-2 ring-gray-900 dark:ring-white dark:ring-offset-neutral-900 scale-110" : ""}`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
             <div className="flex gap-2.5 mt-4">
               <button type="button" onClick={() => setRenameOpen(false)} disabled={renaming}
                 className="flex-1 py-2.5 text-sm font-medium border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40">

@@ -13,15 +13,8 @@ import {
 } from "lucide-react";
 
 import { getApiUrl } from "../lib/api";
+import { groupColor, groupLabel, isEmojiLabel, COLOR_PALETTE, autoColor } from "../lib/groupAvatar";
 const API = getApiUrl();
-
-// Deterministic per-group color so each group keeps a stable visual identity.
-const PALETTE = ["#6366f1", "#10b981", "#f59e0b", "#f43f5e", "#0ea5e9", "#8b5cf6", "#14b8a6", "#f97316", "#ec4899", "#84cc16"];
-function colorFor(id) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return PALETTE[h % PALETTE.length];
-}
 
 const REP_PRESETS = [
   { key: "minimal",  label: "Minimal",  hint: "2 copies"  },
@@ -184,10 +177,10 @@ export default function AppShell() {
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-full bg-blue-600 dark:bg-[var(--accent-bright)]" />
                   )}
                   <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold text-white"
-                    style={{ backgroundColor: colorFor(g.id) }}
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 font-bold text-white ${isEmojiLabel(g) ? "text-sm" : "text-xs"}`}
+                    style={{ backgroundColor: groupColor(g) }}
                   >
-                    {g.name.slice(0, 1).toUpperCase()}
+                    {groupLabel(g)}
                   </div>
                   {showLabels && <span className="text-sm font-medium truncate">{g.name}</span>}
                 </button>
@@ -290,6 +283,8 @@ function NewJoinModal({ mode, onClose, onDone }) {
   const notify        = useNotify();
   const [value, setValue]   = useState("");
   const [rep, setRep]       = useState("balanced");
+  const [emoji, setEmoji]   = useState("");
+  const [color, setColor]   = useState(null);
   const [busy, setBusy]     = useState(false);
   const isNew = mode === "new";
   const panelRef = useDialog(true, onClose); // mounted == open
@@ -302,7 +297,7 @@ function NewJoinModal({ mode, onClose, onDone }) {
       if (isNew) {
         const res = await authFetch(`${API}/api/groups`, {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: value.trim(), replication: rep }),
+          body: JSON.stringify({ name: value.trim(), replication: rep, emoji: emoji.trim() || null, color }),
         });
         if (!res.ok) throw new Error();
         const group = await res.json();
@@ -343,6 +338,38 @@ function NewJoinModal({ mode, onClose, onDone }) {
             placeholder={isNew ? "Group name" : "Invite code"}
             className={`w-full px-3.5 py-2.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)] ${isNew ? "" : "font-mono"}`}
           />
+
+          {isNew && (
+            <div>
+              <p className="text-xs font-medium text-gray-500 dark:text-neutral-400 mb-1.5">Appearance</p>
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-white font-bold text-base"
+                  style={{ backgroundColor: color || autoColor(value || "x") }}
+                >
+                  {emoji.trim() || (value.trim().slice(0, 1).toUpperCase() || "?")}
+                </div>
+                <input
+                  value={emoji}
+                  onChange={(e) => setEmoji(e.target.value)}
+                  placeholder="Emoji"
+                  className="w-16 px-2 py-2 text-center bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-base text-gray-900 dark:text-white placeholder:text-xs placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)]"
+                />
+                <div className="flex flex-wrap gap-1.5 flex-1">
+                  {COLOR_PALETTE.map((c) => (
+                    <button
+                      type="button"
+                      key={c}
+                      onClick={() => setColor(color === c ? null : c)}
+                      aria-label={`Use color ${c}`}
+                      className={`w-5 h-5 rounded-full transition-transform hover:scale-110 ${color === c ? "ring-2 ring-offset-2 ring-gray-900 dark:ring-white dark:ring-offset-neutral-900 scale-110" : ""}`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {isNew && (
             <div>

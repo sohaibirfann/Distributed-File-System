@@ -8,6 +8,7 @@ const {
   getGroup,
   setGroupReplication,
   renameGroup,
+  updateGroup,
   deleteGroup,
   getUserGroups,
   isMember,
@@ -45,7 +46,7 @@ function requireOwner(req, res, next) {
 router.post("/", (req, res) => {
   const name = (req.body.name || "").trim();
   if (!name) return res.status(400).json({ error: "name required" });
-  const group = createGroup(name, req.user.id, req.body.replication);
+  const group = createGroup(name, req.user.id, req.body.replication, req.body.emoji, req.body.color);
   res.status(201).json(group);
 });
 
@@ -82,12 +83,11 @@ router.get("/:id", requireMember, (req, res) => {
   });
 });
 
-// PATCH /api/groups/:id — rename the group (owner only)
+// PATCH /api/groups/:id — edit the group: name (+ optional emoji/color) (owner only)
 router.patch("/:id", requireMember, requireOwner, (req, res) => {
   const name = (req.body.name || "").trim();
   if (!name) return res.status(400).json({ error: "name required" });
-  renameGroup(req.params.id, name);
-  res.json(getGroup(req.params.id));
+  res.json(updateGroup(req.params.id, { name, emoji: req.body.emoji, color: req.body.color }));
 });
 
 // DELETE /api/groups/:id — delete the group (owner only). Cascades members,
