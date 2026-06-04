@@ -8,7 +8,6 @@ const {
   createGroup,
   getGroup,
   setGroupReplication,
-  renameGroup,
   updateGroup,
   deleteGroup,
   getUserGroups,

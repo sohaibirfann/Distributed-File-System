@@ -117,7 +117,6 @@ const stmts = {
                                        (SELECT COUNT(*) FROM chunks c WHERE c.file_id = f.id) AS chunk_count
                                   FROM files f LEFT JOIN users u ON u.id = f.uploaded_by
                                  WHERE f.group_id = ? ORDER BY f.uploaded_at DESC`),
-  allFiles:         db.prepare(`SELECT * FROM files ORDER BY uploaded_at DESC`),
 
   // Chunks
   insertChunk:  db.prepare(`INSERT OR REPLACE INTO chunks (file_id, chunk_id, hash, size) VALUES (?, ?, ?, ?)`),
@@ -136,7 +135,6 @@ const stmts = {
   insertGroup:      db.prepare(`INSERT INTO groups (id, name, created_by, replication, emoji, color) VALUES (?, ?, ?, ?, ?, ?)`),
   getGroupById:     db.prepare(`SELECT * FROM groups WHERE id = ?`),
   deleteGroupById:  db.prepare(`DELETE FROM groups WHERE id = ?`),
-  renameGroupById:  db.prepare(`UPDATE groups SET name = ? WHERE id = ?`),
   updateGroupMeta:  db.prepare(`UPDATE groups SET name = ?, emoji = ?, color = ? WHERE id = ?`),
   setReplication:   db.prepare(`UPDATE groups SET replication = ? WHERE id = ?`),
   userGroups:       db.prepare(`SELECT g.* FROM groups g
@@ -241,11 +239,6 @@ function getGroupFileByName(groupId, filename) {
   return { ...file, chunks: chunksOf(file.id) };
 }
 
-// All files across all groups with chunks — used by the global health endpoint.
-function getAllFilesWithChunks() {
-  return stmts.allFiles.all().map((f) => ({ ...f, chunks: chunksOf(f.id) }));
-}
-
 function deleteFileRecord(fileId) {
   stmts.deleteFileById.run(fileId); // cascades to chunks + chunk_nodes
 }
@@ -309,10 +302,6 @@ function setGroupReplication(groupId, replication) {
   if (!REPLICATION_PRESETS.includes(replication)) return false;
   stmts.setReplication.run(replication, groupId);
   return true;
-}
-
-function renameGroup(groupId, name) {
-  stmts.renameGroupById.run(name, groupId);
 }
 
 function getUserGroups(userId) {
@@ -402,7 +391,6 @@ module.exports = {
   saveFile,
   getGroupFiles,
   getGroupFileByName,
-  getAllFilesWithChunks,
   deleteFileRecord,
   createUser,
   getUserByUsername,
@@ -410,7 +398,6 @@ module.exports = {
   createGroup,
   getGroup,
   setGroupReplication,
-  renameGroup,
   updateGroup,
   getUserGroups,
   isMember,
