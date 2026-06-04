@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { buildInvite, getKeyB64 } from "../lib/groupKeys";
 import { useDialog } from "../lib/useDialog";
-import { X, Copy, Check, UserPlus, ShieldAlert, Clock, Trash2, Plus, Loader2 } from "lucide-react";
+import { X, Copy, Check, UserPlus, ShieldAlert, Clock, Trash2, Plus, Loader2, ChevronDown } from "lucide-react";
 
 import { getApiUrl } from "../lib/api";
 const API = getApiUrl();
@@ -142,16 +142,10 @@ export default function InviteModal({ groupId, groupName, onClose }) {
           <>
             {/* Create a new invite */}
             <div className="flex items-end gap-2">
-              <label className="flex-1">
+              <div className="flex-1 min-w-0">
                 <span className="block text-xs font-semibold text-gray-500 dark:text-neutral-400 mb-1.5">Expires after</span>
-                <select
-                  value={expiry}
-                  onChange={(e) => setExpiry(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)]"
-                >
-                  {EXPIRY_OPTS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-                </select>
-              </label>
+                <Dropdown value={expiry} options={EXPIRY_OPTS} onChange={setExpiry} />
+              </div>
               <button
                 onClick={create}
                 disabled={creating}
@@ -228,6 +222,61 @@ export default function InviteModal({ groupId, groupName, onClose }) {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+// Themed dropdown — the native <select> popup is OS-rendered and ignores the
+// app's dark/frosted styling, so we roll a small custom listbox instead.
+function Dropdown({ value, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const current = options.find((o) => o.key === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey  = (e) => { if (e.key === "Escape") { e.stopPropagation(); setOpen(false); } };
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey, true); // capture: beat the dialog's Esc-to-close
+    return () => { document.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey, true); };
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white hover:border-gray-300 dark:hover:border-neutral-600 focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)] transition-colors"
+      >
+        <span className="truncate">{current?.label}</span>
+        <ChevronDown size={15} className={`shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <ul
+          role="listbox"
+          className="dialog-panel absolute z-50 mt-1.5 w-full glass bg-white/90 dark:bg-neutral-900/90 rounded-xl border border-gray-100 dark:border-neutral-800 p-1 shadow-xl"
+        >
+          {options.map((o) => (
+            <li
+              key={o.key}
+              role="option"
+              aria-selected={o.key === value}
+              onClick={() => { onChange(o.key); setOpen(false); }}
+              className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-sm cursor-pointer transition-colors ${
+                o.key === value
+                  ? "bg-blue-50 dark:bg-[var(--accent)]/15 text-blue-700 dark:text-[var(--accent-bright)] font-medium"
+                  : "text-gray-700 dark:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800"
+              }`}
+            >
+              <span className="truncate">{o.label}</span>
+              {o.key === value && <Check size={14} className="shrink-0" />}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
