@@ -113,6 +113,7 @@ const stmts = {
   deleteFileByName: db.prepare(`DELETE FROM files WHERE group_id = ? AND filename = ?`),
   deleteFileById:   db.prepare(`DELETE FROM files WHERE id = ?`),
   getFileByName:    db.prepare(`SELECT * FROM files WHERE group_id = ? AND filename = ?`),
+  renameFileByName: db.prepare(`UPDATE files SET filename = ? WHERE group_id = ? AND filename = ?`),
   groupFiles:       db.prepare(`SELECT f.*, u.username AS uploaded_by_name,
                                        (SELECT COUNT(*) FROM chunks c WHERE c.file_id = f.id) AS chunk_count
                                   FROM files f LEFT JOIN users u ON u.id = f.uploaded_by
@@ -248,6 +249,18 @@ function getGroupFileByName(groupId, filename) {
   const file = stmts.getFileByName.get(groupId, filename);
   if (!file) return null;
   return { ...file, chunks: chunksOf(file.id) };
+}
+
+// Rename a file within a group (chunks are keyed by fileId, so they're untouched).
+// Returns "ok", "notfound", or "taken" (target name already used in the group).
+function renameFile(groupId, oldName, newName) {
+  try {
+    const info = stmts.renameFileByName.run(newName, groupId, oldName);
+    return info.changes > 0 ? "ok" : "notfound";
+  } catch (e) {
+    if (String(e.message).includes("UNIQUE")) return "taken";
+    throw e;
+  }
 }
 
 function deleteFileRecord(fileId) {
@@ -408,6 +421,7 @@ module.exports = {
   saveFile,
   getGroupFiles,
   getGroupFileByName,
+  renameFile,
   deleteFileRecord,
   createUser,
   getUserByUsername,

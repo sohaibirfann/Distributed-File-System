@@ -9,7 +9,7 @@ import Skeleton from "./Skeleton";
 import FileThumb from "./FileThumb";
 import FilePreviewModal from "./FilePreviewModal";
 import {
-  Download, Eye, Trash2, AlertTriangle, WifiOff,
+  Download, Eye, Trash2, Pencil, AlertTriangle, WifiOff,
   File, HardDrive, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, RotateCw,
 } from "lucide-react";
 import Modal from "./Modal";
@@ -41,6 +41,9 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   const [apiError, setApiError]         = useState(false);
   const [fileToDelete, setFileToDelete]     = useState(null);
   const [deleting, setDeleting]             = useState(false);
+  const [fileToRename, setFileToRename]     = useState(null);
+  const [renameValue, setRenameValue]       = useState("");
+  const [renaming, setRenaming]             = useState(false);
   const [previewFile, setPreviewFile]       = useState(null);
   const [previewType, setPreviewType]       = useState(null);
   const [previewContent, setPreviewContent] = useState("");
@@ -167,6 +170,35 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
     setDeleting(false);
   }
 
+  function openRename(filename) {
+    setFileToRename(filename);
+    setRenameValue(filename);
+  }
+
+  async function handleRename(e) {
+    e?.preventDefault?.();
+    const newName = renameValue.trim();
+    if (!newName || newName === fileToRename) { setFileToRename(null); return; }
+    setRenaming(true);
+    try {
+      const res = await authFetch(`${base}/rename/${encodeURIComponent(fileToRename)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newName }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Rename failed");
+      }
+      notify.success("File renamed");
+      setFileToRename(null);
+      fetchFiles();
+    } catch (err) {
+      notify.error(err.message || "Rename failed");
+    }
+    setRenaming(false);
+  }
+
   const [sort, setSort] = useState({ col: "uploadedAt", dir: "desc" });
 
   function handleSort(col) {
@@ -251,7 +283,10 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                       <button onClick={() => handlePreview(file.filename)} title="Preview" className="p-1.5 rounded-lg text-gray-500 dark:text-neutral-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600"><Eye size={14} /></button>
                     )}
                     {canManage && (
-                      <button onClick={() => setFileToDelete(file.filename)} title="Delete" className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-[var(--accent)]/10 hover:text-red-500"><Trash2 size={14} /></button>
+                      <>
+                        <button onClick={() => openRename(file.filename)} title="Rename" className="p-1.5 rounded-lg text-gray-500 dark:text-neutral-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600"><Pencil size={14} /></button>
+                        <button onClick={() => setFileToDelete(file.filename)} title="Delete" className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-[var(--accent)]/10 hover:text-red-500"><Trash2 size={14} /></button>
+                      </>
                     )}
                   </div>
                   <FileThumb filename={file.filename} size={file.size} base={base} groupId={groupId} authFetch={authFetch} className={`w-12 h-12 rounded-xl flex items-center justify-center ${bg}`}><Icon size={22} className={color} /></FileThumb>
@@ -417,6 +452,15 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                           )}
                           {canManage && (
                             <button
+                              onClick={() => openRename(file.filename)}
+                              title="Rename"
+                              className="p-1.5 rounded-lg text-gray-500 dark:text-neutral-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          )}
+                          {canManage && (
+                            <button
                               onClick={() => setFileToDelete(file.filename)}
                               title="Delete"
                               className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-[var(--accent)]/10 hover:text-red-500 transition-colors"
@@ -443,6 +487,32 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
           url={previewUrl}
           onClose={closePreview}
         />
+      )}
+
+      {/* Rename modal */}
+      {fileToRename && (
+        <Modal onClose={() => setFileToRename(null)} label="Rename file" dismissable={!renaming}>
+          <form onSubmit={handleRename}>
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Rename file</h3>
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onFocus={(e) => { const dot = e.target.value.lastIndexOf("."); if (dot > 0) e.target.setSelectionRange(0, dot); }}
+              className="w-full px-3.5 py-2.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)]"
+            />
+            <div className="flex gap-2.5 mt-4">
+              <button type="button" onClick={() => setFileToRename(null)} disabled={renaming}
+                className="flex-1 py-2.5 text-sm font-medium border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40">
+                Cancel
+              </button>
+              <button type="submit" disabled={renaming || !renameValue.trim() || renameValue.trim() === fileToRename}
+                className="flex-1 py-2.5 text-sm font-medium bg-blue-600 hover:bg-blue-500 dark:bg-[var(--accent)] dark:hover:bg-[var(--accent-hover)] text-[var(--on-accent)] rounded-xl transition-colors disabled:opacity-40">
+                {renaming ? "Renaming…" : "Rename"}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* Delete modal */}

@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const {
   getGroupFiles,
   getGroupFileByName,
+  renameFile: renameFileRecord,
   deleteFileRecord,
   getNodeMap,
 } = require("../db");
@@ -224,6 +225,28 @@ async function purgeGroupChunks(groupId) {
   }
 }
 
+// Rename a file in place. Only the DB filename changes — chunks live under the
+// file's stable id, so nothing on the nodes moves.
+const renameFile = (req, res) => {
+  try {
+    const { groupId, filename } = req.params;
+    const newName = (req.body.newName || "").trim();
+    if (!newName)                 return res.status(400).json({ message: "New name required" });
+    if (newName === filename)     return res.json({ success: true });
+    if (/[\\/]/.test(newName))    return res.status(400).json({ message: "Name can't contain slashes" });
+
+    const result = renameFileRecord(groupId, filename, newName);
+    if (result === "notfound") return res.status(404).json({ message: "File not found" });
+    if (result === "taken")    return res.status(409).json({ message: "A file with that name already exists" });
+
+    req.app.get("io").emit("log", `[rename] ${filename} → ${newName}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Rename failed" });
+  }
+};
+
 const deleteFile = async (req, res) => {
   try {
     const { groupId, filename } = req.params;
@@ -244,4 +267,4 @@ const deleteFile = async (req, res) => {
   }
 };
 
-module.exports = { uploadFile, getFiles, downloadFile, deleteFile, purgeGroupChunks };
+module.exports = { uploadFile, getFiles, downloadFile, renameFile, deleteFile, purgeGroupChunks };

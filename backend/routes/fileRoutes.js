@@ -11,6 +11,7 @@ const {
   uploadFile,
   getFiles,
   downloadFile,
+  renameFile,
   deleteFile,
 } = require("../controllers/fileController");
 
@@ -58,6 +59,8 @@ router.get("/download/:filename", (req, res, next) => {
   req.app.get("io").emit("log", `[download] ${req.params.filename} · requested by ${clientIP(req)}`);
   next();
 }, downloadFile);
+
+router.patch("/rename/:filename", renameFile);
 
 router.delete("/delete/:filename", deleteFile);
 
