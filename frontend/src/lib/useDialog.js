@@ -10,7 +10,7 @@ import { useEffect, useRef } from "react";
 export function useDialog(open, onClose) {
   const ref = useRef(null);
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => { onCloseRef.current = onClose; }); // keep the latest handler
 
   useEffect(() => {
     if (!open) return;
