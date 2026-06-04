@@ -5,6 +5,7 @@ import { useNotify } from "../context/NotificationContext";
 import { useTitle }  from "../context/TitleContext";
 import { hasKey }    from "../lib/groupKeys";
 import { useDialog } from "../lib/useDialog";
+import { formatBytes } from "../lib/format";
 import { COLOR_PALETTE, autoColor, groupColor, groupLabel, isEmojiLabel } from "../lib/groupAvatar";
 import FileTable   from "../components/FileTable";
 import UploadPanel from "../components/UploadPanel";
@@ -22,12 +23,6 @@ const PRESETS = {
   max:      "Maximum",
 };
 
-function fmtSize(b) {
-  if (!b) return "0 B";
-  if (b < 1024)        return `${b} B`;
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
-  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export default function GroupView() {
   const { id }        = useParams();
@@ -234,7 +229,7 @@ export default function GroupView() {
           {group && (
             <span className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium text-gray-500 dark:text-neutral-400 shrink-0" title="Files in this group">
               <Files size={12} />
-              {stats.total} {stats.total === 1 ? "file" : "files"}{stats.allSize > 0 ? ` · ${fmtSize(stats.allSize)}` : ""}
+              {stats.total} {stats.total === 1 ? "file" : "files"}{stats.allSize > 0 ? ` · ${formatBytes(stats.allSize)}` : ""}
             </span>
           )}
 

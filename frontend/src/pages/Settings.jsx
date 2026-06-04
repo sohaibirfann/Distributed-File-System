@@ -5,6 +5,7 @@ import { useNotify } from "../context/NotificationContext";
 import { useTheme, ACCENTS } from "../context/ThemeContext";
 import { isDesktop } from "../lib/platform";
 import { getApiUrl, getStoredCoordinator, setCoordinatorUrl } from "../lib/api";
+import { formatBytes } from "../lib/format";
 import {
   User, Power, HardDrive, FolderOpen, LogOut, Palette, Server,
 } from "lucide-react";
@@ -12,14 +13,6 @@ import {
 const desktop = isDesktop();
 const settingsApi = () => window.dfsDesktop?.settings;
 const nodeApi     = () => window.dfsDesktop?.node;
-
-function fmtBytes(b) {
-  if (!b) return "0 B";
-  if (b < 1024)               return `${b} B`;
-  if (b < 1024 * 1024)        return `${(b / 1024).toFixed(0)} KB`;
-  if (b < 1024 * 1024 * 1024) return `${(b / 1024 / 1024).toFixed(1)} MB`;
-  return `${(b / 1024 / 1024 / 1024).toFixed(2)} GB`;
-}
 
 function Switch({ checked, onChange, disabled }) {
   return (
@@ -232,7 +225,7 @@ export default function Settings() {
             nodeStatus?.running ? (
               <p className="text-xs text-emerald-600/90 dark:text-emerald-400/90 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg px-3 py-2 flex items-center gap-2">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                Contributing — storing {nodeStatus.chunks} chunk{nodeStatus.chunks === 1 ? "" : "s"} ({fmtBytes(nodeStatus.bytes)})
+                Contributing — storing {nodeStatus.chunks} chunk{nodeStatus.chunks === 1 ? "" : "s"} ({formatBytes(nodeStatus.bytes)})
                 {nodeStatus.registered ? "" : " · connecting…"}
               </p>
             ) : (

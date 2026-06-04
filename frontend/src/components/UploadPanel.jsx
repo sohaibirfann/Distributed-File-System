@@ -6,16 +6,11 @@ import { loadKey }     from "../lib/groupKeys";
 import { encryptBytes } from "../lib/crypto";
 import { Upload, X, FileIcon, CheckCircle, Loader2, AlertCircle, AlertTriangle, RotateCw } from "lucide-react";
 import { useDialog } from "../lib/useDialog";
+import { formatBytes } from "../lib/format";
 
 import { getApiUrl } from "../lib/api";
 const API = getApiUrl();
 const MAX_SIZE = 500 * 1024 * 1024;
-
-function formatSize(bytes) {
-  if (bytes < 1024)        return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
 
 const toItem = (file) => ({ id: crypto.randomUUID(), file, status: "queued", progress: 0, error: "" });
 
@@ -150,7 +145,7 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
       case "distributing": return it.progress > 0 ? `Distributing ${it.progress}%` : "Distributing…";
       case "done":         return "Done";
       case "error":        return it.error || "Failed";
-      default:             return formatSize(it.file.size);
+      default:             return formatBytes(it.file.size);
     }
   }
 

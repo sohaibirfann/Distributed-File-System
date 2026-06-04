@@ -1,166 +1,25 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNotify } from "../context/NotificationContext";
 import { useAuth }   from "../context/AuthContext";
 import { loadKey }     from "../lib/groupKeys";
 import { decryptBytes } from "../lib/crypto";
+import { getType, getPreviewType, PREVIEW_MIME } from "../lib/fileTypes";
+import { formatBytes, formatRelativeTime } from "../lib/format";
 import Skeleton from "./Skeleton";
+import FileThumb from "./FileThumb";
+import FilePreviewModal from "./FilePreviewModal";
 import {
-  Download, Eye, Trash2, X, AlertTriangle, WifiOff,
-  FileText, Image, Film, Music, Archive, Code, File, HardDrive,
-  ChevronUp, ChevronDown, ChevronsUpDown, Loader2, RotateCw,
+  Download, Eye, Trash2, AlertTriangle, WifiOff,
+  File, HardDrive, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, RotateCw,
 } from "lucide-react";
 import { useDialog } from "../lib/useDialog";
 
 import { getApiUrl } from "../lib/api";
 const API = getApiUrl();
 
-const TYPE_MAP = {
-  // images
-  jpg:  { icon: Image,    bg: "bg-sky-50 dark:bg-sky-950/40",       color: "text-sky-500"                          },
-  jpeg: { icon: Image,    bg: "bg-sky-50 dark:bg-sky-950/40",       color: "text-sky-500"                          },
-  png:  { icon: Image,    bg: "bg-sky-50 dark:bg-sky-950/40",       color: "text-sky-500"                          },
-  gif:  { icon: Image,    bg: "bg-pink-50 dark:bg-pink-950/40",     color: "text-pink-500"                         },
-  svg:  { icon: Image,    bg: "bg-orange-50 dark:bg-orange-950/40", color: "text-orange-500"                       },
-  webp: { icon: Image,    bg: "bg-sky-50 dark:bg-sky-950/40",       color: "text-sky-500"                          },
-  // video
-  mp4:  { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
-  mov:  { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
-  avi:  { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
-  mkv:  { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
-  webm: { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
-  m4v:  { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
-  ogv:  { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
-  // audio
-  mp3:  { icon: Music,    bg: "bg-emerald-50 dark:bg-emerald-950/40", color: "text-emerald-500"                    },
-  wav:  { icon: Music,    bg: "bg-emerald-50 dark:bg-emerald-950/40", color: "text-emerald-500"                    },
-  flac: { icon: Music,    bg: "bg-emerald-50 dark:bg-emerald-950/40", color: "text-emerald-500"                    },
-  // docs
-  pdf:  { icon: FileText, bg: "bg-red-50 dark:bg-red-950/40",       color: "text-red-500"                         },
-  doc:  { icon: FileText, bg: "bg-blue-50 dark:bg-blue-950/40",     color: "text-blue-500"                        },
-  docx: { icon: FileText, bg: "bg-blue-50 dark:bg-blue-950/40",     color: "text-blue-500"                        },
-  txt:  { icon: FileText, bg: "bg-gray-100 dark:bg-neutral-800",    color: "text-gray-500 dark:text-neutral-400"  },
-  // archives
-  zip:  { icon: Archive,  bg: "bg-amber-50 dark:bg-amber-950/40",   color: "text-amber-500"                       },
-  rar:  { icon: Archive,  bg: "bg-amber-50 dark:bg-amber-950/40",   color: "text-amber-500"                       },
-  "7z": { icon: Archive,  bg: "bg-amber-50 dark:bg-amber-950/40",   color: "text-amber-500"                       },
-  tar:  { icon: Archive,  bg: "bg-amber-50 dark:bg-amber-950/40",   color: "text-amber-500"                       },
-  // code
-  js:   { icon: Code,     bg: "bg-yellow-50 dark:bg-yellow-950/40", color: "text-yellow-500"                      },
-  ts:   { icon: Code,     bg: "bg-blue-50 dark:bg-blue-950/40",     color: "text-blue-500"                        },
-  py:   { icon: Code,     bg: "bg-blue-50 dark:bg-blue-950/40",     color: "text-blue-500"                        },
-  json: { icon: Code,     bg: "bg-yellow-50 dark:bg-yellow-950/40", color: "text-yellow-500"                      },
-  html: { icon: Code,     bg: "bg-orange-50 dark:bg-orange-950/40", color: "text-orange-500"                      },
-  css:  { icon: Code,     bg: "bg-sky-50 dark:bg-sky-950/40",       color: "text-sky-500"                         },
-};
-const DEFAULT_TYPE = { icon: File, bg: "bg-blue-50 dark:bg-[var(--accent)]/10", color: "text-blue-500 dark:text-[var(--accent-bright)]" };
-
-function getType(filename) {
-  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
-  return TYPE_MAP[ext] ?? DEFAULT_TYPE;
-}
-
-const TEXT_EXTENSIONS = new Set([
-  "txt","md","csv","log","json","xml","yaml","yml","toml","ini","env","conf",
-  "html","css","svg","js","ts","jsx","tsx","py","java","c","cpp","h","cs",
-  "go","rs","rb","php","swift","kt","sh","bash","zsh","ps1","bat","sql",
-]);
-const IMAGE_EXTENSIONS = new Set(["jpg","jpeg","png","gif","webp","svg"]);
-const VIDEO_EXTENSIONS = new Set(["mp4","webm","ogv","m4v","mov"]);
-
-// Blob MIME for the binary previews (image uses <img> and infers fine, but
-// <video>/<iframe> are happier with an explicit type).
-const PREVIEW_MIME = {
-  mp4: "video/mp4", m4v: "video/mp4", webm: "video/webm",
-  ogv: "video/ogg", mov: "video/quicktime", pdf: "application/pdf",
-};
-
-function getPreviewType(filename) {
-  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
-  if (IMAGE_EXTENSIONS.has(ext)) return "image";
-  if (VIDEO_EXTENSIONS.has(ext)) return "video";
-  if (ext === "pdf")             return "pdf";
-  if (TEXT_EXTENSIONS.has(ext))  return "text";
-  return null;
-}
-
-function formatSize(bytes) {
-  if (bytes < 1024)        return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
-
+// Deterministic per-username avatar color (for the "uploaded by" chip).
 const AVATAR_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#f43f5e", "#0ea5e9", "#8b5cf6", "#14b8a6", "#f97316", "#ec4899", "#84cc16"];
 
-// ── Image thumbnails ──────────────────────────────────────────────────────────
-// There's no server-side thumbnail (the coordinator only holds ciphertext), so a
-// thumbnail means downloading + decrypting the file on-device. To keep that cheap
-// we only do it for images under a size cap, lazily (when the row scrolls into
-// view), and we downscale to a tiny data URL and cache it (revoking the full blob).
-const THUMB_MAX_BYTES = 12 * 1024 * 1024; // skip images larger than this
-const thumbCache = new Map();             // `${groupId}:${filename}` -> dataURL ("" = failed/skip)
-
-function makeThumb(blob, max = 128) {
-  return new Promise((resolve, reject) => {
-    const u = URL.createObjectURL(blob);
-    const img = new window.Image(); // NB: `Image` is shadowed by the lucide icon import
-    img.onload = () => {
-      const w0 = img.naturalWidth || max, h0 = img.naturalHeight || max;
-      const r = Math.min(1, max / Math.max(w0, h0));
-      const w = Math.max(1, Math.round(w0 * r)), h = Math.max(1, Math.round(h0 * r));
-      const c = document.createElement("canvas");
-      c.width = w; c.height = h;
-      c.getContext("2d").drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(u);
-      try { resolve(c.toDataURL("image/webp", 0.82)); }
-      catch { try { resolve(c.toDataURL("image/png")); } catch (e) { reject(e); } }
-    };
-    img.onerror = () => { URL.revokeObjectURL(u); reject(new Error("decode")); };
-    img.src = u;
-  });
-}
-
-// Renders the file's type icon, swapping in a decrypted image thumbnail once it
-// scrolls into view (for image files under the size cap). Keeps the parent's
-// sized/rounded container styling via `className`.
-function FileThumb({ filename, size, base, groupId, authFetch, className, children }) {
-  const isImage  = getPreviewType(filename) === "image";
-  const cacheKey = `${groupId}:${filename}`;
-  const ref = useRef(null);
-  const [src, setSrc] = useState(() => thumbCache.get(cacheKey) || null);
-
-  useEffect(() => {
-    if (!isImage || (size != null && size > THUMB_MAX_BYTES)) return;
-    if (thumbCache.has(cacheKey)) { setSrc(thumbCache.get(cacheKey) || null); return; }
-    const el = ref.current;
-    if (!el) return;
-    let cancelled = false;
-    const io = new IntersectionObserver((entries) => {
-      if (!entries.some((e) => e.isIntersecting)) return;
-      io.disconnect();
-      (async () => {
-        try {
-          const key = await loadKey(groupId);
-          if (!key) throw new Error("no key");
-          const res = await authFetch(`${base}/download/${encodeURIComponent(filename)}`);
-          if (!res.ok) throw new Error("download");
-          const thumb = await makeThumb(new Blob([await decryptBytes(key, await res.arrayBuffer())]));
-          thumbCache.set(cacheKey, thumb);
-          if (!cancelled) setSrc(thumb);
-        } catch {
-          thumbCache.set(cacheKey, ""); // remember the miss; don't keep retrying
-        }
-      })();
-    }, { rootMargin: "150px" });
-    io.observe(el);
-    return () => { cancelled = true; io.disconnect(); };
-  }, [cacheKey, isImage, size]);
-
-  return (
-    <div ref={ref} className={`${className} overflow-hidden`}>
-      {src ? <img src={src} alt="" loading="lazy" className="w-full h-full object-cover" /> : children}
-    </div>
-  );
-}
 function avatarColor(name = "") {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
@@ -172,19 +31,6 @@ function Avatar({ name }) {
       {(name?.[0] ?? "?").toUpperCase()}
     </div>
   );
-}
-
-function formatRelativeTime(iso) {
-  if (!iso) return "—";
-  const diff  = Date.now() - new Date(iso).getTime();
-  const mins  = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days  = Math.floor(diff / 86400000);
-  if (diff  < 60000)  return "just now";
-  if (mins  < 60)     return `${mins}m ago`;
-  if (hours < 24)     return `${hours}h ago`;
-  if (days  < 7)      return `${days}d ago`;
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export default function FileTable({ groupId, canManage = false, search = "", onStats, view = "list" }) {
@@ -201,7 +47,6 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   const [previewUrl, setPreviewUrl]         = useState(null);
   const [downloading, setDownloading]       = useState([]);
   const [failedDl, setFailedDl]             = useState([]);   // downloads that errored — show a Retry
-  const previewRef = useDialog(!!previewFile,  closePreview);
   const deleteRef  = useDialog(!!fileToDelete, () => { if (!deleting) setFileToDelete(null); });
 
   const base = `${API}/api/groups/${groupId}/files`;
@@ -412,7 +257,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                   </div>
                   <FileThumb filename={file.filename} size={file.size} base={base} groupId={groupId} authFetch={authFetch} className={`w-12 h-12 rounded-xl flex items-center justify-center ${bg}`}><Icon size={22} className={color} /></FileThumb>
                   <p className="mt-3 text-sm font-medium text-gray-800 dark:text-neutral-100 truncate" title={file.filename}>{file.filename}</p>
-                  <p className="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">{formatSize(file.size)} · {formatRelativeTime(file.uploadedAt)}</p>
+                  <p className="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">{formatBytes(file.size)} · {formatRelativeTime(file.uploadedAt)}</p>
                   {file.uploadedBy && (
                     <div className="flex items-center gap-1.5 mt-2.5">
                       <Avatar name={file.uploadedBy} />
@@ -511,7 +356,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                       </td>
                       <td className="px-6 py-2.5 hidden sm:table-cell">
                         <span className="text-gray-500 dark:text-neutral-400 font-mono text-xs whitespace-nowrap">
-                          {formatSize(file.size)}
+                          {formatBytes(file.size)}
                         </span>
                       </td>
                       <td className="px-6 py-2.5 hidden md:table-cell">
@@ -592,87 +437,13 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
 
       {/* Preview modal */}
       {previewFile && (
-        <div
-          className="dialog-backdrop fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4"
-          onClick={closePreview}
-        >
-          <div
-            ref={previewRef} role="dialog" aria-modal="true" aria-label={`Preview: ${previewFile}`}
-            className={`dialog-panel glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 flex flex-col ${
-              previewType === "image" || previewType === "video" ? "max-w-[90vw]"
-              : previewType === "pdf" ? "w-[85vw] h-[85vh]"
-              : "w-full max-w-3xl max-h-[80vh]"
-            }`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-neutral-800 shrink-0">
-              <div className="flex items-center gap-2.5">
-                {(() => { const { icon: Icon, bg, color } = getType(previewFile); return (
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${bg}`}>
-                    <Icon size={13} className={color} />
-                  </div>
-                ); })()}
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">{previewFile}</span>
-                {previewType === "text" && (
-                  <span className="text-xs text-gray-400 dark:text-neutral-500">
-                    {previewContent.split("\n").length} lines
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={closePreview}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            {/* Modal body */}
-            {previewType === "image" ? (
-              <div className="p-4 rounded-b-2xl"
-                style={{ background: "repeating-conic-gradient(rgba(0,0,0,0.06) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px" }}>
-                <img
-                  src={previewUrl}
-                  alt={previewFile}
-                  className="block max-w-full max-h-[75vh] object-contain rounded-lg shadow-md"
-                />
-              </div>
-            ) : previewType === "video" ? (
-              <div className="p-4 rounded-b-2xl bg-black/80">
-                <video
-                  src={previewUrl}
-                  controls
-                  autoPlay
-                  className="block max-w-full max-h-[75vh] rounded-lg shadow-md"
-                />
-              </div>
-            ) : previewType === "pdf" ? (
-              <iframe
-                src={previewUrl}
-                title={previewFile}
-                className="flex-1 w-full rounded-b-2xl bg-white"
-              />
-            ) : (
-              <div className="flex-1 overflow-auto rounded-b-2xl bg-white/30 dark:bg-black">
-                <table className="min-w-full border-collapse font-mono text-xs">
-                  <tbody>
-                    {previewContent.split("\n").map((line, i) => (
-                      <tr key={i} className="hover:bg-blue-50/40 dark:hover:bg-neutral-800/40">
-                        <td className="sticky left-0 select-none text-right pr-3 pl-4 py-px text-neutral-400 dark:text-neutral-600 bg-gray-50/90 dark:bg-neutral-900/90 border-r border-gray-100 dark:border-neutral-800 w-10 align-top leading-5">
-                          {i + 1}
-                        </td>
-                        <td className="pl-4 pr-6 py-px text-gray-700 dark:text-neutral-300 whitespace-pre-wrap break-all align-top leading-5">
-                          {line || " "}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
+        <FilePreviewModal
+          file={previewFile}
+          type={previewType}
+          content={previewContent}
+          url={previewUrl}
+          onClose={closePreview}
+        />
       )}
 
       {/* Delete modal */}
