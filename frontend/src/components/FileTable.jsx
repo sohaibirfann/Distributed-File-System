@@ -572,12 +572,12 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
       {/* Preview modal */}
       {previewFile && (
         <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4"
+          className="dialog-backdrop fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4"
           onClick={closePreview}
         >
           <div
             ref={previewRef} role="dialog" aria-modal="true" aria-label={`Preview: ${previewFile}`}
-            className={`glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 flex flex-col ${previewType === "image" ? "max-w-[90vw]" : "w-full max-w-3xl max-h-[80vh]"}`}
+            className={`dialog-panel glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 flex flex-col ${previewType === "image" ? "max-w-[90vw]" : "w-full max-w-3xl max-h-[80vh]"}`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal header */}
@@ -638,12 +638,12 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
       {/* Delete modal */}
       {fileToDelete && (
         <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4"
+          className="dialog-backdrop fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4"
           onClick={() => !deleting && setFileToDelete(null)}
         >
           <div
             ref={deleteRef} role="dialog" aria-modal="true" aria-label="Delete file"
-            className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6"
+            className="dialog-panel glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-11 h-11 bg-red-50 dark:bg-[var(--accent)]/10 rounded-xl flex items-center justify-center mb-4">

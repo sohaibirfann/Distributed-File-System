@@ -56,8 +56,8 @@ export default function InviteModal({ groupId, groupName, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div ref={panelRef} role="dialog" aria-modal="true" aria-label={`Invite to ${groupName}`} className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="dialog-backdrop fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-label={`Invite to ${groupName}`} className="dialog-panel glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-1">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-[var(--accent)]/10 flex items-center justify-center">

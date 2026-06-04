@@ -324,8 +324,8 @@ function NewJoinModal({ mode, onClose, onDone }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div ref={panelRef} role="dialog" aria-modal="true" aria-label={isNew ? "Create a group" : "Join with a code"} className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="dialog-backdrop fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-label={isNew ? "Create a group" : "Join with a code"} className="dialog-panel glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-gray-900 dark:text-white">{isNew ? "Create a group" : "Join with a code"}</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800"><X size={15} /></button>

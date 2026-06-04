@@ -227,10 +227,10 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
 
     {/* Overwrite confirmation */}
     {confirm && (
-      <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4"
+      <div className="dialog-backdrop fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4"
         onClick={() => { confirm.resolve(false); setConfirm(null); }}>
         <div ref={overwriteRef} role="dialog" aria-modal="true" aria-label="Replace existing files?" onClick={(e) => e.stopPropagation()}
-          className="glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6">
+          className="dialog-panel glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6">
           <div className="w-11 h-11 bg-amber-50 dark:bg-amber-500/10 rounded-xl flex items-center justify-center mb-4">
             <AlertTriangle size={20} className="text-amber-500" />
           </div>

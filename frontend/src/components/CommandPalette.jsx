@@ -18,9 +18,9 @@ export default function CommandPalette({
       open={open}
       onOpenChange={onOpenChange}
       label="Command menu"
-      overlayClassName="fixed inset-0 z-50 bg-black/30 backdrop-blur-md"
+      overlayClassName="dialog-backdrop fixed inset-0 z-50 bg-black/30 backdrop-blur-md"
       contentClassName="fixed left-1/2 top-[16%] z-50 w-full max-w-lg -translate-x-1/2 px-4"
-      className="glass bg-white/90 dark:bg-neutral-900/90 rounded-2xl border border-gray-100 dark:border-neutral-800 overflow-hidden shadow-2xl"
+      className="dialog-panel glass bg-white/90 dark:bg-neutral-900/90 rounded-2xl border border-gray-100 dark:border-neutral-800 overflow-hidden shadow-2xl"
     >
       <Command.Input
         placeholder="Search groups or run a command…"
