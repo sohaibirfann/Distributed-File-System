@@ -76,7 +76,10 @@ router.post("/join", (req, res) => {
   // invite you already used (e.g. to reload the key) shouldn't burn a use.
   const alreadyMember = isMember(invite.group_id, req.user.id);
   addMember(invite.group_id, req.user.id);
-  if (!alreadyMember) consumeInvite(code, req.user.id);
+  if (!alreadyMember) {
+    consumeInvite(code, req.user.id);
+    req.app.get("io").emit("member-joined", { groupId: invite.group_id, byId: req.user.id, byName: req.user.username });
+  }
   res.json(getGroup(invite.group_id));
 });
 

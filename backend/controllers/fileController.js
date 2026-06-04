@@ -54,7 +54,11 @@ const uploadFile = (req, res) => {
     const originalName = req.file.originalname;
 
     distributeFile(filePath, originalName, groupId, req.user.id, io)
-      .then(() => res.json({ success: true, message: "File uploaded successfully" }))
+      .then(() => {
+        // Notify other members (clients filter to their own groups, skip self).
+        io.emit("file-added", { groupId, filename: originalName, byId: req.user.id, byName: req.user.username });
+        res.json({ success: true, message: "File uploaded successfully" });
+      })
       .catch((err) => {
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         io.emit("upload-progress", { filename: originalName, error: err.message });

@@ -27,4 +27,6 @@ contextBridge.exposeInMainWorld("dfsDesktop", {
     getStatus: ()     => ipcRenderer.invoke("node:status"),
     setUser:   (id)   => ipcRenderer.invoke("node:set-user", id),
   },
+  // Show a native OS notification (file added, member joined, …).
+  notify: (payload) => ipcRenderer.invoke("notify:show", payload),
 });

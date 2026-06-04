@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { createKeyForGroup, storeKeyB64, parseInvite } from "../lib/groupKeys";
+import { useDesktopNotifications } from "../lib/useDesktopNotifications";
 import Kbd from "./Kbd";
 import Skeleton from "./Skeleton";
 import CommandPalette from "./CommandPalette";
@@ -51,6 +52,9 @@ export default function AppShell() {
   }, [authFetch]);
 
   useEffect(() => { fetchGroups(); }, [fetchGroups]);
+
+  // Native OS notifications for activity in your groups (desktop only).
+  useDesktopNotifications(groups, user);
 
   // On launch, reopen the last group the user had open (once, only if we landed
   // on the bare /groups index and that group still exists).

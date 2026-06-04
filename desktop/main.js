@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, shell, dialog, nativeTheme } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, shell, dialog, nativeTheme, Notification } = require("electron");
 const path   = require("path");
 const fs     = require("fs");
 const crypto = require("crypto");
@@ -196,10 +196,21 @@ ipcMain.handle("startup:set", (_e, enabled) => {
   return app.getLoginItemSettings().openAtLogin;
 });
 
+// Native notifications (file added, member joined). Clicking one focuses the app.
+ipcMain.handle("notify:show", (_e, { title, body } = {}) => {
+  if (!Notification.isSupported()) return false;
+  const n = new Notification({ title: title || "DFS", body: body || "", icon: path.join(__dirname, "icon.png") });
+  n.on("click", () => { mainWindow?.show(); mainWindow?.focus(); });
+  n.show();
+  return true;
+});
+
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null); // no default OS menu — chrome is fully custom
   // Dark-only app — keep any native chrome (dialogs, etc.) dark too.
   nativeTheme.themeSource = "dark";
+  // Windows shows this as the toast's app identity (name + icon).
+  if (process.platform === "win32") app.setAppUserModelId("com.dfs.app");
   createWindow();
   syncStorageNode(); // start contributing if the user enabled it last time
   app.on("activate", () => {
