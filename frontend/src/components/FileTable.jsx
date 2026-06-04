@@ -27,6 +27,9 @@ const TYPE_MAP = {
   mov:  { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
   avi:  { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
   mkv:  { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
+  webm: { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
+  m4v:  { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
+  ogv:  { icon: Film,     bg: "bg-purple-50 dark:bg-purple-950/40", color: "text-purple-500"                       },
   // audio
   mp3:  { icon: Music,    bg: "bg-emerald-50 dark:bg-emerald-950/40", color: "text-emerald-500"                    },
   wav:  { icon: Music,    bg: "bg-emerald-50 dark:bg-emerald-950/40", color: "text-emerald-500"                    },
@@ -62,10 +65,20 @@ const TEXT_EXTENSIONS = new Set([
   "go","rs","rb","php","swift","kt","sh","bash","zsh","ps1","bat","sql",
 ]);
 const IMAGE_EXTENSIONS = new Set(["jpg","jpeg","png","gif","webp","svg"]);
+const VIDEO_EXTENSIONS = new Set(["mp4","webm","ogv","m4v","mov"]);
+
+// Blob MIME for the binary previews (image uses <img> and infers fine, but
+// <video>/<iframe> are happier with an explicit type).
+const PREVIEW_MIME = {
+  mp4: "video/mp4", m4v: "video/mp4", webm: "video/webm",
+  ogv: "video/ogg", mov: "video/quicktime", pdf: "application/pdf",
+};
 
 function getPreviewType(filename) {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
   if (IMAGE_EXTENSIONS.has(ext)) return "image";
+  if (VIDEO_EXTENSIONS.has(ext)) return "video";
+  if (ext === "pdf")             return "pdf";
   if (TEXT_EXTENSIONS.has(ext))  return "text";
   return null;
 }
@@ -281,8 +294,9 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
         throw new Error("Could not decrypt — wrong or missing key");
       }
 
-      if (type === "image") {
-        setPreviewUrl(URL.createObjectURL(new Blob([plain])));
+      if (type === "image" || type === "video" || type === "pdf") {
+        const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+        setPreviewUrl(URL.createObjectURL(new Blob([plain], { type: PREVIEW_MIME[ext] || "" })));
       } else {
         setPreviewContent(new TextDecoder().decode(plain));
       }
@@ -584,7 +598,11 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
         >
           <div
             ref={previewRef} role="dialog" aria-modal="true" aria-label={`Preview: ${previewFile}`}
-            className={`dialog-panel glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 flex flex-col ${previewType === "image" ? "max-w-[90vw]" : "w-full max-w-3xl max-h-[80vh]"}`}
+            className={`dialog-panel glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 flex flex-col ${
+              previewType === "image" || previewType === "video" ? "max-w-[90vw]"
+              : previewType === "pdf" ? "w-[85vw] h-[85vh]"
+              : "w-full max-w-3xl max-h-[80vh]"
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal header */}
@@ -620,6 +638,21 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                   className="block max-w-full max-h-[75vh] object-contain rounded-lg shadow-md"
                 />
               </div>
+            ) : previewType === "video" ? (
+              <div className="p-4 rounded-b-2xl bg-black/80">
+                <video
+                  src={previewUrl}
+                  controls
+                  autoPlay
+                  className="block max-w-full max-h-[75vh] rounded-lg shadow-md"
+                />
+              </div>
+            ) : previewType === "pdf" ? (
+              <iframe
+                src={previewUrl}
+                title={previewFile}
+                className="flex-1 w-full rounded-b-2xl bg-white"
+              />
             ) : (
               <div className="flex-1 overflow-auto rounded-b-2xl bg-white/30 dark:bg-black">
                 <table className="min-w-full border-collapse font-mono text-xs">
