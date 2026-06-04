@@ -108,6 +108,14 @@ button:disabled,
   cursor: not-allowed;
 }
 
+/* UI images (thumbnails, previews, avatars) shouldn't be draggable — in Chromium
+   dragging an <img> serializes it into a file, so dropping it back on the group
+   would re-trigger an upload. */
+img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
 /* ── Scrollbars — Windows 11 Fluent style ───────────────────── */
 /* Thin, rounded, inset thumb on a transparent track; brightens on hover.
    NB: we deliberately do NOT set the standard scrollbar-width/scrollbar-color —
