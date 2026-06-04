@@ -19,6 +19,8 @@ export default function ConnectionStatus() {
     <span
       className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-neutral-400"
       title={s.title}
+      role="status"
+      aria-live="polite"
       aria-label={`Connection status: ${s.title}`}
     >
       <span className={`w-2 h-2 rounded-full ${s.dot}`} />
