@@ -241,7 +241,7 @@ export default function GroupView() {
           {group && (
             <span
               className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 shrink-0"
-              title="End-to-end encrypted — files are encrypted on your device before upload; the coordinator only ever sees ciphertext."
+              title="End-to-end encrypted — files are encrypted on your device before upload; the server only ever sees ciphertext."
             >
               <Lock size={12} /> Encrypted
             </span>

@@ -16,7 +16,7 @@ export default function CoordinatorSetup() {
     setBusy(true);
     try {
       if (!force && !(await pingCoordinator(value))) {
-        setError("Couldn't reach a DFS coordinator at that address. Double-check it.");
+        setError("Couldn't reach a DFS server at that address. Double-check it.");
         setForce(true);
         setBusy(false);
         return;
@@ -36,9 +36,9 @@ export default function CoordinatorSetup() {
         <div className="w-16 h-16 bg-blue-600 dark:bg-[var(--accent)] rounded-2xl flex items-center justify-center mb-5 shadow-lg shadow-blue-500/20 dark:shadow-[var(--accent)]/20">
           <Database size={28} className="text-[var(--on-accent)]" />
         </div>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">Connect to a coordinator</h1>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">Connect to a server</h1>
         <p className="text-sm text-gray-500 dark:text-neutral-400 mt-1.5 max-w-sm">
-          DFS needs the address of a coordinator — the lightweight server that helps your
+          DFS needs the address of a server — the lightweight relay that helps your
           group find each other. It never sees your files or keys.
         </p>
 
@@ -46,7 +46,7 @@ export default function CoordinatorSetup() {
           autoFocus
           value={value}
           onChange={(e) => { setValue(e.target.value); setForce(false); }}
-          placeholder="https://coordinator.example.com"
+          placeholder="https://server.example.com"
           spellCheck={false}
           autoCapitalize="off"
           className="w-full mt-6 px-4 py-3 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)] focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-[var(--accent)]/20 transition-all"

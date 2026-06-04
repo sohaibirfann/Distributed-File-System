@@ -116,7 +116,7 @@ export default function Settings() {
     setSavingCoord(true);
     try {
       await setCoordinatorUrl(coordInput);
-      notify.success("Coordinator updated — reconnecting…");
+      notify.success("Server updated — reconnecting…");
       setTimeout(() => window.location.reload(), 400);
     } catch (e) {
       notify.error(e.message || "Enter a valid address");
@@ -146,7 +146,7 @@ export default function Settings() {
       {/* Connection (desktop only) */}
       {desktop && (
         <Section icon={Server} title="Connection">
-          <Row label="Coordinator" hint="The server this app connects to — it holds no files or keys.">
+          <Row label="Server" hint="The server this app connects to — it holds no files or keys.">
             <span className="text-xs font-mono text-gray-500 dark:text-neutral-400 truncate max-w-[15rem]" title={getApiUrl()}>
               {getApiUrl() || "Not set"}
             </span>
@@ -155,7 +155,7 @@ export default function Settings() {
             <input
               value={coordInput}
               onChange={(e) => setCoordInput(e.target.value)}
-              placeholder="https://coordinator.example.com"
+              placeholder="https://server.example.com"
               spellCheck={false}
               autoCapitalize="off"
               className="flex-1 min-w-0 px-3 py-2 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)]"
@@ -237,7 +237,7 @@ export default function Settings() {
               </p>
             ) : (
               <p className="text-xs text-amber-600/90 dark:text-amber-400/80 bg-amber-50 dark:bg-amber-500/10 rounded-lg px-3 py-2">
-                Starting your node… if this persists, the coordinator may be unreachable.
+                Starting your node… if this persists, the server may be unreachable.
               </p>
             )
           ) : (
