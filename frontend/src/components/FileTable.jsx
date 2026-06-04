@@ -351,7 +351,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   return (
     <>
       {view === "grid" ? (
-        <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        <div className="p-4 grid grid-cols-[repeat(auto-fill,minmax(13.5rem,1fr))] gap-3">
           {loading && files.length === 0 ? (
             Array.from({ length: 10 }).map((_, i) => (
               <div key={`gsk-${i}`} className="glass bg-white/70 dark:bg-neutral-900/60 rounded-xl border border-gray-100 dark:border-neutral-800 overflow-hidden">
