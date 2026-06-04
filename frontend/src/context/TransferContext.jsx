@@ -24,10 +24,10 @@ export function TransferProvider({ children }) {
     setTransfers((t) => t.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   }, []);
 
-  // Mark done/error, then drop it from the list after a short grace period.
+  // Mark done/error. Finished transfers persist (in the Completed tab) until the
+  // user clears or dismisses them.
   const finish = useCallback((id, status = "done") => {
     setTransfers((t) => t.map((x) => (x.id === id ? { ...x, status, progress: status === "done" ? 100 : x.progress } : x)));
-    setTimeout(() => setTransfers((t) => t.filter((x) => x.id !== id)), 5000);
   }, []);
 
   const remove    = useCallback((id) => setTransfers((t) => t.filter((x) => x.id !== id)), []);

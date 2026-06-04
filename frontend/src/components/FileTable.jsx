@@ -10,7 +10,7 @@ import Skeleton from "./Skeleton";
 import FileThumb from "./FileThumb";
 import FilePreviewModal from "./FilePreviewModal";
 import {
-  Download, Eye, Trash2, Pencil, WifiOff,
+  Download, Eye, Trash2, Pencil, WifiOff, FileArchive,
   File, HardDrive, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, RotateCw,
 } from "lucide-react";
 import Modal from "./Modal";
@@ -239,6 +239,11 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   function toggleSelectAll() {
     setSelected((s) => (s.size === sorted.length ? new Set() : new Set(sorted.map((f) => f.filename))));
   }
+  // Download each selected file separately (like a normal one-by-one download).
+  async function bulkDownloadIndividual() {
+    for (const name of [...selected]) await handleDownload(name); // each gets its own transfer row
+  }
+
   // Decrypt the selected files on-device and hand back a single .zip.
   async function bulkDownload() {
     const names = [...selected];
@@ -400,8 +405,11 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
         <div className="flex items-center gap-3 px-6 py-2 bg-blue-50/90 dark:bg-[var(--accent)]/15 border-b border-blue-200/60 dark:border-[var(--accent)]/20 text-sm">
           <span className="font-medium text-blue-700 dark:text-[var(--accent-bright)]">{selected.size} selected</span>
           <div className="flex-1" />
-          <button onClick={bulkDownload} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-gray-700 dark:text-neutral-200 hover:bg-white/60 dark:hover:bg-white/10 transition-colors">
-            <Download size={13} /> Download zip
+          <button onClick={bulkDownloadIndividual} title="Download each file separately" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-gray-700 dark:text-neutral-200 hover:bg-white/60 dark:hover:bg-white/10 transition-colors">
+            <Download size={13} /> Download
+          </button>
+          <button onClick={bulkDownload} title="Download all as one .zip" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-gray-700 dark:text-neutral-200 hover:bg-white/60 dark:hover:bg-white/10 transition-colors">
+            <FileArchive size={13} /> Zip
           </button>
           {canManage && (
             <button onClick={() => setConfirmBulk(true)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
