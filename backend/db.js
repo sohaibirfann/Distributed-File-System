@@ -79,6 +79,13 @@ db.exec(`
     expires_at TEXT,
     revoked    INTEGER NOT NULL DEFAULT 0
   );
+
+  CREATE TABLE IF NOT EXISTS invite_redemptions (
+    code      TEXT    NOT NULL REFERENCES invites(code) ON DELETE CASCADE,
+    user_id   INTEGER NOT NULL REFERENCES users(id)     ON DELETE CASCADE,
+    joined_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (code, user_id)
+  );
 `);
 
 // Back-fill the user_id column on databases created before node↔user identity.
@@ -152,6 +159,10 @@ const stmts = {
   getInviteByCode:  db.prepare(`SELECT * FROM invites WHERE code = ?`),
   revokeInviteCode: db.prepare(`UPDATE invites SET revoked = 1 WHERE code = ?`),
   bumpInviteUse:    db.prepare(`UPDATE invites SET uses = uses + 1 WHERE code = ?`),
+  recordRedemption: db.prepare(`INSERT OR IGNORE INTO invite_redemptions (code, user_id) VALUES (?, ?)`),
+  inviteRedeemers:  db.prepare(`SELECT u.username FROM invite_redemptions r
+                                  JOIN users u ON u.id = r.user_id
+                                  WHERE r.code = ? ORDER BY r.joined_at`),
   listGroupInvites: db.prepare(`SELECT code, created_at, expires_at, max_uses, uses FROM invites
                                   WHERE group_id = ? AND revoked = 0 ORDER BY created_at DESC`),
 };
@@ -356,9 +367,11 @@ function getValidInvite(code) {
   return row;
 }
 
-// Record one redemption of an invite (called after a successful join).
-function consumeInvite(code) {
+// Record one redemption of an invite (called after a successful join): bump the
+// use counter and remember who joined through it.
+function consumeInvite(code, userId) {
   stmts.bumpInviteUse.run(code);
+  if (userId != null) stmts.recordRedemption.run(code, userId);
 }
 
 function revokeInvite(code) {
@@ -368,7 +381,11 @@ function revokeInvite(code) {
 // Active (non-revoked) invites for a group, newest first. Expired-but-not-revoked
 // ones are included so the UI can show their state and let a member clear them.
 function listGroupInvites(groupId) {
-  return stmts.listGroupInvites.all(groupId);
+  const invites = stmts.listGroupInvites.all(groupId);
+  for (const inv of invites) {
+    inv.redeemers = stmts.inviteRedeemers.all(inv.code).map((r) => r.username);
+  }
+  return invites;
 }
 
 module.exports = {

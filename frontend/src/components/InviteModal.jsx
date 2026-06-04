@@ -3,7 +3,7 @@ import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { buildInvite, getKeyB64 } from "../lib/groupKeys";
 import { useDialog } from "../lib/useDialog";
-import { X, Copy, Check, UserPlus, ShieldAlert, Clock, Trash2, Plus, Loader2, ChevronDown } from "lucide-react";
+import { X, Copy, Check, UserPlus, ShieldAlert, Clock, Trash2, Plus, Loader2, ChevronDown, UserCheck } from "lucide-react";
 
 import { getApiUrl } from "../lib/api";
 const API = getApiUrl();
@@ -191,6 +191,11 @@ export default function InviteModal({ groupId, groupName, onClose }) {
                               </span>
                             )}
                           </span>
+                          {inv.redeemers?.length > 0 && (
+                            <span className="flex items-center gap-1 text-[11px] text-gray-400 dark:text-neutral-500 mt-0.5 truncate" title={inv.redeemers.join(", ")}>
+                              <UserCheck size={10} className="shrink-0" /> used by {inv.redeemers.join(", ")}
+                            </span>
+                          )}
                         </div>
                         <button
                           onClick={() => copy(inv.code)}
