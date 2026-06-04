@@ -91,6 +91,23 @@ body::before {
   outline-offset: 2px;
 }
 
+/* ── Cursors ────────────────────────────────────────────────── */
+/* Browsers default <button> to an arrow, which makes the UI feel unclickable.
+   Give every clickable control a pointer (and not-allowed when disabled).
+   Explicit cursor-* utilities still win via specificity. */
+button:not(:disabled),
+label[for],
+summary,
+[role="button"]:not([aria-disabled="true"]),
+[role="option"],
+[role="tab"] {
+  cursor: pointer;
+}
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 /* ── Scrollbars — Windows 11 Fluent style ───────────────────── */
 /* Thin, rounded, inset thumb on a transparent track; brightens on hover.
    NB: we deliberately do NOT set the standard scrollbar-width/scrollbar-color —
