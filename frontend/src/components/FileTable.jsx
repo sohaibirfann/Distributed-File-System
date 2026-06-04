@@ -196,8 +196,15 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   useEffect(() => {
     if (!groupId) return;
     fetchFiles();
-    const id = setInterval(fetchFiles, 3000);
-    return () => clearInterval(id);
+    // Poll while the app is on-screen; pause when hidden to avoid needless
+    // requests (and thumbnail decrypts) in the background, then refetch the
+    // moment the tab/window is visible again.
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") fetchFiles();
+    }, 3000);
+    const onVisible = () => { if (document.visibilityState === "visible") fetchFiles(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
   }, [groupId]);
 
   async function fetchFiles() {
