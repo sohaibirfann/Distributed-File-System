@@ -354,10 +354,12 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
         <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {loading && files.length === 0 ? (
             Array.from({ length: 10 }).map((_, i) => (
-              <div key={`gsk-${i}`} className="glass bg-white/70 dark:bg-neutral-900/60 rounded-xl border border-gray-100 dark:border-neutral-800 p-4">
-                <Skeleton className="w-12 h-12 rounded-xl" />
-                <Skeleton className="h-3.5 w-3/4 mt-3" />
-                <Skeleton className="h-3 w-1/2 mt-2" />
+              <div key={`gsk-${i}`} className="glass bg-white/70 dark:bg-neutral-900/60 rounded-xl border border-gray-100 dark:border-neutral-800 overflow-hidden">
+                <Skeleton className="aspect-square w-full rounded-none" />
+                <div className="p-2.5">
+                  <Skeleton className="h-3.5 w-3/4" />
+                  <Skeleton className="h-3 w-1/2 mt-2" />
+                </div>
               </div>
             ))
           ) : sorted.length === 0 ? (
@@ -367,33 +369,51 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
               const { icon: Icon, bg, color } = getType(file.filename);
               const dl = downloading.includes(file.filename);
               const fail = failedDl.includes(file.filename);
+              const previewable = !!getPreviewType(file.filename);
               return (
-                <div key={i} className="group relative glass bg-white/70 dark:bg-neutral-900/60 rounded-xl border border-gray-100 dark:border-neutral-800 p-4 hover:-translate-y-0.5 transition-transform">
-                  <div className={`absolute top-2 right-2 flex items-center gap-0.5 transition-opacity ${(dl || fail) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
-                    {dl ? (
-                      <Loader2 size={14} className="m-1.5 animate-spin text-emerald-500" />
-                    ) : (
-                      <button onClick={() => handleDownload(file.filename)} title={fail ? "Retry download" : "Download"} className={`p-1.5 rounded-lg ${fail ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10" : "text-gray-500 dark:text-neutral-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600"}`}>{fail ? <RotateCw size={14} /> : <Download size={14} />}</button>
-                    )}
-                    {getPreviewType(file.filename) && (
-                      <button onClick={() => handlePreview(file.filename)} title="Preview" className="p-1.5 rounded-lg text-gray-500 dark:text-neutral-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600"><Eye size={14} /></button>
-                    )}
-                    {canManage && (
-                      <>
-                        <button onClick={() => openRename(file.filename)} title="Rename" className="p-1.5 rounded-lg text-gray-500 dark:text-neutral-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600"><Pencil size={14} /></button>
-                        <button onClick={() => setFileToDelete(file.filename)} title="Delete" className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-[var(--accent)]/10 hover:text-red-500"><Trash2 size={14} /></button>
-                      </>
-                    )}
-                  </div>
-                  <FileThumb filename={file.filename} size={file.size} hasThumb={file.hasThumb} base={base} groupId={groupId} authFetch={authFetch} className={`w-12 h-12 rounded-xl flex items-center justify-center ${bg}`}><Icon size={22} className={color} /></FileThumb>
-                  <p className="mt-3 text-sm font-medium text-gray-800 dark:text-neutral-100 truncate" title={file.filename}>{file.filename}</p>
-                  <p className="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">{formatBytes(file.size)} · {formatRelativeTime(file.uploadedAt)}</p>
-                  {file.uploadedBy && (
-                    <div className="flex items-center gap-1.5 mt-2.5">
-                      <Avatar name={file.uploadedBy} />
-                      <span className="text-[11px] text-gray-400 dark:text-neutral-500 truncate">{file.uploadedBy}</span>
+                <div key={i} className="group relative glass bg-white/70 dark:bg-neutral-900/60 rounded-xl border border-gray-100 dark:border-neutral-800 overflow-hidden hover:border-gray-200 dark:hover:border-neutral-700 hover:shadow-lg transition-all">
+                  {/* Large preview (click to open for previewable files) */}
+                  <div
+                    className={`relative aspect-square ${previewable ? "cursor-pointer" : ""}`}
+                    onClick={previewable ? () => handlePreview(file.filename) : undefined}
+                    title={previewable ? "Click to preview" : undefined}
+                  >
+                    <FileThumb filename={file.filename} size={file.size} hasThumb={file.hasThumb} base={base} groupId={groupId} authFetch={authFetch} className={`w-full h-full flex items-center justify-center ${bg}`}>
+                      <Icon size={40} className={color} />
+                    </FileThumb>
+
+                    {/* Floating actions (with a backdrop so they read over photos) */}
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className={`absolute top-2 right-2 flex items-center gap-0.5 rounded-lg bg-white/85 dark:bg-black/55 backdrop-blur-md px-0.5 shadow-sm transition-opacity ${(dl || fail) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                    >
+                      {dl ? (
+                        <Loader2 size={15} className="m-1.5 animate-spin text-emerald-500" />
+                      ) : (
+                        <button onClick={() => handleDownload(file.filename)} title={fail ? "Retry download" : "Download"} className={`p-1.5 rounded-md ${fail ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10" : "text-gray-600 dark:text-neutral-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600"}`}>{fail ? <RotateCw size={15} /> : <Download size={15} />}</button>
+                      )}
+                      {canManage && (
+                        <>
+                          <button onClick={() => openRename(file.filename)} title="Rename" className="p-1.5 rounded-md text-gray-600 dark:text-neutral-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600"><Pencil size={15} /></button>
+                          <button onClick={() => setFileToDelete(file.filename)} title="Delete" className="p-1.5 rounded-md text-gray-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-500"><Trash2 size={15} /></button>
+                        </>
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  {/* Meta */}
+                  <div className="p-2.5">
+                    <p className="text-sm font-medium text-gray-800 dark:text-neutral-100 truncate" title={file.filename}>{file.filename}</p>
+                    <div className="flex items-center gap-1.5 mt-1 text-[11px] text-gray-400 dark:text-neutral-500">
+                      <span className="truncate">{formatBytes(file.size)} · {formatRelativeTime(file.uploadedAt)}</span>
+                      {file.uploadedBy && (
+                        <>
+                          <span className="shrink-0">·</span>
+                          <Avatar name={file.uploadedBy} />
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
               );
             })
