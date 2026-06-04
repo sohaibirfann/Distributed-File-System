@@ -1,6 +1,6 @@
 # DFS — Distributed File System
 
-**🌐 Landing page:** https://sohaibirfann.github.io/Distributed-File-System/
+**🌐 Landing page:** [https://sohaibirfann.github.io/Distributed-File-System/](https://sohaibirfann.github.io/dfs/)
 
 A private, invite-only app for sharing files inside a small group, where every
 file is **end-to-end encrypted on your device** and stored **across the group
