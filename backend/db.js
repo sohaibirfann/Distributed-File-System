@@ -154,6 +154,17 @@ const stmts = {
                                               AND n.last_seen > unixepoch() - 30) AS online
                                   FROM group_members m JOIN users u ON u.id = m.user_id
                                  WHERE m.group_id = ? ORDER BY m.joined_at`),
+  // Per-member share of a group's encrypted data: how many chunks (and bytes)
+  // this group's files have stored on each member's node(s).
+  groupStorageByUser: db.prepare(`SELECT n.user_id AS user_id,
+                                          COUNT(*) AS chunks,
+                                          COALESCE(SUM(c.size), 0) AS bytes
+                                     FROM chunk_nodes cn
+                                     JOIN nodes  n ON n.name    = cn.node_name
+                                     JOIN chunks c ON c.id      = cn.chunk_pk
+                                     JOIN files  f ON f.id      = c.file_id
+                                    WHERE f.group_id = ? AND n.user_id IS NOT NULL
+                                    GROUP BY n.user_id`),
 
   // Invites
   insertInvite:     db.prepare(`INSERT INTO invites (code, group_id, created_by, expires_at, max_uses) VALUES (?, ?, ?, ?, ?)`),
@@ -334,7 +345,13 @@ const transferOwnership = db.transaction((groupId, fromUserId, toUserId) => {
 });
 
 function getGroupMembers(groupId) {
-  return stmts.listMembers.all(groupId);
+  const members = stmts.listMembers.all(groupId);
+  const byUser  = new Map(stmts.groupStorageByUser.all(groupId).map((s) => [s.user_id, s]));
+  return members.map((m) => ({
+    ...m,
+    storedChunks: byUser.get(m.user_id)?.chunks ?? 0,
+    storedBytes:  byUser.get(m.user_id)?.bytes  ?? 0,
+  }));
 }
 
 function deleteGroup(id) {
