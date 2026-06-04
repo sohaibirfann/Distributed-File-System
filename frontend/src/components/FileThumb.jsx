@@ -1,47 +1,28 @@
 import { useEffect, useState, useRef } from "react";
 import { loadKey } from "../lib/groupKeys";
-import { decryptBytes } from "../lib/crypto";
+import { decryptBytes, b64urlToBytes } from "../lib/crypto";
 import { getPreviewType } from "../lib/fileTypes";
+import { makeThumbnailBlob } from "../lib/thumbnail";
 
 // ── Image thumbnails ──────────────────────────────────────────────────────────
-// There's no server-side thumbnail (the server only holds ciphertext), so a
-// thumbnail means downloading + decrypting the file on-device. To keep that cheap
-// we only do it for images under a size cap, lazily (when the row scrolls into
-// view), and we downscale to a tiny data URL and cache it (revoking the full blob).
-const THUMB_MAX_BYTES = 12 * 1024 * 1024; // skip images larger than this
-const thumbCache = new Map();             // `${groupId}:${filename}` -> dataURL ("" = failed/skip)
+// Preferred path: the uploader stored a small encrypted thumbnail, so we fetch
+// just that (a few KB), decrypt it, and show it — no full-file download.
+// Fallback (older files with no stored thumbnail): download + decrypt the whole
+// image on-device and downscale it, but only under a size cap. Either way the
+// server never sees the picture. Results are cached in memory for the session.
+const THUMB_MAX_BYTES = 12 * 1024 * 1024; // fallback only: skip larger images
+const thumbCache = new Map();             // `${groupId}:${filename}` -> objectURL ("" = failed/skip)
 
-function makeThumb(blob, max = 128) {
-  return new Promise((resolve, reject) => {
-    const u = URL.createObjectURL(blob);
-    const img = new window.Image(); // NB: `Image` is the DOM constructor, not the lucide icon
-    img.onload = () => {
-      const w0 = img.naturalWidth || max, h0 = img.naturalHeight || max;
-      const r = Math.min(1, max / Math.max(w0, h0));
-      const w = Math.max(1, Math.round(w0 * r)), h = Math.max(1, Math.round(h0 * r));
-      const c = document.createElement("canvas");
-      c.width = w; c.height = h;
-      c.getContext("2d").drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(u);
-      try { resolve(c.toDataURL("image/webp", 0.82)); }
-      catch { try { resolve(c.toDataURL("image/png")); } catch (e) { reject(e); } }
-    };
-    img.onerror = () => { URL.revokeObjectURL(u); reject(new Error("decode")); };
-    img.src = u;
-  });
-}
-
-// Renders the file's type icon (passed as children), swapping in a decrypted
-// image thumbnail once it scrolls into view (for image files under the size cap).
-// Keeps the parent's sized/rounded container styling via `className`.
-export default function FileThumb({ filename, size, base, groupId, authFetch, className, children }) {
+// Renders the file's type icon (children), swapping in a decrypted thumbnail once
+// it scrolls into view. Keeps the parent's sized/rounded container via `className`.
+export default function FileThumb({ filename, size, base, groupId, authFetch, hasThumb, className, children }) {
   const isImage  = getPreviewType(filename) === "image";
   const cacheKey = `${groupId}:${filename}`;
   const ref = useRef(null);
   const [src, setSrc] = useState(() => thumbCache.get(cacheKey) || null);
 
   useEffect(() => {
-    if (!isImage || (size != null && size > THUMB_MAX_BYTES)) return;
+    if (!isImage) return;
     if (thumbCache.has(cacheKey)) { setSrc(thumbCache.get(cacheKey) || null); return; }
     const el = ref.current;
     if (!el) return;
@@ -53,11 +34,25 @@ export default function FileThumb({ filename, size, base, groupId, authFetch, cl
         try {
           const key = await loadKey(groupId);
           if (!key) throw new Error("no key");
-          const res = await authFetch(`${base}/download/${encodeURIComponent(filename)}`);
-          if (!res.ok) throw new Error("download");
-          const thumb = await makeThumb(new Blob([await decryptBytes(key, await res.arrayBuffer())]));
-          thumbCache.set(cacheKey, thumb);
-          if (!cancelled) setSrc(thumb);
+
+          let url;
+          if (hasThumb) {
+            const res = await authFetch(`${base}/thumb/${encodeURIComponent(filename)}`);
+            if (!res.ok) throw new Error("thumb");
+            const { thumb } = await res.json();
+            const bytes = await decryptBytes(key, b64urlToBytes(thumb));
+            url = URL.createObjectURL(new Blob([bytes], { type: "image/webp" }));
+          } else {
+            if (size != null && size > THUMB_MAX_BYTES) { thumbCache.set(cacheKey, ""); return; }
+            const res = await authFetch(`${base}/download/${encodeURIComponent(filename)}`);
+            if (!res.ok) throw new Error("download");
+            const small = await makeThumbnailBlob(new Blob([await decryptBytes(key, await res.arrayBuffer())]));
+            if (!small) throw new Error("decode");
+            url = URL.createObjectURL(small);
+          }
+
+          thumbCache.set(cacheKey, url);
+          if (!cancelled) setSrc(url);
         } catch {
           thumbCache.set(cacheKey, ""); // remember the miss; don't keep retrying
         }
@@ -65,7 +60,7 @@ export default function FileThumb({ filename, size, base, groupId, authFetch, cl
     }, { rootMargin: "150px" });
     io.observe(el);
     return () => { cancelled = true; io.disconnect(); };
-  }, [cacheKey, isImage, size]);
+  }, [cacheKey, isImage, size, hasThumb]);
 
   return (
     <div ref={ref} className={`${className} overflow-hidden`}>

@@ -97,6 +97,9 @@ try { db.exec(`ALTER TABLE groups ADD COLUMN color TEXT`); } catch { /* already 
 // Optional usage cap on invites. max_uses NULL = unlimited; uses = times redeemed.
 try { db.exec(`ALTER TABLE invites ADD COLUMN max_uses INTEGER`); } catch { /* already present */ }
 try { db.exec(`ALTER TABLE invites ADD COLUMN uses INTEGER NOT NULL DEFAULT 0`); } catch { /* already present */ }
+// Optional encrypted preview thumbnail (base64 of group-key-encrypted WebP) so
+// members can preview images without downloading the full file.
+try { db.exec(`ALTER TABLE files ADD COLUMN thumb TEXT`); } catch { /* already present */ }
 
 // ── Nodes ─────────────────────────────────────────────────────────────────────
 
@@ -114,8 +117,14 @@ const stmts = {
   deleteFileById:   db.prepare(`DELETE FROM files WHERE id = ?`),
   getFileByName:    db.prepare(`SELECT * FROM files WHERE group_id = ? AND filename = ?`),
   renameFileByName: db.prepare(`UPDATE files SET filename = ? WHERE group_id = ? AND filename = ?`),
-  groupFiles:       db.prepare(`SELECT f.*, u.username AS uploaded_by_name,
-                                       (SELECT COUNT(*) FROM chunks c WHERE c.file_id = f.id) AS chunk_count
+  setThumb:         db.prepare(`UPDATE files SET thumb = ? WHERE group_id = ? AND filename = ?`),
+  getThumb:         db.prepare(`SELECT thumb FROM files WHERE group_id = ? AND filename = ?`),
+  // Explicit columns (not f.*) so the heavy `thumb` blob never rides along in the
+  // polled list — just a has_thumb flag.
+  groupFiles:       db.prepare(`SELECT f.id, f.filename, f.total_size, f.uploaded_at,
+                                       u.username AS uploaded_by_name,
+                                       (SELECT COUNT(*) FROM chunks c WHERE c.file_id = f.id) AS chunk_count,
+                                       (f.thumb IS NOT NULL) AS has_thumb
                                   FROM files f LEFT JOIN users u ON u.id = f.uploaded_by
                                  WHERE f.group_id = ? ORDER BY f.uploaded_at DESC`),
 
@@ -249,6 +258,14 @@ function getGroupFileByName(groupId, filename) {
   const file = stmts.getFileByName.get(groupId, filename);
   if (!file) return null;
   return { ...file, chunks: chunksOf(file.id) };
+}
+
+// Store / fetch the encrypted preview thumbnail (base64) for a file.
+function setFileThumb(groupId, filename, thumb) {
+  stmts.setThumb.run(thumb, groupId, filename);
+}
+function getFileThumb(groupId, filename) {
+  return stmts.getThumb.get(groupId, filename)?.thumb ?? null;
 }
 
 // Rename a file within a group (chunks are keyed by fileId, so they're untouched).
@@ -422,6 +439,8 @@ module.exports = {
   getGroupFiles,
   getGroupFileByName,
   renameFile,
+  setFileThumb,
+  getFileThumb,
   deleteFileRecord,
   createUser,
   getUserByUsername,

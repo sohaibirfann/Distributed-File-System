@@ -385,7 +385,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                       </>
                     )}
                   </div>
-                  <FileThumb filename={file.filename} size={file.size} base={base} groupId={groupId} authFetch={authFetch} className={`w-12 h-12 rounded-xl flex items-center justify-center ${bg}`}><Icon size={22} className={color} /></FileThumb>
+                  <FileThumb filename={file.filename} size={file.size} hasThumb={file.hasThumb} base={base} groupId={groupId} authFetch={authFetch} className={`w-12 h-12 rounded-xl flex items-center justify-center ${bg}`}><Icon size={22} className={color} /></FileThumb>
                   <p className="mt-3 text-sm font-medium text-gray-800 dark:text-neutral-100 truncate" title={file.filename}>{file.filename}</p>
                   <p className="text-xs text-gray-400 dark:text-neutral-500 mt-0.5">{formatBytes(file.size)} · {formatRelativeTime(file.uploadedAt)}</p>
                   {file.uploadedBy && (
@@ -510,7 +510,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                       </td>
                       <td className="px-6 py-2.5 max-w-0 w-full">
                         <div className="flex items-center gap-3 min-w-0">
-                          <FileThumb filename={file.filename} size={file.size} base={base} groupId={groupId} authFetch={authFetch} className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
+                          <FileThumb filename={file.filename} size={file.size} hasThumb={file.hasThumb} base={base} groupId={groupId} authFetch={authFetch} className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
                             <Icon size={15} className={color} />
                           </FileThumb>
                           <span className="font-medium text-gray-800 dark:text-neutral-100 truncate min-w-0" title={file.filename}>

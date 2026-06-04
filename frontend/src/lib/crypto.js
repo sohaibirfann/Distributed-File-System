@@ -5,13 +5,13 @@
 const IV_BYTES = 12; // standard GCM nonce length
 
 // ── base64url <-> bytes ────────────────────────────────────────────────────────
-function bytesToB64url(bytes) {
+export function bytesToB64url(bytes) {
   let bin = "";
   for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function b64urlToBytes(b64url) {
+export function b64urlToBytes(b64url) {
   const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);

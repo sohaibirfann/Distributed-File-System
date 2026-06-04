@@ -11,6 +11,7 @@ const {
   uploadFile,
   getFiles,
   downloadFile,
+  getThumb,
   renameFile,
   deleteFile,
 } = require("../controllers/fileController");
@@ -53,6 +54,9 @@ router.post("/upload", (req, res, next) => {
 
 // List the group's files
 router.get("/", getFiles);
+
+// Encrypted preview thumbnail for a file (small; decrypted client-side)
+router.get("/thumb/:filename", getThumb);
 
 // Download / delete a file within the group
 router.get("/download/:filename", (req, res, next) => {

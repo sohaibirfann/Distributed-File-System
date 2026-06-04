@@ -8,6 +8,8 @@ const {
   getGroupFiles,
   getGroupFileByName,
   renameFile: renameFileRecord,
+  setFileThumb,
+  getFileThumb,
   deleteFileRecord,
   getNodeMap,
 } = require("../db");
@@ -56,6 +58,10 @@ const uploadFile = (req, res) => {
 
     distributeFile(filePath, originalName, groupId, req.user.id, io)
       .then(() => {
+        // Persist the optional encrypted preview thumbnail (images only).
+        if (req.body?.thumb) {
+          try { setFileThumb(groupId, originalName, req.body.thumb); } catch (e) { console.error("thumb save failed:", e.message); }
+        }
         // Notify other members (clients filter to their own groups, skip self).
         io.emit("file-added", { groupId, filename: originalName, byId: req.user.id, byName: req.user.username });
         res.json({ success: true, message: "File uploaded successfully" });
@@ -87,6 +93,7 @@ const getFiles = (req, res) => {
       uploadedAt: f.uploaded_at,
       uploadedBy: f.uploaded_by_name,
       cached:     cachedSet.has(f.id),
+      hasThumb:   !!f.has_thumb,
     }));
 
     res.json(files);
@@ -226,6 +233,13 @@ async function purgeGroupChunks(groupId) {
   }
 }
 
+// Return a file's encrypted preview thumbnail (base64), or 404 if none.
+const getThumb = (req, res) => {
+  const thumb = getFileThumb(req.params.groupId, req.params.filename);
+  if (!thumb) return res.status(404).json({ message: "No thumbnail" });
+  res.json({ thumb });
+};
+
 // Rename a file in place. Only the DB filename changes — chunks live under the
 // file's stable id, so nothing on the nodes moves.
 const renameFile = (req, res) => {
@@ -268,4 +282,4 @@ const deleteFile = async (req, res) => {
   }
 };
 
-module.exports = { uploadFile, getFiles, downloadFile, renameFile, deleteFile, purgeGroupChunks };
+module.exports = { uploadFile, getFiles, downloadFile, getThumb, renameFile, deleteFile, purgeGroupChunks };

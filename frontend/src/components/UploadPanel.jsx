@@ -3,7 +3,8 @@ import { io } from "socket.io-client";
 import { useNotify } from "../context/NotificationContext";
 import { useAuth }   from "../context/AuthContext";
 import { loadKey }     from "../lib/groupKeys";
-import { encryptBytes } from "../lib/crypto";
+import { encryptBytes, bytesToB64url } from "../lib/crypto";
+import { makeThumbnailBlob } from "../lib/thumbnail";
 import { Upload, X, FileIcon, CheckCircle, Loader2, AlertCircle, AlertTriangle, RotateCw } from "lucide-react";
 import Modal from "./Modal";
 import { formatBytes } from "../lib/format";
@@ -50,6 +51,18 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
 
     const form = new FormData();
     form.append("file", new Blob([cipher], { type: "application/octet-stream" }), file.name);
+
+    // For images, attach a small encrypted thumbnail so other members can preview
+    // the file without downloading + decrypting the whole thing.
+    if (file.type.startsWith("image/")) {
+      try {
+        const thumbBlob = await makeThumbnailBlob(file);
+        if (thumbBlob) {
+          const thumbCipher = await encryptBytes(key, await thumbBlob.arrayBuffer());
+          form.append("thumb", bytesToB64url(thumbCipher));
+        }
+      } catch { /* a missing thumbnail just falls back to the type icon */ }
+    }
 
     const onProg = ({ filename, percent }) => { if (filename === file.name) setItem(item.id, { progress: percent }); };
     socket.on("upload-progress", onProg);
