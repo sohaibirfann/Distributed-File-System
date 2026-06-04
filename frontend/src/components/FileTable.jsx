@@ -44,6 +44,9 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   const [fileToRename, setFileToRename]     = useState(null);
   const [renameValue, setRenameValue]       = useState("");
   const [renaming, setRenaming]             = useState(false);
+  const [selected, setSelected]             = useState(() => new Set()); // multi-select (filenames)
+  const [confirmBulk, setConfirmBulk]       = useState(false);
+  const [bulkDeleting, setBulkDeleting]     = useState(false);
   const [previewFile, setPreviewFile]       = useState(null);
   const [previewType, setPreviewType]       = useState(null);
   const [previewContent, setPreviewContent] = useState("");
@@ -52,6 +55,8 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   const [failedDl, setFailedDl]             = useState([]);   // downloads that errored — show a Retry
 
   const base = `${API}/api/groups/${groupId}/files`;
+
+  useEffect(() => { setSelected(new Set()); }, [groupId]); // drop selection when switching groups
 
   useEffect(() => {
     if (!groupId) return;
@@ -199,6 +204,30 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
     setRenaming(false);
   }
 
+  // ── Multi-select ──────────────────────────────────────────────────────────
+  function toggleSelect(name) {
+    setSelected((s) => { const n = new Set(s); n.has(name) ? n.delete(name) : n.add(name); return n; });
+  }
+  function toggleSelectAll() {
+    setSelected((s) => (s.size === sorted.length ? new Set() : new Set(sorted.map((f) => f.filename))));
+  }
+  async function bulkDownload() {
+    for (const name of [...selected]) await handleDownload(name); // sequential — avoid hammering nodes
+  }
+  async function doBulkDelete() {
+    setBulkDeleting(true);
+    const names = [...selected];
+    const results = await Promise.allSettled(
+      names.map((n) => authFetch(`${base}/delete/${encodeURIComponent(n)}`, { method: "DELETE" })),
+    );
+    const ok = results.filter((r) => r.status === "fulfilled" && r.value.ok).length;
+    notify[ok === names.length ? "success" : "error"](`Deleted ${ok} of ${names.length} file${names.length === 1 ? "" : "s"}`);
+    setConfirmBulk(false);
+    setBulkDeleting(false);
+    setSelected(new Set());
+    fetchFiles();
+  }
+
   const [sort, setSort] = useState({ col: "uploadedAt", dir: "desc" });
 
   function handleSort(col) {
@@ -304,9 +333,36 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
           )}
         </div>
       ) : (
+      <>
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 px-6 py-2 bg-blue-50/90 dark:bg-[var(--accent)]/15 border-b border-blue-200/60 dark:border-[var(--accent)]/20 text-sm">
+          <span className="font-medium text-blue-700 dark:text-[var(--accent-bright)]">{selected.size} selected</span>
+          <div className="flex-1" />
+          <button onClick={bulkDownload} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-gray-700 dark:text-neutral-200 hover:bg-white/60 dark:hover:bg-white/10 transition-colors">
+            <Download size={13} /> Download
+          </button>
+          {canManage && (
+            <button onClick={() => setConfirmBulk(true)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
+              <Trash2 size={13} /> Delete
+            </button>
+          )}
+          <button onClick={() => setSelected(new Set())} className="px-2.5 py-1 rounded-lg text-xs font-medium text-gray-500 dark:text-neutral-400 hover:bg-white/60 dark:hover:bg-white/10 transition-colors">
+            Clear
+          </button>
+        </div>
+      )}
       <table className="w-full text-sm">
         <thead className="sticky top-0 z-10 bg-[#f3f3f3]/80 dark:bg-[var(--bg)]/70 backdrop-blur-xl border-b border-gray-200/70 dark:border-neutral-800">
               <tr>
+                <th className="w-10 pl-4 pr-0 py-2.5">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all files"
+                    checked={sorted.length > 0 && selected.size === sorted.length}
+                    onChange={toggleSelectAll}
+                    className="accent-blue-600 dark:accent-[var(--accent)] align-middle"
+                  />
+                </th>
                 {[
                   { label: "Name",   col: "filename",   cls: "" },
                   { label: "Size",   col: "size",       cls: "hidden sm:table-cell" },
@@ -331,6 +387,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
               {loading && files.length === 0 ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <tr key={`sk-${i}`}>
+                    <td className="w-10 pl-4 pr-0 py-2.5" />
                     <td className="px-6 py-2.5">
                       <div className="flex items-center gap-3">
                         <Skeleton className="w-8 h-8 rounded-lg" />
@@ -345,7 +402,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-16 text-center">
+                  <td colSpan="6" className="px-6 py-16 text-center">
                     {apiError && files.length === 0 ? (
                       <>
                         <WifiOff size={28} className="mx-auto mb-3 text-red-400 dark:text-[var(--accent-bright)]" />
@@ -371,7 +428,16 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                 sorted.map((file, i) => {
                   const { icon: Icon, bg, color } = getType(file.filename);
                   return (
-                    <tr key={i} className="group hover:bg-gray-50 dark:hover:bg-neutral-800/40 transition-colors">
+                    <tr key={i} className={`group transition-colors ${selected.has(file.filename) ? "bg-blue-50/60 dark:bg-[var(--accent)]/10" : "hover:bg-gray-50 dark:hover:bg-neutral-800/40"}`}>
+                      <td className="w-10 pl-4 pr-0 py-2.5">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${file.filename}`}
+                          checked={selected.has(file.filename)}
+                          onChange={() => toggleSelect(file.filename)}
+                          className="accent-blue-600 dark:accent-[var(--accent)] align-middle"
+                        />
+                      </td>
                       <td className="px-6 py-2.5 max-w-0 w-full">
                         <div className="flex items-center gap-3 min-w-0">
                           <FileThumb filename={file.filename} size={file.size} base={base} groupId={groupId} authFetch={authFetch} className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
@@ -476,6 +542,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
               )}
             </tbody>
           </table>
+      </>
       )}
 
       {/* Preview modal */}
@@ -512,6 +579,29 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
               </button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* Bulk delete confirm */}
+      {confirmBulk && (
+        <Modal onClose={() => setConfirmBulk(false)} label="Delete selected files" dismissable={!bulkDeleting}>
+          <div className="w-11 h-11 bg-red-50 dark:bg-[var(--accent)]/10 rounded-xl flex items-center justify-center mb-4">
+            <AlertTriangle size={20} className="text-red-500" />
+          </div>
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Delete {selected.size} file{selected.size === 1 ? "" : "s"}?</h3>
+          <p className="text-sm text-gray-500 dark:text-neutral-400 mb-5">
+            The selected files will be permanently removed from all nodes. This can't be undone.
+          </p>
+          <div className="flex gap-2.5">
+            <button onClick={() => setConfirmBulk(false)} disabled={bulkDeleting}
+              className="flex-1 py-2.5 text-sm font-medium border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40">
+              Cancel
+            </button>
+            <button onClick={doBulkDelete} disabled={bulkDeleting}
+              className="flex-1 py-2.5 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors disabled:opacity-60">
+              {bulkDeleting ? "Deleting…" : "Delete"}
+            </button>
+          </div>
         </Modal>
       )}
 
