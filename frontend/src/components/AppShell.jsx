@@ -251,7 +251,10 @@ export default function AppShell() {
       {/* Solid fill so it covers the window's Mica — only the sidebar +
           title bar stay translucent (transparent → Mica shows through). */}
       <main className="flex-1 overflow-y-auto bg-[#f3f3f3] dark:bg-[var(--bg)]">
-        <Outlet context={{ refreshGroups: fetchGroups, groups, openNew: () => setModal("new"), openJoin: () => setModal("join") }} />
+        {/* Keyed by path so switching group/page re-runs the enter animation. */}
+        <div key={location.pathname} className="page-enter h-full">
+          <Outlet context={{ refreshGroups: fetchGroups, groups, openNew: () => setModal("new"), openJoin: () => setModal("join") }} />
+        </div>
       </main>
 
       {modal && (

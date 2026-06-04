@@ -212,3 +212,18 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   .dialog-backdrop, .dialog-panel { animation: none; }
 }
+
+/* ── Page / group transition ────────────────────────────────── */
+/* The routed content (group view, groups home, settings) fades + rises a touch
+   when the route changes. Deliberately NO animation-fill-mode: the transform
+   must not linger, or it would establish a containing block and break the file
+   table's sticky header. */
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+.page-enter { animation: pageEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter { animation: none; }
+}
