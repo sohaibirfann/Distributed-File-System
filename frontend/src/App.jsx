@@ -3,7 +3,6 @@ import { ThemeProvider }        from "./context/ThemeContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { TitleProvider }         from "./context/TitleContext";
-import Landing    from "./pages/Landing";
 import Login      from "./pages/Login";
 import AppShell   from "./components/AppShell";
 import GroupsHome from "./pages/GroupsHome";
@@ -14,18 +13,11 @@ import TitleBar   from "./components/TitleBar";
 import { isDesktop } from "./lib/platform";
 import { hasCoordinator } from "./lib/api";
 
-// The app (login + groups) lives in the desktop client. On the production web
-// build it's gated off — only the landing page is served there. Dev keeps it
-// reachable in the browser for convenience.
-const appAllowed = isDesktop() || import.meta.env.DEV;
-
-function RequireApp({ children }) {
-  return appAllowed ? children : <Navigate to="/" replace />;
-}
-
+// DFS is a desktop app; the marketing landing lives in its own repo. In the
+// browser (dev) the same routes load straight into login → groups.
 function RequireAuth({ children }) {
   const { token } = useAuth();
-  return token ? children : <Navigate to="/" replace />;
+  return token ? children : <Navigate to="/login" replace />;
 }
 
 function App() {
@@ -39,16 +31,16 @@ function App() {
             <div className="flex-1 min-h-0 overflow-y-auto">
           {isDesktop() && !hasCoordinator() ? <CoordinatorSetup /> : (
           <Routes>
-            <Route path="/"       element={isDesktop() ? <Navigate to="/login" replace /> : <Landing />} />
-            <Route path="/login"  element={<RequireApp><Login /></RequireApp>} />
-            <Route element={<RequireApp><RequireAuth><AppShell /></RequireAuth></RequireApp>}>
+            <Route path="/"       element={<Navigate to="/login" replace />} />
+            <Route path="/login"  element={<Login />} />
+            <Route element={<RequireAuth><AppShell /></RequireAuth>}>
               <Route path="/groups"     element={<GroupsHome />} />
               <Route path="/groups/:id" element={<GroupView />} />
               <Route path="/settings"   element={<Settings />} />
             </Route>
             <Route path="/admin"      element={<Navigate to="/groups" replace />} />
             <Route path="/user"       element={<Navigate to="/groups" replace />} />
-            <Route path="*"       element={<Navigate to="/" replace />} />
+            <Route path="*"       element={<Navigate to="/login" replace />} />
           </Routes>
           )}
             </div>

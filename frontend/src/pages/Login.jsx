@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth }  from "../context/AuthContext";
-import { Database, Eye, EyeOff, ArrowLeft } from "lucide-react";
-import { isDesktop } from "../lib/platform";
+import { Database, Eye, EyeOff } from "lucide-react";
 
 import { getApiUrl } from "../lib/api";
 const API = getApiUrl();
@@ -78,15 +77,6 @@ export default function Login() {
 
   return (
     <div className="relative min-h-full flex flex-col">
-      {!isDesktop() && (
-        <button
-          onClick={() => navigate("/")}
-          className="absolute top-4 left-4 z-10 flex items-center gap-1.5 p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:text-neutral-500 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors text-xs font-medium"
-        >
-          <ArrowLeft size={14} />
-          Back
-        </button>
-      )}
       <div className="flex-1 flex flex-col items-center justify-center px-4">
         <div className="w-16 h-16 bg-blue-600 dark:bg-[var(--accent)] rounded-2xl flex items-center justify-center mb-5 shadow-lg shadow-blue-500/20 dark:shadow-[var(--accent)]/20">
           <Database size={28} className="text-[var(--on-accent)]" />

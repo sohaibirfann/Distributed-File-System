@@ -152,19 +152,6 @@ body::before {
   to   { opacity: 1; }
 }
 
-/* Landing-page entrance: gentle fade + rise (staggered via inline animation-delay). */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(18px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.reveal { animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
-
-/* Slow drift for the hero glow. */
-@keyframes glowDrift {
-  0%, 100% { transform: translate(-50%, 0) scale(1); opacity: 0.8; }
-  50%      { transform: translate(-50%, -3%) scale(1.08); opacity: 1; }
-}
-
 /* Sidebar labels ease in once the rail has widened (paired with the JS reveal
    delay), so text never flashes squished in the narrow panel. */
 .labels-in span,
