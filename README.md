@@ -34,7 +34,6 @@ only on members' devices, delivered through a group's invite.
 | `backend/`  | The coordinator (Express + SQLite + Socket.io) and a standalone storage-node server (`nodeServer.js`) for dev/headless use. |
 | `frontend/` | The React + Vite app (UI). Bundled into the desktop client; also runs in the browser for dev. |
 | `desktop/`  | The Electron shell — frameless window, settings, and an **embedded storage node**. |
-| `landing/`  | A self-contained static landing page (`index.html`, all assets inline). |
 | `spike/`    | WebRTC signaling/peer experiments (not part of the app yet). |
 
 ## Quick start (dev)
