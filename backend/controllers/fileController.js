@@ -185,39 +185,52 @@ const downloadFile = async (req, res) => {
 |--------------------------------------------------------------------------
 */
 
+// Tell every node holding this file's chunks to delete them, and drop any local
+// cache copy. Best-effort (offline nodes are skipped); does NOT touch the DB.
+async function purgeFileChunks(record, NODE_MAP = getNodeMap()) {
+  await Promise.all(
+    record.chunks.flatMap((chunk) =>
+      chunk.users.map(async (user) => {
+        const nodeUrl = NODE_MAP[user];
+        if (!nodeUrl) return;
+        try {
+          await fetch(`${nodeUrl}/delete-chunk`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ fileId: record.id, chunkId: chunk.chunkId }),
+            signal:  AbortSignal.timeout(3000),
+          });
+        } catch {
+          console.log(`Failed to delete chunk ${chunk.chunkId} from ${user}`);
+        }
+      }),
+    ),
+  );
+  const cachedPath = path.join(SHARED_FOLDER, record.id);
+  try { if (fs.existsSync(cachedPath)) fs.unlinkSync(cachedPath); } catch { /* ignore */ }
+}
+
+// GC every chunk for a group's files across member nodes — called *before* a
+// group is deleted, while the chunk→node map still exists. Best-effort.
+async function purgeGroupChunks(groupId) {
+  const NODE_MAP = getNodeMap();
+  for (const f of getGroupFiles(groupId)) {
+    const record = getGroupFileByName(groupId, f.filename);
+    if (record) await purgeFileChunks(record, NODE_MAP);
+  }
+}
+
 const deleteFile = async (req, res) => {
   try {
     const { groupId, filename } = req.params;
     const record = getGroupFileByName(groupId, filename);
     if (!record) return res.status(404).json({ message: "File not found" });
 
-    const NODE_MAP = getNodeMap();
-    const io       = req.app.get("io");
+    const io = req.app.get("io");
     io.emit("log", `[delete] ${filename} · requested by ${clientIP(req)}`);
 
-    await Promise.all(
-      record.chunks.flatMap((chunk) =>
-        chunk.users.map(async (user) => {
-          const nodeUrl = NODE_MAP[user];
-          if (!nodeUrl) return;
-          try {
-            await fetch(`${nodeUrl}/delete-chunk`, {
-              method:  "POST",
-              headers: { "Content-Type": "application/json" },
-              body:    JSON.stringify({ fileId: record.id, chunkId: chunk.chunkId }),
-              signal:  AbortSignal.timeout(3000),
-            });
-          } catch {
-            console.log(`Failed to delete chunk ${chunk.chunkId} from ${user}`);
-          }
-        }),
-      ),
-    );
-
+    await purgeFileChunks(record);
     deleteFileRecord(record.id);
-
-    const cachedPath = path.join(SHARED_FOLDER, record.id);
-    if (fs.existsSync(cachedPath)) fs.unlinkSync(cachedPath);
 
     io.emit("log", `[delete] ${filename} · removed from all nodes and cache`);
     res.json({ success: true });
@@ -227,4 +240,4 @@ const deleteFile = async (req, res) => {
   }
 };
 
-module.exports = { uploadFile, getFiles, downloadFile, deleteFile };
+module.exports = { uploadFile, getFiles, downloadFile, deleteFile, purgeGroupChunks };

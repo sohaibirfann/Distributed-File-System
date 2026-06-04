@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 const { requireAuth } = require("../middleware/auth");
+const { purgeGroupChunks } = require("../controllers/fileController");
 const {
   createGroup,
   getGroup,
@@ -90,10 +91,14 @@ router.patch("/:id", requireMember, requireOwner, (req, res) => {
   res.json(updateGroup(req.params.id, { name, emoji: req.body.emoji, color: req.body.color }));
 });
 
-// DELETE /api/groups/:id — delete the group (owner only). Cascades members,
-// invites and file metadata. NB: encrypted chunks already pushed to member
-// nodes become orphaned — GC of those is deferred (see PLAN.md).
-router.delete("/:id", requireMember, requireOwner, (req, res) => {
+// DELETE /api/groups/:id — delete the group (owner only). First GCs the group's
+// encrypted chunks off member nodes, then cascades members, invites and file
+// metadata in the DB.
+router.delete("/:id", requireMember, requireOwner, async (req, res) => {
+  // Best-effort: wipe the group's encrypted chunks off member nodes before the
+  // DB cascade removes the chunk→node map. A node being offline won't block this.
+  try { await purgeGroupChunks(req.params.id); }
+  catch (e) { console.error("[group delete] chunk GC failed:", e.message); }
   deleteGroup(req.params.id);
   res.json({ success: true });
 });
