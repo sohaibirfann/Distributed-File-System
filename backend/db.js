@@ -87,6 +87,9 @@ try { db.exec(`ALTER TABLE nodes ADD COLUMN user_id INTEGER`); } catch { /* alre
 // + first letter of the name).
 try { db.exec(`ALTER TABLE groups ADD COLUMN emoji TEXT`); } catch { /* already present */ }
 try { db.exec(`ALTER TABLE groups ADD COLUMN color TEXT`); } catch { /* already present */ }
+// Optional usage cap on invites. max_uses NULL = unlimited; uses = times redeemed.
+try { db.exec(`ALTER TABLE invites ADD COLUMN max_uses INTEGER`); } catch { /* already present */ }
+try { db.exec(`ALTER TABLE invites ADD COLUMN uses INTEGER NOT NULL DEFAULT 0`); } catch { /* already present */ }
 
 // ── Nodes ─────────────────────────────────────────────────────────────────────
 
@@ -145,10 +148,11 @@ const stmts = {
                                  WHERE m.group_id = ? ORDER BY m.joined_at`),
 
   // Invites
-  insertInvite:     db.prepare(`INSERT INTO invites (code, group_id, created_by, expires_at) VALUES (?, ?, ?, ?)`),
+  insertInvite:     db.prepare(`INSERT INTO invites (code, group_id, created_by, expires_at, max_uses) VALUES (?, ?, ?, ?, ?)`),
   getInviteByCode:  db.prepare(`SELECT * FROM invites WHERE code = ?`),
   revokeInviteCode: db.prepare(`UPDATE invites SET revoked = 1 WHERE code = ?`),
-  listGroupInvites: db.prepare(`SELECT code, created_at, expires_at FROM invites
+  bumpInviteUse:    db.prepare(`UPDATE invites SET uses = uses + 1 WHERE code = ?`),
+  listGroupInvites: db.prepare(`SELECT code, created_at, expires_at, max_uses, uses FROM invites
                                   WHERE group_id = ? AND revoked = 0 ORDER BY created_at DESC`),
 };
 
@@ -336,18 +340,25 @@ function deleteGroup(id) {
 
 // ── Invite helpers ────────────────────────────────────────────────────────────
 
-function createInvite(groupId, createdByUserId, expiresAt = null) {
+function createInvite(groupId, createdByUserId, expiresAt = null, maxUses = null) {
   const code = crypto.randomBytes(9).toString("base64url"); // ~12 url-safe chars
-  stmts.insertInvite.run(code, groupId, createdByUserId, expiresAt);
+  stmts.insertInvite.run(code, groupId, createdByUserId, expiresAt, maxUses);
   return code;
 }
 
-// Returns the invite row only if it exists, is not revoked, and not expired.
+// Returns the invite row only if it exists and is not revoked, expired, or
+// already used up (when a max_uses cap is set).
 function getValidInvite(code) {
   const row = stmts.getInviteByCode.get(code);
   if (!row || row.revoked) return null;
   if (row.expires_at && new Date(row.expires_at) < new Date()) return null;
+  if (row.max_uses != null && row.uses >= row.max_uses) return null;
   return row;
+}
+
+// Record one redemption of an invite (called after a successful join).
+function consumeInvite(code) {
+  stmts.bumpInviteUse.run(code);
 }
 
 function revokeInvite(code) {
@@ -392,6 +403,7 @@ module.exports = {
   // invites
   createInvite,
   getValidInvite,
+  consumeInvite,
   revokeInvite,
   listGroupInvites,
 };

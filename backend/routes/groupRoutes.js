@@ -20,6 +20,7 @@ const {
   transferOwnership,
   createInvite,
   getValidInvite,
+  consumeInvite,
   revokeInvite,
   listGroupInvites,
 } = require("../db");
@@ -72,7 +73,11 @@ router.post("/join", (req, res) => {
   const invite = getValidInvite(code);
   if (!invite) return res.status(404).json({ error: "Invalid or expired invite" });
 
+  // Only count a redemption when it actually adds a new member — re-opening an
+  // invite you already used (e.g. to reload the key) shouldn't burn a use.
+  const alreadyMember = isMember(invite.group_id, req.user.id);
   addMember(invite.group_id, req.user.id);
+  if (!alreadyMember) consumeInvite(code);
   res.json(getGroup(invite.group_id));
 });
 
@@ -160,8 +165,9 @@ router.post("/:id/invites", requireMember, (req, res) => {
     if (isNaN(d.getTime())) return res.status(400).json({ error: "invalid expiresAt" });
     expiresAt = d.toISOString();
   }
-  const code = createInvite(req.params.id, req.user.id, expiresAt);
-  res.status(201).json({ code, expires_at: expiresAt });
+  const maxUses = req.body.singleUse ? 1 : null; // single-use → cap at one redemption
+  const code = createInvite(req.params.id, req.user.id, expiresAt, maxUses);
+  res.status(201).json({ code, expires_at: expiresAt, max_uses: maxUses });
 });
 
 // DELETE /api/groups/:id/invites/:code — revoke an invite (members only)

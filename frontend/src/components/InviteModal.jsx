@@ -31,6 +31,14 @@ ${invite}
 Heads up: this code also unlocks the group's encrypted files, so only share it with people you trust.`;
 }
 
+// Usage state for a capped (max_uses) invite. Null for unlimited invites.
+function usageLabel(inv) {
+  if (inv.max_uses == null) return null;
+  if (inv.uses >= inv.max_uses) return { text: "Used", spent: true };
+  if (inv.max_uses === 1)      return { text: "One-time", spent: false };
+  return { text: `${inv.max_uses - inv.uses} of ${inv.max_uses} left`, spent: false };
+}
+
 // Human-readable remaining lifetime of an invite.
 function expiryLabel(iso) {
   if (!iso) return { text: "No expiry", expired: false };
@@ -54,6 +62,7 @@ export default function InviteModal({ groupId, groupName, onClose }) {
   const [invites, setInvites] = useState(null);  // null = loading
   const [error, setError]     = useState(keyB64 ? "" : "This device doesn't hold this group's key, so it can't create invites.");
   const [expiry, setExpiry]   = useState("7d");
+  const [singleUse, setSingleUse] = useState(false);
   const [creating, setCreating] = useState(false);
   const [copied, setCopied]   = useState("");     // the code just copied
   const panelRef = useDialog(true, onClose);
@@ -79,7 +88,7 @@ export default function InviteModal({ groupId, groupName, onClose }) {
       const expiresAt = opt?.ms == null ? null : new Date(Date.now() + opt.ms).toISOString();
       const res = await authFetch(base, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expiresAt }),
+        body: JSON.stringify({ expiresAt, singleUse }),
       });
       if (!res.ok) throw new Error();
       await load();
@@ -152,6 +161,15 @@ export default function InviteModal({ groupId, groupName, onClose }) {
                 Create
               </button>
             </div>
+            <label className="flex items-center gap-2 mt-2.5 text-xs text-gray-600 dark:text-neutral-300 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={singleUse}
+                onChange={(e) => setSingleUse(e.target.checked)}
+                className="accent-blue-600 dark:accent-[var(--accent)]"
+              />
+              One-time use — the invite stops working after one person joins
+            </label>
 
             {/* Active invites */}
             <div className="mt-5">
@@ -164,12 +182,20 @@ export default function InviteModal({ groupId, groupName, onClose }) {
                 <ul className="space-y-2 max-h-56 overflow-y-auto">
                   {invites.map((inv) => {
                     const exp = expiryLabel(inv.expires_at);
+                    const use = usageLabel(inv);
                     return (
                       <li key={inv.code} className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-neutral-800/60 rounded-xl">
                         <div className="min-w-0 flex-1">
                           <code className="block text-xs font-mono text-gray-900 dark:text-white truncate select-all" title={inv.code}>{inv.code}</code>
-                          <span className={`inline-flex items-center gap-1 text-[11px] mt-0.5 ${exp.expired ? "text-red-500" : "text-gray-400 dark:text-neutral-500"}`}>
-                            <Clock size={10} /> {exp.text}
+                          <span className="flex items-center gap-2 mt-0.5">
+                            <span className={`inline-flex items-center gap-1 text-[11px] ${exp.expired ? "text-red-500" : "text-gray-400 dark:text-neutral-500"}`}>
+                              <Clock size={10} /> {exp.text}
+                            </span>
+                            {use && (
+                              <span className={`text-[11px] ${use.spent ? "text-red-500" : "text-gray-400 dark:text-neutral-500"}`}>
+                                · {use.text}
+                              </span>
+                            )}
                           </span>
                         </div>
                         <button
