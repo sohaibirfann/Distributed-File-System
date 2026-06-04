@@ -220,7 +220,7 @@ export default function GroupView() {
           ) : <Skeleton className="h-5 w-32" />}
 
           <button
-            onClick={() => { setMenuOpen(false); setMembersOpen((o) => !o); }}
+            onClick={() => { setMenuOpen(false); setMembersOpen((o) => { if (!o) fetchGroup(); return !o; }); }}
             className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium text-gray-500 dark:text-neutral-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors shrink-0"
           >
             <Users size={13} />
@@ -298,10 +298,19 @@ export default function GroupView() {
           <>
             <div className="fixed inset-0 z-30" onClick={() => setMembersOpen(false)} />
             <div className="absolute top-[3.25rem] left-6 z-40 w-60 glass bg-white/90 dark:bg-neutral-900/90 rounded-xl border border-gray-100 dark:border-neutral-800 p-2 shadow-lg">
-              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-neutral-500">Members</p>
+              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-neutral-500">
+                Members
+                {(() => { const n = group?.members?.filter((m) => m.online).length || 0; return n > 0 ? ` · ${n} online` : ""; })()}
+              </p>
               {group?.members?.map((m) => (
                 <div key={m.user_id} className="group/mem flex items-center justify-between gap-2 px-2 py-1.5 text-sm">
-                  <span className="text-gray-800 dark:text-neutral-200 truncate">{m.username}</span>
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span
+                      className={`w-2 h-2 rounded-full shrink-0 ${m.online ? "bg-emerald-500" : "bg-gray-300 dark:bg-neutral-600"}`}
+                      title={m.online ? "Online" : "Offline"}
+                    />
+                    <span className="text-gray-800 dark:text-neutral-200 truncate">{m.username}</span>
+                  </span>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className={`flex items-center gap-1 text-xs font-medium ${m.role === "owner" ? "text-amber-600 dark:text-amber-400" : "text-gray-400 dark:text-neutral-500"}`}>
                       {m.role === "owner" ? <Crown size={11} /> : <UserPlus size={11} />}{m.role}

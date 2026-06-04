@@ -150,7 +150,10 @@ const stmts = {
   getMemberRole:    db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`),
   setMemberRole:    db.prepare(`UPDATE group_members SET role = ? WHERE group_id = ? AND user_id = ?`),
   removeMemberRow:  db.prepare(`DELETE FROM group_members WHERE group_id = ? AND user_id = ?`),
-  listMembers:      db.prepare(`SELECT m.user_id, m.role, m.joined_at, u.username
+  listMembers:      db.prepare(`SELECT m.user_id, m.role, m.joined_at, u.username,
+                                   EXISTS(SELECT 1 FROM nodes n
+                                            WHERE n.user_id = m.user_id
+                                              AND n.last_seen > unixepoch() - 30) AS online
                                   FROM group_members m JOIN users u ON u.id = m.user_id
                                  WHERE m.group_id = ? ORDER BY m.joined_at`),
 
