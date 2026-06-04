@@ -9,10 +9,11 @@ import Skeleton from "./Skeleton";
 import FileThumb from "./FileThumb";
 import FilePreviewModal from "./FilePreviewModal";
 import {
-  Download, Eye, Trash2, Pencil, AlertTriangle, WifiOff,
+  Download, Eye, Trash2, Pencil, WifiOff,
   File, HardDrive, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, RotateCw,
 } from "lucide-react";
 import Modal from "./Modal";
+import ConfirmDialog from "./ConfirmDialog";
 
 import { getApiUrl } from "../lib/api";
 const API = getApiUrl();
@@ -211,8 +212,41 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   function toggleSelectAll() {
     setSelected((s) => (s.size === sorted.length ? new Set() : new Set(sorted.map((f) => f.filename))));
   }
+  // Decrypt the selected files on-device and hand back a single .zip.
   async function bulkDownload() {
-    for (const name of [...selected]) await handleDownload(name); // sequential — avoid hammering nodes
+    const names = [...selected];
+    if (names.length === 0) return;
+    const id = notify.loading(`Preparing ${names.length} file${names.length === 1 ? "" : "s"}…`);
+    try {
+      const key = await loadKey(groupId);
+      if (!key) throw new Error("This device doesn't hold this group's key");
+
+      const { default: JSZip } = await import("jszip"); // lazy — keeps it out of the main bundle
+      const zip = new JSZip();
+      let ok = 0;
+      for (const name of names) {
+        try {
+          const res = await authFetch(`${base}/download/${encodeURIComponent(name)}`);
+          if (!res.ok) throw new Error();
+          zip.file(name, await decryptBytes(key, await res.arrayBuffer()));
+          ok++;
+        } catch { /* skip this one; reported in the summary */ }
+      }
+      if (ok === 0) throw new Error("Couldn't fetch any of the selected files");
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "dfs-files.zip";
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+
+      notify.dismiss(id);
+      notify[ok === names.length ? "success" : "error"](`Zipped ${ok} of ${names.length} file${names.length === 1 ? "" : "s"}`);
+    } catch (err) {
+      notify.dismiss(id);
+      notify.error(err.message || "Download failed");
+    }
   }
   async function doBulkDelete() {
     setBulkDeleting(true);
@@ -339,7 +373,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
           <span className="font-medium text-blue-700 dark:text-[var(--accent-bright)]">{selected.size} selected</span>
           <div className="flex-1" />
           <button onClick={bulkDownload} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-gray-700 dark:text-neutral-200 hover:bg-white/60 dark:hover:bg-white/10 transition-colors">
-            <Download size={13} /> Download
+            <Download size={13} /> Download zip
           </button>
           {canManage && (
             <button onClick={() => setConfirmBulk(true)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
@@ -584,60 +618,26 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
 
       {/* Bulk delete confirm */}
       {confirmBulk && (
-        <Modal onClose={() => setConfirmBulk(false)} label="Delete selected files" dismissable={!bulkDeleting}>
-          <div className="w-11 h-11 bg-red-50 dark:bg-[var(--accent)]/10 rounded-xl flex items-center justify-center mb-4">
-            <AlertTriangle size={20} className="text-red-500" />
-          </div>
-          <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Delete {selected.size} file{selected.size === 1 ? "" : "s"}?</h3>
-          <p className="text-sm text-gray-500 dark:text-neutral-400 mb-5">
-            The selected files will be permanently removed from all nodes. This can't be undone.
-          </p>
-          <div className="flex gap-2.5">
-            <button onClick={() => setConfirmBulk(false)} disabled={bulkDeleting}
-              className="flex-1 py-2.5 text-sm font-medium border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40">
-              Cancel
-            </button>
-            <button onClick={doBulkDelete} disabled={bulkDeleting}
-              className="flex-1 py-2.5 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors disabled:opacity-60">
-              {bulkDeleting ? "Deleting…" : "Delete"}
-            </button>
-          </div>
-        </Modal>
+        <ConfirmDialog
+          label="Delete selected files"
+          title={`Delete ${selected.size} file${selected.size === 1 ? "" : "s"}?`}
+          confirmLabel="Delete" busyLabel="Deleting…" busy={bulkDeleting}
+          onConfirm={doBulkDelete} onClose={() => setConfirmBulk(false)}
+        >
+          The selected files will be permanently removed from all nodes. This can't be undone.
+        </ConfirmDialog>
       )}
 
-      {/* Delete modal */}
+      {/* Delete confirm */}
       {fileToDelete && (
-        <Modal onClose={() => setFileToDelete(null)} label="Delete file" dismissable={!deleting}>
-            <div className="w-11 h-11 bg-red-50 dark:bg-[var(--accent)]/10 rounded-xl flex items-center justify-center mb-4">
-              <AlertTriangle size={20} className="text-red-500" />
-            </div>
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Delete this file?</h3>
-            <p className="text-sm text-gray-500 dark:text-neutral-400 mb-5">
-              <span className="font-medium text-gray-800 dark:text-neutral-200 break-all">{fileToDelete}</span> will be permanently removed from all nodes. This can't be undone.
-            </p>
-            {deleting && (
-              <p className="text-xs text-gray-400 dark:text-neutral-500 mb-4 flex items-center gap-2">
-                <span className="inline-block w-3 h-3 rounded-full border-2 border-red-400 border-t-transparent animate-spin shrink-0" />
-                Removing chunks from all nodes… this may take a moment for large files.
-              </p>
-            )}
-            <div className="flex gap-2.5">
-              <button
-                onClick={() => setFileToDelete(null)}
-                disabled={deleting}
-                className="flex-1 py-2.5 text-sm font-medium border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40 disabled:pointer-events-none"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(fileToDelete)}
-                disabled={deleting}
-                className="flex-1 py-2.5 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors disabled:opacity-60 disabled:pointer-events-none"
-              >
-                {deleting ? "Deleting…" : "Delete"}
-              </button>
-            </div>
-      </Modal>
+        <ConfirmDialog
+          label="Delete file" title="Delete this file?"
+          confirmLabel="Delete" busyLabel="Deleting…" busy={deleting}
+          busyNote="Removing chunks from all nodes… this may take a moment for large files."
+          onConfirm={() => handleDelete(fileToDelete)} onClose={() => setFileToDelete(null)}
+        >
+          <span className="font-medium text-gray-800 dark:text-neutral-200 break-all">{fileToDelete}</span> will be permanently removed from all nodes. This can't be undone.
+        </ConfirmDialog>
       )}
     </>
   );

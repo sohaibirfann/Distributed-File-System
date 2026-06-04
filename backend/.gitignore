@@ -7,3 +7,6 @@ metadata.json
 dfs.db
 dfs.db-shm
 dfs.db-wal
+test-*.db
+test-*.db-shm
+test-*.db-wal

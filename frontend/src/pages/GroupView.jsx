@@ -6,6 +6,7 @@ import { useTitle }  from "../context/TitleContext";
 import { hasKey }    from "../lib/groupKeys";
 import { formatBytes } from "../lib/format";
 import Modal from "../components/Modal";
+import ConfirmDialog from "../components/ConfirmDialog";
 import { COLOR_PALETTE, autoColor, groupColor, groupLabel, isEmojiLabel } from "../lib/groupAvatar";
 import FileTable   from "../components/FileTable";
 import UploadPanel from "../components/UploadPanel";
@@ -494,54 +495,30 @@ export default function GroupView() {
 
       {/* Delete / Leave confirm */}
       {confirm && (
-        <Modal onClose={() => setConfirm(null)} label={confirm === "delete" ? "Delete group" : "Leave group"} dismissable={!confirming}>
-            <div className="w-11 h-11 bg-red-50 dark:bg-red-500/10 rounded-xl flex items-center justify-center mb-4">
-              {confirm === "delete" ? <Trash2 size={20} className="text-red-500" /> : <LogOut size={20} className="text-red-500" />}
-            </div>
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
-              {confirm === "delete" ? "Delete this group?" : "Leave this group?"}
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-neutral-400 mb-5">
-              {confirm === "delete" ? (
-                <><span className="font-medium text-gray-800 dark:text-neutral-200 break-all">{group?.name}</span> and its file list will be removed for everyone. This can't be undone.</>
-              ) : (
-                <>You'll lose access to <span className="font-medium text-gray-800 dark:text-neutral-200 break-all">{group?.name}</span>. You can rejoin later with an invite.</>
-              )}
-            </p>
-            <div className="flex gap-2.5">
-              <button onClick={() => setConfirm(null)} disabled={confirming}
-                className="flex-1 py-2.5 text-sm font-medium border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40">
-                Cancel
-              </button>
-              <button onClick={confirm === "delete" ? doDelete : doLeave} disabled={confirming}
-                className="flex-1 py-2.5 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors disabled:opacity-60">
-                {confirming ? "Working…" : confirm === "delete" ? "Delete" : "Leave"}
-              </button>
-            </div>
-        </Modal>
+        <ConfirmDialog
+          label={confirm === "delete" ? "Delete group" : "Leave group"}
+          title={confirm === "delete" ? "Delete this group?" : "Leave this group?"}
+          icon={confirm === "delete" ? Trash2 : LogOut}
+          confirmLabel={confirm === "delete" ? "Delete" : "Leave"} busyLabel="Working…"
+          busy={confirming} onConfirm={confirm === "delete" ? doDelete : doLeave} onClose={() => setConfirm(null)}
+        >
+          {confirm === "delete" ? (
+            <><span className="font-medium text-gray-800 dark:text-neutral-200 break-all">{group?.name}</span> and its file list will be removed for everyone. This can't be undone.</>
+          ) : (
+            <>You'll lose access to <span className="font-medium text-gray-800 dark:text-neutral-200 break-all">{group?.name}</span>. You can rejoin later with an invite.</>
+          )}
+        </ConfirmDialog>
       )}
 
       {/* Transfer ownership confirm */}
       {transferTo && (
-        <Modal onClose={() => setTransferTo(null)} label="Transfer ownership" dismissable={!transferring}>
-            <div className="w-11 h-11 bg-amber-50 dark:bg-amber-500/10 rounded-xl flex items-center justify-center mb-4">
-              <Crown size={20} className="text-amber-500" />
-            </div>
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Make {transferTo.username} the owner?</h3>
-            <p className="text-sm text-gray-500 dark:text-neutral-400 mb-5">
-              <span className="font-medium text-gray-800 dark:text-neutral-200 break-all">{transferTo.username}</span> will be able to rename, delete and manage members. You'll become a regular member.
-            </p>
-            <div className="flex gap-2.5">
-              <button onClick={() => setTransferTo(null)} disabled={transferring}
-                className="flex-1 py-2.5 text-sm font-medium border border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-40">
-                Cancel
-              </button>
-              <button onClick={doTransfer} disabled={transferring}
-                className="flex-1 py-2.5 text-sm font-medium bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors disabled:opacity-60">
-                {transferring ? "Transferring…" : "Make owner"}
-              </button>
-            </div>
-        </Modal>
+        <ConfirmDialog
+          label="Transfer ownership" title={`Make ${transferTo.username} the owner?`}
+          icon={Crown} tone="warn" confirmLabel="Make owner" busyLabel="Transferring…"
+          busy={transferring} onConfirm={doTransfer} onClose={() => setTransferTo(null)}
+        >
+          <span className="font-medium text-gray-800 dark:text-neutral-200 break-all">{transferTo.username}</span> will be able to rename, delete and manage members. You'll become a regular member.
+        </ConfirmDialog>
       )}
     </div>
   );
