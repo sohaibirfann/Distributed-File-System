@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Database, Minus, Square, Copy, X } from "lucide-react";
 import { useTitle } from "../context/TitleContext";
+import ConnectionStatus from "./ConnectionStatus";
 
 // Custom title bar for the frameless desktop window. The bar itself is a drag
 // region; the controls opt out of dragging so they stay clickable.
@@ -35,6 +36,9 @@ export default function TitleBar() {
       </div>
 
       <div style={noDrag} className="flex items-center h-full">
+        <div className="px-3">
+          <ConnectionStatus />
+        </div>
         <button
           onClick={() => controls.minimize()}
           className="h-full px-3.5 flex items-center text-gray-500 dark:text-neutral-400 hover:bg-gray-200/70 dark:hover:bg-neutral-800 transition-colors"
