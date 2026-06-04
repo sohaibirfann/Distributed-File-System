@@ -148,6 +148,8 @@ const stmts = {
   insertInvite:     db.prepare(`INSERT INTO invites (code, group_id, created_by, expires_at) VALUES (?, ?, ?, ?)`),
   getInviteByCode:  db.prepare(`SELECT * FROM invites WHERE code = ?`),
   revokeInviteCode: db.prepare(`UPDATE invites SET revoked = 1 WHERE code = ?`),
+  listGroupInvites: db.prepare(`SELECT code, created_at, expires_at FROM invites
+                                  WHERE group_id = ? AND revoked = 0 ORDER BY created_at DESC`),
 };
 
 // ── Node helpers ──────────────────────────────────────────────────────────────
@@ -352,6 +354,12 @@ function revokeInvite(code) {
   stmts.revokeInviteCode.run(code);
 }
 
+// Active (non-revoked) invites for a group, newest first. Expired-but-not-revoked
+// ones are included so the UI can show their state and let a member clear them.
+function listGroupInvites(groupId) {
+  return stmts.listGroupInvites.all(groupId);
+}
+
 module.exports = {
   db,
   registerNode,
@@ -385,4 +393,5 @@ module.exports = {
   createInvite,
   getValidInvite,
   revokeInvite,
+  listGroupInvites,
 };

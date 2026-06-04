@@ -1,12 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { buildInvite, getKeyB64 } from "../lib/groupKeys";
 import { useDialog } from "../lib/useDialog";
-import { X, Copy, Check, UserPlus, ShieldAlert } from "lucide-react";
+import { X, Copy, Check, UserPlus, ShieldAlert, Clock, Trash2, Plus, Loader2 } from "lucide-react";
 
 import { getApiUrl } from "../lib/api";
 const API = getApiUrl();
+
+// Expiry presets for new invites. Default to 7 days — a short-lived link shrinks
+// the window if an invite leaks (the code also unlocks the group's files).
+const EXPIRY_OPTS = [
+  { key: "1h",    label: "1 hour",  ms: 3_600_000 },
+  { key: "24h",   label: "24 hours", ms: 86_400_000 },
+  { key: "7d",    label: "7 days",  ms: 7 * 86_400_000 },
+  { key: "30d",   label: "30 days", ms: 30 * 86_400_000 },
+  { key: "never", label: "No expiry", ms: null },
+];
 
 function inviteMessage(groupName, invite) {
   return `Join my "${groupName}" group on DFS 🔒
@@ -21,88 +31,175 @@ ${invite}
 Heads up: this code also unlocks the group's encrypted files, so only share it with people you trust.`;
 }
 
+// Human-readable remaining lifetime of an invite.
+function expiryLabel(iso) {
+  if (!iso) return { text: "No expiry", expired: false };
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return { text: "Expired", expired: true };
+  const days = Math.round(ms / 86_400_000);
+  const hrs  = Math.round(ms / 3_600_000);
+  const mins = Math.round(ms / 60_000);
+  if (days >= 1) return { text: `${days}d left`, expired: false };
+  if (hrs  >= 1) return { text: `${hrs}h left`,  expired: false };
+  return { text: `${mins}m left`, expired: false };
+}
+
 export default function InviteModal({ groupId, groupName, onClose }) {
   const { authFetch } = useAuth();
   const notify        = useNotify();
 
-  const [invite, setInvite]   = useState("");   // joinCode#key
-  const [error, setError]     = useState("");
-  const [copied, setCopied]   = useState("");   // "" | "invite" | "code"
-  const panelRef = useDialog(true, onClose);     // mounted == open
+  const keyB64 = getKeyB64(groupId);
+  const base   = `${API}/api/groups/${groupId}/invites`;
 
-  useEffect(() => {
-    const keyB64 = getKeyB64(groupId);
-    if (!keyB64) { setError("This device doesn't hold this group's key, so it can't create an invite."); return; }
-    (async () => {
-      try {
-        const res  = await authFetch(`${API}/api/groups/${groupId}/invites`, {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error();
-        setInvite(buildInvite(data.code, keyB64));
-      } catch {
-        setError("Couldn't create an invite. Try again.");
-      }
-    })();
-  }, [groupId]);
+  const [invites, setInvites] = useState(null);  // null = loading
+  const [error, setError]     = useState(keyB64 ? "" : "This device doesn't hold this group's key, so it can't create invites.");
+  const [expiry, setExpiry]   = useState("7d");
+  const [creating, setCreating] = useState(false);
+  const [copied, setCopied]   = useState("");     // the code just copied
+  const panelRef = useDialog(true, onClose);
 
-  function copy(kind) {
-    const text = kind === "invite" ? inviteMessage(groupName, invite) : invite;
-    navigator.clipboard.writeText(text);
-    setCopied(kind);
-    notify.success(kind === "invite" ? "Invite message copied — paste it to your friend" : "Code copied");
-    setTimeout(() => setCopied(""), 1600);
+  const load = useCallback(async () => {
+    try {
+      const res = await authFetch(base);
+      if (!res.ok) throw new Error();
+      setInvites(await res.json());
+    } catch {
+      setInvites([]);
+      setError("Couldn't load invites. Try again.");
+    }
+  }, [base, authFetch]);
+
+  useEffect(() => { if (keyB64) load(); }, [keyB64, load]);
+
+  async function create() {
+    setCreating(true);
+    setError("");
+    try {
+      const opt = EXPIRY_OPTS.find((o) => o.key === expiry);
+      const expiresAt = opt?.ms == null ? null : new Date(Date.now() + opt.ms).toISOString();
+      const res = await authFetch(base, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expiresAt }),
+      });
+      if (!res.ok) throw new Error();
+      await load();
+      notify.success("Invite created");
+    } catch {
+      setError("Couldn't create an invite. Try again.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function revoke(code) {
+    setInvites((list) => list.filter((i) => i.code !== code)); // optimistic
+    try {
+      const res = await authFetch(`${base}/${encodeURIComponent(code)}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      notify.success("Invite revoked");
+    } catch {
+      notify.error("Couldn't revoke — refreshing");
+      load();
+    }
+  }
+
+  function copy(code) {
+    const full = buildInvite(code, keyB64);
+    navigator.clipboard.writeText(inviteMessage(groupName, full));
+    setCopied(code);
+    notify.success("Invite message copied — paste it to your friend");
+    setTimeout(() => setCopied((c) => (c === code ? "" : c)), 1600);
   }
 
   return (
     <div className="dialog-backdrop fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div ref={panelRef} role="dialog" aria-modal="true" aria-label={`Invite to ${groupName}`} className="dialog-panel glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between mb-1">
+        <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-[var(--accent)]/10 flex items-center justify-center">
               <UserPlus size={16} className="text-blue-600 dark:text-[var(--accent-bright)]" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">Invite to {groupName}</h3>
-              <p className="text-xs text-gray-400 dark:text-neutral-500">Anyone with this code can join and read the files</p>
+              <p className="text-xs text-gray-400 dark:text-neutral-500">Anyone with a code can join and read the files</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800"><X size={15} /></button>
         </div>
 
-        {error ? (
-          <p className="mt-5 text-sm text-red-500">{error}</p>
-        ) : !invite ? (
-          <p className="mt-6 text-sm text-center text-gray-400 dark:text-neutral-500">Creating invite…</p>
+        {!keyB64 ? (
+          <p className="text-sm text-red-500">{error}</p>
         ) : (
-          <div className="mt-5 space-y-4">
-            <div>
-              <p className="text-xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-1.5">Invite code</p>
-              <code className="block px-3 py-2.5 bg-gray-50 dark:bg-neutral-800 rounded-xl text-sm font-mono text-gray-900 dark:text-white break-all select-all">{invite}</code>
+          <>
+            {/* Create a new invite */}
+            <div className="flex items-end gap-2">
+              <label className="flex-1">
+                <span className="block text-xs font-semibold text-gray-500 dark:text-neutral-400 mb-1.5">Expires after</span>
+                <select
+                  value={expiry}
+                  onChange={(e) => setExpiry(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)]"
+                >
+                  {EXPIRY_OPTS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+                </select>
+              </label>
+              <button
+                onClick={create}
+                disabled={creating}
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 dark:bg-[var(--accent)] dark:hover:bg-[var(--accent-hover)] text-[var(--on-accent)] text-sm font-semibold rounded-xl transition-colors disabled:opacity-50"
+              >
+                {creating ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
+                Create
+              </button>
             </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => copy("invite")}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-500 dark:bg-[var(--accent)] dark:hover:bg-[var(--accent-hover)] text-[var(--on-accent)] text-sm font-semibold rounded-xl transition-colors"
-              >
-                {copied === "invite" ? <Check size={15} /> : <Copy size={15} />}
-                {copied === "invite" ? "Copied!" : "Copy invite"}
-              </button>
-              <button
-                onClick={() => copy("code")}
-                className="px-3.5 py-2.5 border border-gray-200 dark:border-neutral-700 text-gray-600 dark:text-neutral-300 text-sm font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
-              >
-                {copied === "code" ? "Copied" : "Code only"}
-              </button>
+            {/* Active invites */}
+            <div className="mt-5">
+              <p className="text-xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-2">Active invites</p>
+              {invites === null ? (
+                <p className="text-sm text-center text-gray-400 dark:text-neutral-500 py-5">Loading…</p>
+              ) : invites.length === 0 ? (
+                <p className="text-sm text-center text-gray-400 dark:text-neutral-500 py-5">No active invites yet — create one to share.</p>
+              ) : (
+                <ul className="space-y-2 max-h-56 overflow-y-auto">
+                  {invites.map((inv) => {
+                    const exp = expiryLabel(inv.expires_at);
+                    return (
+                      <li key={inv.code} className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-neutral-800/60 rounded-xl">
+                        <div className="min-w-0 flex-1">
+                          <code className="block text-xs font-mono text-gray-900 dark:text-white truncate select-all" title={inv.code}>{inv.code}</code>
+                          <span className={`inline-flex items-center gap-1 text-[11px] mt-0.5 ${exp.expired ? "text-red-500" : "text-gray-400 dark:text-neutral-500"}`}>
+                            <Clock size={10} /> {exp.text}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => copy(inv.code)}
+                          title="Copy invite message"
+                          className="shrink-0 p-2 rounded-lg text-gray-500 dark:text-neutral-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600 transition-colors"
+                        >
+                          {copied === inv.code ? <Check size={15} className="text-emerald-500" /> : <Copy size={15} />}
+                        </button>
+                        <button
+                          onClick={() => revoke(inv.code)}
+                          title="Revoke invite"
+                          className="shrink-0 p-2 rounded-lg text-gray-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
 
-            <div className="flex items-start gap-2 text-xs text-amber-700/90 dark:text-amber-400/80 bg-amber-50 dark:bg-amber-500/10 rounded-xl px-3 py-2.5">
+            <div className="mt-4 flex items-start gap-2 text-xs text-amber-700/90 dark:text-amber-400/80 bg-amber-50 dark:bg-amber-500/10 rounded-xl px-3 py-2.5">
               <ShieldAlert size={14} className="shrink-0 mt-0.5" />
-              <span>This code also unlocks the group's encrypted files — only share it with people you trust.</span>
+              <span>An invite also unlocks the group's encrypted files. Revoke any you no longer need — and prefer a short expiry.</span>
             </div>
-          </div>
+
+            {error && <p className="mt-3 text-xs text-red-500">{error}</p>}
+          </>
         )}
       </div>
     </div>

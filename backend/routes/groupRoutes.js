@@ -21,6 +21,7 @@ const {
   createInvite,
   getValidInvite,
   revokeInvite,
+  listGroupInvites,
 } = require("../db");
 
 // Every group route requires a logged-in user (any role — groups are peer-owned,
@@ -145,11 +146,22 @@ router.delete("/:id/members/:userId", requireMember, (req, res) => {
   res.json({ success: true });
 });
 
-// POST /api/groups/:id/invites — mint an invite code (members only)
+// GET /api/groups/:id/invites — list active (non-revoked) invite codes (members)
+router.get("/:id/invites", requireMember, (req, res) => {
+  res.json(listGroupInvites(req.params.id));
+});
+
+// POST /api/groups/:id/invites — mint an invite code (members only). Optional
+// `expiresAt` (ISO string) sets an expiry; omit/null for a non-expiring invite.
 router.post("/:id/invites", requireMember, (req, res) => {
-  const expiresAt = req.body.expiresAt ?? null;
+  let expiresAt = req.body.expiresAt ?? null;
+  if (expiresAt != null) {
+    const d = new Date(expiresAt);
+    if (isNaN(d.getTime())) return res.status(400).json({ error: "invalid expiresAt" });
+    expiresAt = d.toISOString();
+  }
   const code = createInvite(req.params.id, req.user.id, expiresAt);
-  res.status(201).json({ code });
+  res.status(201).json({ code, expires_at: expiresAt });
 });
 
 // DELETE /api/groups/:id/invites/:code — revoke an invite (members only)
