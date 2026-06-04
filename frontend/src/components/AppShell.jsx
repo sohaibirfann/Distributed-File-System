@@ -3,12 +3,12 @@ import { Outlet, useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { createKeyForGroup, storeKeyB64, parseInvite } from "../lib/groupKeys";
-import { useDialog } from "../lib/useDialog";
 import Kbd from "./Kbd";
 import Skeleton from "./Skeleton";
 import CommandPalette from "./CommandPalette";
+import Modal from "./Modal";
 import {
-  Database, Users, Plus, LogIn, LogOut, X, Settings, Search,
+  Database, Plus, LogIn, LogOut, X, Settings, Search,
   PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 
@@ -24,7 +24,6 @@ const REP_PRESETS = [
 
 export default function AppShell() {
   const { logout, authFetch, user } = useAuth();
-  const notify                      = useNotify();
   const navigate                    = useNavigate();
   const { id: activeId }            = useParams();
   const location                    = useLocation();
@@ -290,7 +289,6 @@ function NewJoinModal({ mode, onClose, onDone }) {
   const [color, setColor]   = useState(null);
   const [busy, setBusy]     = useState(false);
   const isNew = mode === "new";
-  const panelRef = useDialog(true, onClose); // mounted == open
 
   async function submit(e) {
     e.preventDefault();
@@ -327,8 +325,7 @@ function NewJoinModal({ mode, onClose, onDone }) {
   }
 
   return (
-    <div className="dialog-backdrop fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div ref={panelRef} role="dialog" aria-modal="true" aria-label={isNew ? "Create a group" : "Join with a code"} className="dialog-panel glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+    <Modal onClose={onClose} label={isNew ? "Create a group" : "Join with a code"}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-gray-900 dark:text-white">{isNew ? "Create a group" : "Join with a code"}</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800"><X size={15} /></button>
@@ -409,7 +406,6 @@ function NewJoinModal({ mode, onClose, onDone }) {
             {busy ? "…" : isNew ? "Create group" : "Join group"}
           </button>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

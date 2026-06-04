@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth }   from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
 import { buildInvite, getKeyB64 } from "../lib/groupKeys";
-import { useDialog } from "../lib/useDialog";
+import Modal from "./Modal";
 import { X, Copy, Check, UserPlus, ShieldAlert, Clock, Trash2, Plus, Loader2, ChevronDown, UserCheck } from "lucide-react";
 
 import { getApiUrl } from "../lib/api";
@@ -65,7 +65,6 @@ export default function InviteModal({ groupId, groupName, onClose }) {
   const [singleUse, setSingleUse] = useState(false);
   const [creating, setCreating] = useState(false);
   const [copied, setCopied]   = useState("");     // the code just copied
-  const panelRef = useDialog(true, onClose);
 
   const load = useCallback(async () => {
     try {
@@ -121,8 +120,7 @@ export default function InviteModal({ groupId, groupName, onClose }) {
   }
 
   return (
-    <div className="dialog-backdrop fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div ref={panelRef} role="dialog" aria-modal="true" aria-label={`Invite to ${groupName}`} className="dialog-panel glass bg-white/80 dark:bg-neutral-900/80 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+    <Modal onClose={onClose} label={`Invite to ${groupName}`} panelClassName="w-full max-w-md p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-[var(--accent)]/10 flex items-center justify-center">
@@ -226,8 +224,7 @@ export default function InviteModal({ groupId, groupName, onClose }) {
             {error && <p className="mt-3 text-xs text-red-500">{error}</p>}
           </>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }
 

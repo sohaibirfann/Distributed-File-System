@@ -12,7 +12,7 @@ import {
   Download, Eye, Trash2, AlertTriangle, WifiOff,
   File, HardDrive, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, RotateCw,
 } from "lucide-react";
-import { useDialog } from "../lib/useDialog";
+import Modal from "./Modal";
 
 import { getApiUrl } from "../lib/api";
 const API = getApiUrl();
@@ -47,7 +47,6 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   const [previewUrl, setPreviewUrl]         = useState(null);
   const [downloading, setDownloading]       = useState([]);
   const [failedDl, setFailedDl]             = useState([]);   // downloads that errored — show a Retry
-  const deleteRef  = useDialog(!!fileToDelete, () => { if (!deleting) setFileToDelete(null); });
 
   const base = `${API}/api/groups/${groupId}/files`;
 
@@ -448,15 +447,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
 
       {/* Delete modal */}
       {fileToDelete && (
-        <div
-          className="dialog-backdrop fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4"
-          onClick={() => !deleting && setFileToDelete(null)}
-        >
-          <div
-            ref={deleteRef} role="dialog" aria-modal="true" aria-label="Delete file"
-            className="dialog-panel glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 w-full max-w-sm p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <Modal onClose={() => setFileToDelete(null)} label="Delete file" dismissable={!deleting}>
             <div className="w-11 h-11 bg-red-50 dark:bg-[var(--accent)]/10 rounded-xl flex items-center justify-center mb-4">
               <AlertTriangle size={20} className="text-red-500" />
             </div>
@@ -486,8 +477,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                 {deleting ? "Deleting…" : "Delete"}
               </button>
             </div>
-          </div>
-        </div>
+      </Modal>
       )}
     </>
   );

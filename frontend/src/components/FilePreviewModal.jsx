@@ -1,27 +1,18 @@
 import { X } from "lucide-react";
 import { getType } from "../lib/fileTypes";
-import { useDialog } from "../lib/useDialog";
+import Modal from "./Modal";
 
 // Presentational preview dialog. The caller decrypts the file and passes the
 // ready-to-render data: a blob `url` (image/video/pdf) or text `content`.
 export default function FilePreviewModal({ file, type, content, url, onClose }) {
-  const panelRef = useDialog(true, onClose);
   const { icon: Icon, bg, color } = getType(file);
+  const sizing =
+    type === "image" || type === "video" ? "max-w-[90vw]"
+    : type === "pdf" ? "w-[85vw] h-[85vh]"
+    : "w-full max-w-3xl max-h-[80vh]";
 
   return (
-    <div
-      className="dialog-backdrop fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4"
-      onClick={onClose}
-    >
-      <div
-        ref={panelRef} role="dialog" aria-modal="true" aria-label={`Preview: ${file}`}
-        className={`dialog-panel glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 flex flex-col ${
-          type === "image" || type === "video" ? "max-w-[90vw]"
-          : type === "pdf" ? "w-[85vw] h-[85vh]"
-          : "w-full max-w-3xl max-h-[80vh]"
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal onClose={onClose} label={`Preview: ${file}`} panelClassName={`flex flex-col ${sizing}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-neutral-800 shrink-0">
           <div className="flex items-center gap-2.5">
@@ -86,7 +77,6 @@ export default function FilePreviewModal({ file, type, content, url, onClose }) 
             </table>
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }
