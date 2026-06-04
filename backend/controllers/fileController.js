@@ -117,6 +117,7 @@ const downloadFile = async (req, res) => {
       req.app.get("io").emit("log", `[cache hit] ${filename} · served to ${clientIP(req)}`);
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Content-Length", fs.statSync(cachedPath).size); // lets the client show progress
       return fs.createReadStream(cachedPath).pipe(res);
     }
 

@@ -7,6 +7,7 @@ import { useDesktopNotifications } from "../lib/useDesktopNotifications";
 import Kbd from "./Kbd";
 import Skeleton from "./Skeleton";
 import CommandPalette from "./CommandPalette";
+import TransferPanel from "./TransferPanel";
 import Modal from "./Modal";
 import {
   Database, Plus, LogIn, LogOut, X, Settings, Search,
@@ -259,6 +260,9 @@ export default function AppShell() {
           <Outlet context={{ refreshGroups: fetchGroups, groups, openNew: () => setModal("new"), openJoin: () => setModal("join") }} />
         </div>
       </main>
+
+      {/* Docked transfer manager (downloads, zip bundles) */}
+      <TransferPanel />
 
       {modal && (
         <NewJoinModal

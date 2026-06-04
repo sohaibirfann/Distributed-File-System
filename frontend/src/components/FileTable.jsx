@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNotify } from "../context/NotificationContext";
 import { useAuth }   from "../context/AuthContext";
+import { useTransfers } from "../context/TransferContext";
 import { loadKey }     from "../lib/groupKeys";
 import { decryptBytes } from "../lib/crypto";
 import { getType, getPreviewType, PREVIEW_MIME } from "../lib/fileTypes";
@@ -37,6 +38,7 @@ function Avatar({ name }) {
 export default function FileTable({ groupId, canManage = false, search = "", onStats, view = "list" }) {
   const notify = useNotify();
   const { authFetch } = useAuth();
+  const transfers = useTransfers();
   const [files, setFiles]               = useState([]);
   const [loading, setLoading]           = useState(true);
   const [apiError, setApiError]         = useState(false);
@@ -85,9 +87,32 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
     }
   }
 
+  // Read a response body, reporting download progress (% of Content-Length) via
+  // onProgress. Falls back to a plain arrayBuffer read if streaming/length is
+  // unavailable.
+  async function readWithProgress(res, onProgress) {
+    const total = Number(res.headers.get("Content-Length")) || 0;
+    if (!res.body?.getReader) return res.arrayBuffer();
+    const reader = res.body.getReader();
+    const chunks = [];
+    let received = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      if (total) onProgress(Math.round((received / total) * 100));
+    }
+    const out = new Uint8Array(received);
+    let off = 0;
+    for (const c of chunks) { out.set(c, off); off += c.length; }
+    return out.buffer;
+  }
+
   async function handleDownload(filename) {
     setDownloading((d) => [...d, filename]);
     setFailedDl((s) => s.filter((f) => f !== filename)); // clear any prior failure on (re)try
+    const tid = transfers.start(filename, "download");
     try {
       const key = await loadKey(groupId);
       if (!key) throw new Error("This device doesn't hold this group's key");
@@ -100,7 +125,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
 
       let plain;
       try {
-        plain = await decryptBytes(key, await res.arrayBuffer());
+        plain = await decryptBytes(key, await readWithProgress(res, (pct) => transfers.update(tid, { progress: pct })));
       } catch {
         throw new Error("Could not decrypt — wrong or missing key");
       }
@@ -110,8 +135,10 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
       a.href = url; a.download = filename;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
+      transfers.finish(tid, "done");
       notify.success("Download complete");
     } catch (err) {
+      transfers.finish(tid, "error");
       notify.error(err.message || "Download failed");
       setFailedDl((s) => (s.includes(filename) ? s : [...s, filename]));
     } finally {
@@ -216,7 +243,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   async function bulkDownload() {
     const names = [...selected];
     if (names.length === 0) return;
-    const id = notify.loading(`Preparing ${names.length} file${names.length === 1 ? "" : "s"}…`);
+    const tid = transfers.start(`${names.length} files (.zip)`, "zip");
     try {
       const key = await loadKey(groupId);
       if (!key) throw new Error("This device doesn't hold this group's key");
@@ -231,6 +258,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
           zip.file(name, await decryptBytes(key, await res.arrayBuffer()));
           ok++;
         } catch { /* skip this one; reported in the summary */ }
+        transfers.update(tid, { progress: Math.round((ok / names.length) * 100) });
       }
       if (ok === 0) throw new Error("Couldn't fetch any of the selected files");
 
@@ -241,10 +269,10 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
 
-      notify.dismiss(id);
+      transfers.finish(tid, "done");
       notify[ok === names.length ? "success" : "error"](`Zipped ${ok} of ${names.length} file${names.length === 1 ? "" : "s"}`);
     } catch (err) {
-      notify.dismiss(id);
+      transfers.finish(tid, "error");
       notify.error(err.message || "Download failed");
     }
   }

@@ -3,6 +3,7 @@ import { ThemeProvider }        from "./context/ThemeContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { TitleProvider }         from "./context/TitleContext";
+import { TransferProvider }       from "./context/TransferContext";
 import Login      from "./pages/Login";
 import AppShell   from "./components/AppShell";
 import GroupsHome from "./pages/GroupsHome";
@@ -26,6 +27,7 @@ function App() {
       <NotificationProvider>
         <AuthProvider>
           <TitleProvider>
+          <TransferProvider>
           <div className="flex flex-col h-screen">
             {isDesktop() && <TitleBar />}
             <div className="flex-1 min-h-0 overflow-y-auto">
@@ -45,6 +47,7 @@ function App() {
           )}
             </div>
           </div>
+          </TransferProvider>
           </TitleProvider>
         </AuthProvider>
       </NotificationProvider>
