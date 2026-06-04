@@ -5,7 +5,7 @@ import { useNotify } from "../context/NotificationContext";
 import { useTitle }  from "../context/TitleContext";
 import { hasKey }    from "../lib/groupKeys";
 import { useDialog } from "../lib/useDialog";
-import { COLOR_PALETTE, autoColor } from "../lib/groupAvatar";
+import { COLOR_PALETTE, autoColor, groupColor, groupLabel, isEmojiLabel } from "../lib/groupAvatar";
 import FileTable   from "../components/FileTable";
 import UploadPanel from "../components/UploadPanel";
 import InviteModal from "../components/InviteModal";
@@ -207,9 +207,17 @@ export default function GroupView() {
       {/* ── Toolbar ─────────────────────────────────────────────── */}
       <div className="relative shrink-0 flex items-center justify-between gap-3 px-6 h-14 border-b border-gray-200/70 dark:border-white/[0.06] bg-transparent">
         <div className="flex items-center gap-2.5 min-w-0">
-          {group
-            ? <h1 className="text-base font-bold text-gray-900 dark:text-white truncate">{group.name}</h1>
-            : <Skeleton className="h-5 w-32" />}
+          {group ? (
+            <>
+              <div
+                className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 text-white font-bold ${isEmojiLabel(group) ? "text-sm" : "text-[11px]"}`}
+                style={{ backgroundColor: groupColor(group) }}
+              >
+                {groupLabel(group)}
+              </div>
+              <h1 className="text-base font-bold text-gray-900 dark:text-white truncate">{group.name}</h1>
+            </>
+          ) : <Skeleton className="h-5 w-32" />}
 
           <button
             onClick={() => { setMenuOpen(false); setMembersOpen((o) => !o); }}

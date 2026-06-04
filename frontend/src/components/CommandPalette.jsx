@@ -1,8 +1,9 @@
 import { Command } from "cmdk";
 import {
-  Users, Plus, LogIn, Settings, LogOut, PanelLeft,
+  Plus, LogIn, Settings, LogOut, PanelLeft,
 } from "lucide-react";
 import Kbd from "./Kbd";
+import { groupColor, groupLabel, isEmojiLabel } from "../lib/groupAvatar";
 
 // Cmd/Ctrl+K command palette. Actions are passed in from the shell so the
 // palette stays a dumb, themeable view.
@@ -30,7 +31,18 @@ export default function CommandPalette({
 
         <Command.Group heading="Groups">
           {groups.map((g) => (
-            <Item key={g.id} onSelect={run(() => onOpenGroup(g.id))} icon={<Users size={15} />}>
+            <Item
+              key={g.id}
+              onSelect={run(() => onOpenGroup(g.id))}
+              icon={
+                <span
+                  className={`w-5 h-5 rounded-[5px] flex items-center justify-center text-white font-bold ${isEmojiLabel(g) ? "text-xs" : "text-[10px]"}`}
+                  style={{ backgroundColor: groupColor(g) }}
+                >
+                  {groupLabel(g)}
+                </span>
+              }
+            >
               {g.name}
             </Item>
           ))}
