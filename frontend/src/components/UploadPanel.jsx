@@ -150,7 +150,8 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
 
   return (
     <>
-    <div className="glass bg-white/75 dark:bg-neutral-900/70 rounded-2xl border border-gray-100 dark:border-neutral-800 p-5">
+    <div>
+      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Upload files</h3>
       <label
         onDrop={(e) => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); }}
         onDragOver={(e) => { e.preventDefault(); setDrag(true); }}

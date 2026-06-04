@@ -275,14 +275,10 @@ export default function GroupView() {
             <UserPlus size={13} /> Invite
           </button>
           <button
-            onClick={() => { setDropped(null); setShowUpload((v) => !v); }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-              showUpload
-                ? "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-neutral-300"
-                : "bg-blue-600 hover:bg-blue-500 dark:bg-[var(--accent)] dark:hover:bg-[var(--accent-hover)] text-[var(--on-accent)]"
-            }`}
+            onClick={() => { setDropped(null); setShowUpload(true); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 dark:bg-[var(--accent)] dark:hover:bg-[var(--accent-hover)] text-[var(--on-accent)] transition-colors"
           >
-            <Upload size={13} /> {showUpload ? "Cancel" : "Upload"}
+            <Upload size={13} /> Upload
           </button>
         </div>
 
@@ -424,14 +420,18 @@ export default function GroupView() {
         )}
 
         {showUpload && (
-          <div className="px-6 py-4 border-b border-gray-100 dark:border-white/[0.06]">
+          <Modal
+            onClose={() => { setShowUpload(false); setDropped(null); }}
+            label="Upload files"
+            panelClassName="w-full max-w-md p-5 max-h-[85vh] overflow-y-auto"
+          >
             <UploadPanel
               key={dropNonce}
               groupId={id}
               initialFiles={dropped ?? []}
               onUploadSuccess={() => { setRefresh((n) => n + 1); setShowUpload(false); setDropped(null); }}
             />
-          </div>
+          </Modal>
         )}
 
         <FileTable key={refresh} groupId={id} canManage search={search} onStats={setStats} view={view} />

@@ -211,7 +211,10 @@ button:disabled,
   to   { opacity: 1; transform: scale(1)    translateY(0);   }
 }
 .dialog-backdrop { animation: fadeIn 0.16s ease both; }
-.dialog-panel    { animation: dialogPop 0.20s cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* No fill-mode: the panel must not keep a transform after the pop, or it would
+   become the containing block for any position:fixed descendant (e.g. a nested
+   confirm dialog) and mis-position it. Settling to the base state is identical. */
+.dialog-panel    { animation: dialogPop 0.20s cubic-bezier(0.16, 1, 0.3, 1); }
 
 @media (prefers-reduced-motion: reduce) {
   .dialog-backdrop, .dialog-panel { animation: none; }
