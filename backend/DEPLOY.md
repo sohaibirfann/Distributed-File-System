@@ -1,8 +1,13 @@
-# Deploying the coordinator (Oracle Cloud Always Free)
+# Deploying the coordinator
 
 The coordinator is the only always-on piece (control plane: login, groups,
-metadata, signaling). It holds **no file data and no keys**. This runs it free,
-24/7, on an Oracle Cloud "Always Free" VM via Docker.
+metadata, signaling). It holds **no file data and no keys**.
+
+Two ways to make it reachable from the internet:
+- **Option A — Cloudflare Tunnel** (no account, no card; runs on a machine you
+  own). Easiest; great for development. See below.
+- **Option B — Oracle Cloud Always Free VM** (a real always-on server; needs a
+  card for signup verification). See further down.
 
 > **Scope note:** a public coordinator gives you a global **control plane** —
 > members on any network can sign in, see groups, and share invites. It does
@@ -10,6 +15,34 @@ metadata, signaling). It holds **no file data and no keys**. This runs it free,
 > uses the embedded node's HTTP endpoints (same-LAN only) until the WebRTC
 > transport (Phase 3) lands. Deploying this is the prerequisite that lets us
 > build + test that next.
+
+---
+
+## Option A — Cloudflare Tunnel (no cloud account, no card)
+
+Run the coordinator on your own machine and expose it with a free Cloudflare
+"quick tunnel" — a public HTTPS URL with WebSocket support, no signup required.
+
+1. **Install cloudflared** (one-time): https://developers.cloudflare.com/cloudflare-tunnel/downloads/
+   (Windows: `winget install --id Cloudflare.cloudflared`; macOS: `brew install cloudflared`).
+2. **Set secrets once** in `backend/.env` (`JWT_SECRET`, `NODE_SECRET`).
+3. **Run both with one command** (from the repo root):
+   ```bash
+   npm run tunnel
+   ```
+   This starts the coordinator on :5000 and, once it's up, opens the tunnel.
+   cloudflared prints a URL like `https://<random>.trycloudflare.com`.
+4. **Point the app** at that URL: **Settings → Connection**. Done — reachable anywhere.
+
+**Caveats:** the coordinator is only online while this machine + tunnel run, and
+the quick-tunnel URL changes each restart. For an always-on, stable home, either
+run this on a spare device (old laptop / Raspberry Pi) left on, or use Option B.
+
+---
+
+## Option B — Oracle Cloud Always Free VM
+
+Runs it free, 24/7, on an Oracle Cloud "Always Free" VM via Docker.
 
 ## 1. Create the VM
 - Oracle Cloud → Compute → Instances → **Create**.
