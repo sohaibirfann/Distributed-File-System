@@ -4,6 +4,7 @@ import { NotificationProvider } from "./context/NotificationContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { TitleProvider }         from "./context/TitleContext";
 import { TransferProvider }       from "./context/TransferContext";
+import { UploadProvider }         from "./context/UploadContext";
 import Login      from "./pages/Login";
 import AppShell   from "./components/AppShell";
 import GroupsHome from "./pages/GroupsHome";
@@ -28,6 +29,7 @@ function App() {
         <AuthProvider>
           <TitleProvider>
           <TransferProvider>
+          <UploadProvider>
           <div className="flex flex-col h-screen">
             {isDesktop() && <TitleBar />}
             <div className="flex-1 min-h-0 overflow-y-auto">
@@ -47,6 +49,7 @@ function App() {
           )}
             </div>
           </div>
+          </UploadProvider>
           </TransferProvider>
           </TitleProvider>
         </AuthProvider>

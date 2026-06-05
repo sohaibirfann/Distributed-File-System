@@ -1,163 +1,51 @@
-import { useState, useRef, useEffect } from "react";
-import { io } from "socket.io-client";
-import { useNotify } from "../context/NotificationContext";
+import { useState } from "react";
 import { useAuth }   from "../context/AuthContext";
-import { loadKey }     from "../lib/groupKeys";
-import { encryptBytes, bytesToB64url } from "../lib/crypto";
-import { makeThumbnailBlob } from "../lib/thumbnail";
-import { Upload, X, FileIcon, CheckCircle, Loader2, AlertCircle, AlertTriangle, RotateCw } from "lucide-react";
-import Modal from "./Modal";
+import { useUploads } from "../context/UploadContext";
 import { formatBytes } from "../lib/format";
+import { Upload, X, FileIcon, AlertTriangle } from "lucide-react";
+import Modal from "./Modal";
 
 import { getApiUrl } from "../lib/api";
 const API = getApiUrl();
-const MAX_SIZE = 500 * 1024 * 1024;
 
-const toItem = (file) => ({ id: crypto.randomUUID(), file, status: "queued", progress: 0, error: "" });
-
+// A lightweight file picker. The actual uploading runs in the background via the
+// UploadProvider and shows in the transfer panel, so this dialog just collects
+// files (and warns about overwrites) then closes.
 export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [] }) {
-  const notify = useNotify();
-  const { token, authFetch } = useAuth();
-  const [items, setItems] = useState(() => initialFiles.map(toItem));
+  const { authFetch }    = useAuth();
+  const { startUploads } = useUploads();
+  const [files, setFiles] = useState(() => [...initialFiles]);
   const [drag, setDrag]   = useState(false);
-  const [running, setRunning] = useState(false);
   const [confirm, setConfirm] = useState(null);
-  const socketRef = useRef(null);
+  const [busy, setBusy]   = useState(false);
 
-  // Resolves true (replace) / false (cancel) once the user answers the prompt.
+  // Resolves true (replace) / false (cancel) once the user answers.
   const askOverwrite = (names) => new Promise((resolve) => setConfirm({ names, resolve }));
 
-  useEffect(() => () => socketRef.current?.disconnect(), []);
-
-  function setItem(id, patch) {
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
-  }
   function addFiles(list) {
-    const arr = Array.from(list || []).map(toItem);
-    if (arr.length) setItems((prev) => [...prev, ...arr]);
+    const arr = Array.from(list || []);
+    if (arr.length) setFiles((prev) => [...prev, ...arr]);
   }
-  function removeItem(id) {
-    setItems((prev) => prev.filter((it) => it.id !== id));
-  }
+  const removeAt = (i) => setFiles((prev) => prev.filter((_, idx) => idx !== i));
 
-  async function uploadOne(item, key, socket) {
-    const { file } = item;
-    if (file.size > MAX_SIZE) { setItem(item.id, { status: "error", error: "Too large (max 500 MB)" }); return false; }
-
-    setItem(item.id, { status: "encrypting", error: "" });
-    let cipher;
-    try { cipher = await encryptBytes(key, await file.arrayBuffer()); }
-    catch { setItem(item.id, { status: "error", error: "Encryption failed" }); return false; }
-
-    const form = new FormData();
-    form.append("file", new Blob([cipher], { type: "application/octet-stream" }), file.name);
-
-    // For images, attach a small encrypted thumbnail so other members can preview
-    // the file without downloading + decrypting the whole thing.
-    if (file.type.startsWith("image/")) {
+  async function submit() {
+    if (!files.length) return;
+    setBusy(true);
+    try {
+      // Warn before silently overwriting same-named files already in the group.
       try {
-        const thumbBlob = await makeThumbnailBlob(file);
-        if (thumbBlob) {
-          const thumbCipher = await encryptBytes(key, await thumbBlob.arrayBuffer());
-          form.append("thumb", bytesToB64url(thumbCipher));
+        const res = await authFetch(`${API}/api/groups/${groupId}/files`);
+        if (res.ok) {
+          const existing = new Set((await res.json()).map((f) => f.filename));
+          const clashes  = [...new Set(files.filter((f) => existing.has(f.name)).map((f) => f.name))];
+          if (clashes.length && !(await askOverwrite(clashes))) { setBusy(false); return; }
         }
-      } catch { /* a missing thumbnail just falls back to the type icon */ }
-    }
+      } catch { /* if the check fails, let the upload proceed rather than block it */ }
 
-    const onProg = ({ filename, percent }) => { if (filename === file.name) setItem(item.id, { progress: percent }); };
-    socket.on("upload-progress", onProg);
-
-    try {
-      await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", `${API}/api/groups/${groupId}/files/upload`);
-        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-        xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) setItem(item.id, { status: "uploading", progress: Math.round((e.loaded / e.total) * 100) });
-        });
-        xhr.upload.addEventListener("load", () => setItem(item.id, { status: "distributing", progress: 0 }));
-        xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else { try { reject(new Error(JSON.parse(xhr.responseText).message || "Upload failed")); } catch { reject(new Error("Upload failed")); } }
-        });
-        xhr.addEventListener("error", () => reject(new Error("Upload failed")));
-        xhr.send(form);
-      });
-      setItem(item.id, { status: "done", progress: 100 });
-      return true;
-    } catch (err) {
-      setItem(item.id, { status: "error", error: err.message || "Upload failed" });
-      return false;
+      startUploads(groupId, files); // fire-and-forget — progress lives in the transfer panel
+      onUploadSuccess?.();           // close the dialog; the file list refreshes via polling
     } finally {
-      socket.off("upload-progress", onProg);
-    }
-  }
-
-  async function uploadAll() {
-    const pending = items.filter((it) => it.status === "queued" || it.status === "error");
-    if (!pending.length) return;
-
-    const key = await loadKey(groupId);
-    if (!key) return notify.error("This device doesn't hold this group's key");
-
-    // Warn before silently overwriting same-named files already in the group.
-    try {
-      const res = await authFetch(`${API}/api/groups/${groupId}/files`);
-      if (res.ok) {
-        const existing = new Set((await res.json()).map((f) => f.filename));
-        const clashes  = [...new Set(pending.filter((it) => existing.has(it.file.name)).map((it) => it.file.name))];
-        if (clashes.length && !(await askOverwrite(clashes))) return;
-      }
-    } catch { /* if the check fails, let the upload proceed rather than block it */ }
-
-    setRunning(true);
-    const socket = io(API);
-    socketRef.current = socket;
-
-    let ok = 0, fail = 0;
-    for (const it of pending) {
-      const success = await uploadOne(it, key, socket);
-      success ? ok++ : fail++;
-    }
-
-    socket.disconnect();
-    socketRef.current = null;
-    setRunning(false);
-
-    if (ok && !fail) notify.success(`Uploaded ${ok} file${ok !== 1 ? "s" : ""}`);
-    else if (ok && fail) notify.error(`${ok} uploaded, ${fail} failed`);
-    else notify.error(`Upload failed`);
-
-    // Close only when everything succeeded; otherwise keep the panel so errors
-    // stay visible (the file list refreshes on its own via polling).
-    if (ok && !fail) setTimeout(() => onUploadSuccess?.(), 600);
-  }
-
-  // Retry a single failed file (transient upload/network errors).
-  async function retryOne(item) {
-    if (running) return;
-    const key = await loadKey(groupId);
-    if (!key) return notify.error("This device doesn't hold this group's key");
-    setRunning(true);
-    const socket = io(API);
-    socketRef.current = socket;
-    const ok = await uploadOne(item, key, socket);
-    socket.disconnect();
-    socketRef.current = null;
-    setRunning(false);
-    if (ok) notify.success("Upload complete");
-  }
-
-  const pendingCount = items.filter((it) => it.status === "queued" || it.status === "error").length;
-
-  function statusLabel(it) {
-    switch (it.status) {
-      case "encrypting":   return "Encrypting…";
-      case "uploading":    return `Uploading ${it.progress}%`;
-      case "distributing": return it.progress > 0 ? `Distributing ${it.progress}%` : "Distributing…";
-      case "done":         return "Done";
-      case "error":        return it.error || "Failed";
-      default:             return formatBytes(it.file.size);
+      setBusy(false);
     }
   }
 
@@ -183,53 +71,31 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
         <p className="text-xs text-gray-400 dark:text-neutral-500 mt-1">or click to browse — select multiple</p>
       </label>
 
-      {items.length > 0 && (
-        <div className="mt-4 space-y-2">
-          {items.map((it) => (
-            <div key={it.id} className="rounded-xl border border-gray-100 dark:border-neutral-700 p-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                  it.status === "done"  ? "bg-emerald-50 dark:bg-emerald-500/10"
-                  : it.status === "error" ? "bg-red-50 dark:bg-[var(--accent)]/10"
-                  : "bg-blue-50 dark:bg-[var(--accent)]/10"
-                }`}>
-                  {it.status === "done"  ? <CheckCircle size={15} className="text-emerald-500" />
-                   : it.status === "error" ? <AlertCircle size={15} className="text-red-500" />
-                   : (it.status === "encrypting" || it.status === "uploading" || it.status === "distributing")
-                     ? <Loader2 size={15} className="text-blue-500 dark:text-[var(--accent-bright)] animate-spin" />
-                     : <FileIcon size={15} className="text-blue-500 dark:text-[var(--accent-bright)]" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{it.file.name}</p>
-                  <p className={`text-xs font-mono ${it.status === "error" ? "text-red-500" : "text-gray-400 dark:text-neutral-500"}`}>{statusLabel(it)}</p>
-                </div>
-                {it.status === "error" && !running && (
-                  <button onClick={() => retryOne(it)} title="Retry" className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 dark:hover:text-[var(--accent-bright)] hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors shrink-0">
-                    <RotateCw size={14} />
-                  </button>
-                )}
-                {(it.status === "queued" || it.status === "error") && !running && (
-                  <button onClick={() => removeItem(it.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors shrink-0">
-                    <X size={14} />
-                  </button>
-                )}
+      {files.length > 0 && (
+        <div className="mt-4 space-y-1.5 max-h-56 overflow-y-auto">
+          {files.map((f, i) => (
+            <div key={i} className="flex items-center gap-3 rounded-xl border border-gray-100 dark:border-neutral-700 p-2.5">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 dark:bg-[var(--accent)]/10">
+                <FileIcon size={15} className="text-blue-500 dark:text-[var(--accent-bright)]" />
               </div>
-              {(it.status === "uploading" || it.status === "distributing") && (
-                <div className="h-1 bg-gray-100 dark:bg-neutral-700 rounded-full overflow-hidden mt-2">
-                  <div className="h-full rounded-full bg-blue-500 dark:bg-[var(--accent)] transition-all duration-300" style={{ width: `${Math.max(4, it.progress)}%` }} />
-                </div>
-              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{f.name}</p>
+                <p className="text-xs font-mono text-gray-400 dark:text-neutral-500">{formatBytes(f.size)}</p>
+              </div>
+              <button onClick={() => removeAt(i)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors shrink-0">
+                <X size={14} />
+              </button>
             </div>
           ))}
         </div>
       )}
 
       <button
-        onClick={uploadAll}
-        disabled={running || pendingCount === 0}
+        onClick={submit}
+        disabled={busy || files.length === 0}
         className="mt-4 w-full py-2.5 bg-blue-600 hover:bg-blue-500 dark:bg-[var(--accent)] dark:hover:bg-[var(--accent-hover)] disabled:opacity-40 disabled:cursor-not-allowed text-[var(--on-accent)] text-sm font-semibold rounded-xl transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 disabled:hover:translate-y-0"
       >
-        {running ? "Uploading…" : pendingCount > 0 ? `Upload ${pendingCount} file${pendingCount !== 1 ? "s" : ""}` : "Upload to network"}
+        {files.length > 0 ? `Upload ${files.length} file${files.length !== 1 ? "s" : ""}` : "Select files to upload"}
       </button>
     </div>
 

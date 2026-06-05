@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useTransfers } from "../context/TransferContext";
-import { Download, FileArchive, CheckCircle, AlertCircle, X, ChevronDown } from "lucide-react";
+import { Download, Upload, FileArchive, CheckCircle, AlertCircle, X, ChevronDown } from "lucide-react";
 
-const KIND_ICON = { download: Download, zip: FileArchive };
+const KIND_ICON = { download: Download, zip: FileArchive, upload: Upload };
 
 // MEGA-style docked transfer manager (bottom-right). Expanded: Transfers /
 // Completed tabs with live progress bars. Minimized: a floating circle with a
