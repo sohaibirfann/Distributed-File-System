@@ -652,6 +652,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
           content={previewContent}
           url={previewUrl}
           onClose={closePreview}
+          onDownload={() => handleDownload(previewFile)}
           onPrev={() => navigatePreview(-1)}
           onNext={() => navigatePreview(1)}
           hasPrev={previewIdx > 0}

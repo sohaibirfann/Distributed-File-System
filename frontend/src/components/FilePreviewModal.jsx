@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { getType } from "../lib/fileTypes";
 import Modal from "./Modal";
 
@@ -8,7 +8,7 @@ import Modal from "./Modal";
 // Optional onPrev/onNext turn it into a lightbox over the group's previewable
 // files (arrows + ←/→ keys).
 export default function FilePreviewModal({
-  file, type, content, url, onClose,
+  file, type, content, url, onClose, onDownload,
   onPrev, onNext, hasPrev = false, hasNext = false, index, total,
 }) {
   const { icon: Icon, bg, color } = getType(file);
@@ -60,9 +60,18 @@ export default function FilePreviewModal({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {total > 1 && Number.isInteger(index) && (
-              <span className="text-xs tabular-nums text-gray-400 dark:text-neutral-500">{index + 1} of {total}</span>
+              <span className="text-xs tabular-nums text-gray-400 dark:text-neutral-500 mr-1.5">{index + 1} of {total}</span>
+            )}
+            {onDownload && (
+              <button
+                onClick={onDownload}
+                title="Download"
+                className="p-1.5 rounded-lg text-gray-500 dark:text-neutral-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+              >
+                <Download size={15} />
+              </button>
             )}
             <button
               onClick={onClose}
