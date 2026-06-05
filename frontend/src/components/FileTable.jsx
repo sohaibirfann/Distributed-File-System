@@ -156,6 +156,7 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
 
   async function handlePreview(filename) {
     const type = getPreviewType(filename);
+    if (previewUrl) URL.revokeObjectURL(previewUrl); // free the prior image when navigating
     const id   = notify.loading("Loading preview…");
     try {
       const key = await loadKey(groupId);
@@ -332,6 +333,14 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
   useEffect(() => {
     onStats?.({ count: filtered.length, totalSize, total: files.length, allSize });
   }, [filtered.length, totalSize, files.length, allSize]);
+
+  // Lightbox navigation: the previewable files in display order + where we are.
+  const previewList = sorted.filter((f) => getPreviewType(f.filename)).map((f) => f.filename);
+  const previewIdx  = previewList.indexOf(previewFile);
+  function navigatePreview(dir) {
+    const target = previewList[previewIdx + dir];
+    if (target) handlePreview(target);
+  }
 
   const emptyState = (
     apiError && files.length === 0 ? (
@@ -643,6 +652,12 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
           content={previewContent}
           url={previewUrl}
           onClose={closePreview}
+          onPrev={() => navigatePreview(-1)}
+          onNext={() => navigatePreview(1)}
+          hasPrev={previewIdx > 0}
+          hasNext={previewIdx >= 0 && previewIdx < previewList.length - 1}
+          index={previewIdx}
+          total={previewList.length}
         />
       )}
 

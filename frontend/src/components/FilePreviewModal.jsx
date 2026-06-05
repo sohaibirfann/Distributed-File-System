@@ -1,37 +1,76 @@
-import { X } from "lucide-react";
+import { useEffect } from "react";
+import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { getType } from "../lib/fileTypes";
 import Modal from "./Modal";
 
 // Presentational preview dialog. The caller decrypts the file and passes the
 // ready-to-render data: a blob `url` (image/video/pdf) or text `content`.
-export default function FilePreviewModal({ file, type, content, url, onClose }) {
+// Optional onPrev/onNext turn it into a lightbox over the group's previewable
+// files (arrows + ←/→ keys).
+export default function FilePreviewModal({
+  file, type, content, url, onClose,
+  onPrev, onNext, hasPrev = false, hasNext = false, index, total,
+}) {
   const { icon: Icon, bg, color } = getType(file);
   const sizing =
     type === "image" || type === "video" ? "max-w-[90vw]"
     : type === "pdf" ? "w-[85vw] h-[85vh]"
     : "w-full max-w-3xl max-h-[80vh]";
 
+  // ←/→ flip between previewable files.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "ArrowLeft"  && hasPrev) { e.preventDefault(); onPrev?.(); }
+      else if (e.key === "ArrowRight" && hasNext) { e.preventDefault(); onNext?.(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [hasPrev, hasNext, onPrev, onNext]);
+
   return (
     <Modal onClose={onClose} label={`Preview: ${file}`} panelClassName={`flex flex-col ${sizing}`}>
+        {/* Lightbox arrows (viewport-anchored) */}
+        {hasPrev && (
+          <button
+            onClick={onPrev} title="Previous (←)"
+            className="fixed left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/85 dark:bg-black/55 backdrop-blur-md shadow-lg flex items-center justify-center text-gray-700 dark:text-neutral-200 hover:bg-white dark:hover:bg-black/70 transition-colors"
+          >
+            <ChevronLeft size={20} />
+          </button>
+        )}
+        {hasNext && (
+          <button
+            onClick={onNext} title="Next (→)"
+            className="fixed right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/85 dark:bg-black/55 backdrop-blur-md shadow-lg flex items-center justify-center text-gray-700 dark:text-neutral-200 hover:bg-white dark:hover:bg-black/70 transition-colors"
+          >
+            <ChevronRight size={20} />
+          </button>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-neutral-800 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${bg}`}>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
               <Icon size={13} className={color} />
             </div>
-            <span className="text-sm font-semibold text-gray-900 dark:text-white">{file}</span>
+            <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">{file}</span>
             {type === "text" && (
-              <span className="text-xs text-gray-400 dark:text-neutral-500">
+              <span className="text-xs text-gray-400 dark:text-neutral-500 shrink-0">
                 {content.split("\n").length} lines
               </span>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
-          >
-            <X size={15} />
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            {total > 1 && Number.isInteger(index) && (
+              <span className="text-xs tabular-nums text-gray-400 dark:text-neutral-500">{index + 1} of {total}</span>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-neutral-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
+            >
+              <X size={15} />
+            </button>
+          </div>
         </div>
 
         {/* Body */}
