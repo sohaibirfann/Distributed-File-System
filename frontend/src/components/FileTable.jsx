@@ -542,7 +542,11 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                           <FileThumb filename={file.filename} size={file.size} hasThumb={file.hasThumb} base={base} groupId={groupId} authFetch={authFetch} className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
                             <Icon size={15} className={color} />
                           </FileThumb>
-                          <span className="font-medium text-gray-800 dark:text-neutral-100 truncate min-w-0" title={file.filename}>
+                          <span
+                            className={`font-medium text-gray-800 dark:text-neutral-100 truncate min-w-0 ${getPreviewType(file.filename) ? "cursor-pointer hover:underline" : ""}`}
+                            title={getPreviewType(file.filename) ? `Preview ${file.filename}` : file.filename}
+                            onClick={getPreviewType(file.filename) ? () => handlePreview(file.filename) : undefined}
+                          >
                             {file.filename}
                           </span>
                           {file.cached && (
