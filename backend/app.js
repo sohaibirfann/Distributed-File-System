@@ -8,7 +8,17 @@ if (!process.env.JWT_SECRET) {
 const express    = require("express");
 const cors       = require("cors");
 const http       = require("http");
+const os         = require("os");
 const { Server } = require("socket.io");
+
+function lanIP() {
+  for (const ifaces of Object.values(os.networkInterfaces())) {
+    for (const net of ifaces) {
+      if (net.family === "IPv4" && !net.internal) return net.address;
+    }
+  }
+  return "localhost";
+}
 
 const {
   registerNode,
@@ -60,7 +70,9 @@ io.on("connection", (socket) => {
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
-  console.log("Backend running on port", PORT);
+  console.log(`Coordinator running. Members on this network connect to:`);
+  console.log(`    http://${lanIP()}:${PORT}`);
+  console.log(`(this machine: http://localhost:${PORT})`);
 
   setInterval(() => {
     const NODE_SECRET_TIMEOUT = 60;
