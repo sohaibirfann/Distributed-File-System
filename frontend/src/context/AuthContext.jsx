@@ -46,11 +46,12 @@ export function AuthProvider({ children }) {
     return res;
   }, [token, notify]);
 
-  // Tell the desktop shell who's signed in, so its embedded storage node can
-  // register under this user (and stop when they sign out). No-op on the web.
+  // Tell the desktop shell who's signed in (id + token), so its embedded storage
+  // node can register with the coordinator using the member's JWT — no shared
+  // secret needed. Stops when they sign out. No-op on the web.
   useEffect(() => {
-    window.dfsDesktop?.node?.setUser(user?.id ?? null);
-  }, [user]);
+    window.dfsDesktop?.node?.setUser(user ? { id: user.id, token } : null);
+  }, [user, token]);
 
   return (
     <AuthContext.Provider value={{ token, user, login, logout, authFetch }}>

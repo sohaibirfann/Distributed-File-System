@@ -129,6 +129,7 @@ function getNodeId() {
 let storageNode  = null;
 let syncingNode  = false;
 let currentUserId = null; // the logged-in user (pushed from the renderer)
+let currentToken  = null; // their JWT — the node registers with this (no shared secret)
 
 // Reconcile the running node to the current settings: stop any existing node,
 // then (re)start it if the user is contributing — picking up dir/quota changes.
@@ -138,11 +139,11 @@ async function syncStorageNode() {
   try {
     if (storageNode) { await storageNode.stop(); storageNode = null; }
 
-    const s      = readSettings();
-    const secret = nodeSecret();
+    const s = readSettings();
     // The node belongs to a user, so it only runs while contributing AND signed in.
-    if (!s.contribute || !currentUserId) return;
-    if (!secret) { console.warn("[node] contribute is on but no NODE_SECRET is configured — not starting"); return; }
+    // It authenticates to the coordinator with the member's JWT; `secret`/`userId`
+    // are a dev fallback for setups that still use a shared NODE_SECRET.
+    if (!s.contribute || !currentToken) return;
 
     const node = new StorageNode({
       name:       getNodeId(),
@@ -150,7 +151,8 @@ async function syncStorageNode() {
       storageDir: s.storageDir,
       quotaBytes: Math.max(1, Number(s.quotaGB) || 5) * 1024 * 1024 * 1024,
       coordUrl:   coordUrl(),
-      secret,
+      token:      currentToken,
+      secret:     nodeSecret(),
       userId:     currentUserId,
     });
     const { url } = await node.start();
@@ -173,12 +175,15 @@ ipcMain.handle("settings:set", (_e, partial) => {
 ipcMain.handle("node:status", () =>
   storageNode ? storageNode.status() : { running: false, registered: false, chunks: 0, bytes: 0 });
 
-// The renderer tells us who's signed in so the node can register under that user
-// (and stop when they sign out).
-ipcMain.handle("node:set-user", (_e, userId) => {
-  const next = userId ?? null;
-  if (next === currentUserId) return true;
-  currentUserId = next;
+// The renderer tells us who's signed in (id + JWT) so the node can register under
+// that user (and stop when they sign out). Accepts { id, token } (or a bare id /
+// null for back-compat).
+ipcMain.handle("node:set-user", (_e, payload) => {
+  const id    = payload && typeof payload === "object" ? (payload.id ?? null)    : (payload ?? null);
+  const token = payload && typeof payload === "object" ? (payload.token ?? null) : null;
+  if (id === currentUserId && token === currentToken) return true;
+  currentUserId = id;
+  currentToken  = token;
   syncStorageNode();
   return true;
 });

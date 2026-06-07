@@ -54,17 +54,26 @@ function readJson(req, limit = 16 * 1024 * 1024) {
 const chunkPath = (dir, fileId, chunkId) => path.join(dir, `${fileId}_chunk_${chunkId}`);
 
 class StorageNode {
-  constructor({ name, port, storageDir, quotaBytes, coordUrl, secret, userId }) {
+  constructor({ name, port, storageDir, quotaBytes, coordUrl, token, secret, userId }) {
     this.name       = name;
     this.port       = port;
     this.storageDir = storageDir;
     this.quotaBytes = quotaBytes;
     this.coordUrl   = coordUrl;
-    this.secret     = secret;
+    this.token      = token ?? null;   // member JWT — primary auth to the coordinator
+    this.secret     = secret;          // shared-secret fallback (dev/standalone)
     this.userId     = userId ?? null;
     this.server     = null;
     this.heartbeat  = null;
     this.registered = false;
+  }
+
+  // Coordinator auth: the member's JWT if we have one, plus the secret/userId in
+  // the body as a fallback (the coordinator tries the token first).
+  _headers() {
+    const h = { "Content-Type": "application/json" };
+    if (this.token) h.Authorization = `Bearer ${this.token}`;
+    return h;
   }
 
   async start() {
@@ -87,7 +96,7 @@ class StorageNode {
     try {
       await fetch(`${this.coordUrl}/api/nodes/deregister`, {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: this._headers(),
         body:    JSON.stringify({ name: this.name, secret: this.secret }),
       });
     } catch { /* coordinator down — the stale sweep will clean us up */ }
@@ -115,7 +124,7 @@ class StorageNode {
     try {
       const res = await fetch(`${this.coordUrl}/api/nodes/register`, {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: this._headers(),
         body:    JSON.stringify({ name: this.name, url: this._url(), secret: this.secret, userId: this.userId }),
       });
       this.registered = res.ok;
@@ -126,7 +135,7 @@ class StorageNode {
     try {
       const res = await fetch(`${this.coordUrl}/api/nodes/heartbeat`, {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: this._headers(),
         body:    JSON.stringify({ name: this.name, secret: this.secret }),
       });
       // If the coordinator forgot us (restarted), re-register.
