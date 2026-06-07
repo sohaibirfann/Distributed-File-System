@@ -3,8 +3,6 @@ import { Database, Minus, Square, Copy, X } from "lucide-react";
 import { useTitle } from "../context/TitleContext";
 import ConnectionStatus from "./ConnectionStatus";
 
-// Custom title bar for the frameless desktop window. The bar itself is a drag
-// region; the controls opt out of dragging so they stay clickable.
 const drag   = { WebkitAppRegion: "drag" };
 const noDrag = { WebkitAppRegion: "no-drag" };
 

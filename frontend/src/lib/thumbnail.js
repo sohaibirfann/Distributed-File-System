@@ -1,6 +1,3 @@
-// Downscale an image Blob/File to a small WebP Blob for previews. Resolves null
-// if it isn't a decodable image (caller falls back to a type icon). Shared by
-// the uploader (generate once, encrypt, store) and the on-device fallback.
 export function makeThumbnailBlob(blob, max = 256) {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(blob);

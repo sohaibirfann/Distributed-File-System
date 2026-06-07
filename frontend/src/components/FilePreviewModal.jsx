@@ -3,10 +3,6 @@ import { X, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { getType } from "../lib/fileTypes";
 import Modal from "./Modal";
 
-// Presentational preview dialog. The caller decrypts the file and passes the
-// ready-to-render data: a blob `url` (image/video/pdf) or text `content`.
-// Optional onPrev/onNext turn it into a lightbox over the group's previewable
-// files (arrows + ←/→ keys).
 export default function FilePreviewModal({
   file, type, content, url, onClose, onDownload,
   onPrev, onNext, hasPrev = false, hasNext = false, index, total,
@@ -17,7 +13,6 @@ export default function FilePreviewModal({
     : type === "pdf" ? "w-[85vw] h-[85vh]"
     : "w-full max-w-3xl max-h-[80vh]";
 
-  // ←/→ flip between previewable files.
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "ArrowLeft"  && hasPrev) { e.preventDefault(); onPrev?.(); }
@@ -29,7 +24,6 @@ export default function FilePreviewModal({
 
   return (
     <Modal onClose={onClose} label={`Preview: ${file}`} panelClassName={`flex flex-col ${sizing}`}>
-        {/* Lightbox arrows (viewport-anchored) */}
         {hasPrev && (
           <button
             onClick={onPrev} title="Previous (←)"
@@ -47,7 +41,6 @@ export default function FilePreviewModal({
           </button>
         )}
 
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-neutral-800 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
@@ -82,7 +75,6 @@ export default function FilePreviewModal({
           </div>
         </div>
 
-        {/* Body */}
         {type === "image" ? (
           <div className="preview-checkerboard p-4 rounded-b-2xl">
             <img

@@ -74,7 +74,6 @@ export default function Settings() {
     s.getStartup().then(setStartup).catch(() => {});
   }, []);
 
-  // Poll the embedded node's live status (chunks stored, etc.).
   useEffect(() => {
     const n = nodeApi();
     if (!n) return;
@@ -121,7 +120,6 @@ export default function Settings() {
     <div className="max-w-5xl w-full mx-auto px-6 py-8 space-y-6">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
 
-      {/* Account */}
       <Section icon={User} title="Account">
         <Row label="Signed in as" hint="Your account username">
           <span className="text-sm font-semibold text-gray-800 dark:text-neutral-200">{user?.username ?? "—"}</span>
@@ -136,7 +134,6 @@ export default function Settings() {
         </Row>
       </Section>
 
-      {/* Connection (desktop only) */}
       {desktop && (
         <Section icon={Server} title="Connection">
           <Row label="Server" hint="The server this app connects to — it holds no files or keys.">
@@ -164,7 +161,6 @@ export default function Settings() {
         </Section>
       )}
 
-      {/* Appearance */}
       <Section icon={Palette} title="Appearance">
         <Row label="Accent color" hint="The app's highlight color">
           <div className="flex items-center gap-2">
@@ -186,14 +182,12 @@ export default function Settings() {
         </Row>
       </Section>
 
-      {/* Startup (desktop only) */}
       <Section icon={Power} title="Startup">
         <Row label="Start DFS when I sign in" hint={desktop ? "Launch the app automatically on login" : "Available in the desktop app"}>
           <Switch checked={startup} onChange={toggleStartup} disabled={!desktop} />
         </Row>
       </Section>
 
-      {/* Storage contribution (desktop only) */}
       <Section icon={HardDrive} title="Storage contribution">
         <Row label="Contribute storage" hint={desktop ? "Let this device hold encrypted chunks for your groups" : "Available in the desktop app"}>
           <Switch checked={!!cfg?.contribute} onChange={(v) => patch({ contribute: v })} disabled={!desktop} />

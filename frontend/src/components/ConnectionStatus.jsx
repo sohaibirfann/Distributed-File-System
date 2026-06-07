@@ -1,8 +1,5 @@
 import { useCoordinatorStatus } from "../lib/useCoordinatorStatus";
 
-// Plain-language connection indicator for the title bar. A colored dot is always
-// shown; a label appears only when something needs the user's attention, so a
-// healthy app stays quiet. Deliberately avoids the word "coordinator".
 const STATES = {
   checking:     { dot: "bg-gray-400",                    label: "",              title: "Checking connection…" },
   connected:    { dot: "bg-emerald-500",                 label: "",              title: "Connected" },

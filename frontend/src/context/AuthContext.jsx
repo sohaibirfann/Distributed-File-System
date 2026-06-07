@@ -14,7 +14,6 @@ export function AuthProvider({ children }) {
     const t = localStorage.getItem("dfs_token");
     return t ? parseToken(t) : null;
   });
-  // Guards against multiple in-flight 401s (e.g. the file poller) all firing a toast.
   const expiredRef = useRef(false);
 
   function login(tokenStr) {
@@ -46,9 +45,6 @@ export function AuthProvider({ children }) {
     return res;
   }, [token, notify]);
 
-  // Tell the desktop shell who's signed in (id + token), so its embedded storage
-  // node can register with the coordinator using the member's JWT — no shared
-  // secret needed. Stops when they sign out. No-op on the web.
   useEffect(() => {
     window.dfsDesktop?.node?.setUser(user ? { id: user.id, token } : null);
   }, [user, token]);

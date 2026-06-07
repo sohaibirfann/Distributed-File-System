@@ -24,7 +24,6 @@ const PRESETS = {
   max:      "Maximum",
 };
 
-
 export default function GroupView() {
   const { id }        = useParams();
   const { authFetch } = useAuth();
@@ -60,17 +59,13 @@ export default function GroupView() {
   const dragCount = useRef(0);
   const searchRef = useRef(null);
 
-  // Modal a11y: Esc-to-close, focus trap, focus restore.
-
   useEffect(() => { fetchGroup(); }, [id]);
 
-  // Reflect the open group in the custom title bar + OS window title.
   useEffect(() => {
     if (group?.name) { setTitle(group.name); document.title = `${group.name} · DFS`; }
     return () => { setTitle(null); document.title = "DFS"; };
   }, [group?.name]);
 
-  // "/" focuses search (unless already typing); Esc clears + blurs.
   useEffect(() => {
     function onKey(e) {
       const el = document.activeElement;
@@ -197,7 +192,6 @@ export default function GroupView() {
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
-      {/* ── Toolbar ─────────────────────────────────────────────── */}
       <div className="relative shrink-0 flex items-center justify-between gap-3 px-6 h-14 border-b border-gray-200/70 dark:border-white/[0.06] bg-transparent">
         <div className="flex items-center gap-2.5 min-w-0">
           {group ? (
@@ -282,7 +276,6 @@ export default function GroupView() {
           </button>
         </div>
 
-        {/* Members popover */}
         {membersOpen && (
           <>
             <div className="fixed inset-0 z-30" onClick={() => setMembersOpen(false)} />
@@ -336,7 +329,6 @@ export default function GroupView() {
           </>
         )}
 
-        {/* Group options menu */}
         {menuOpen && group && (
           <>
             <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
@@ -369,7 +361,6 @@ export default function GroupView() {
         )}
       </div>
 
-      {/* ── Search bar ──────────────────────────────────────────── */}
       <div className="shrink-0 flex items-center gap-3 px-6 py-2.5 border-b border-gray-200/70 dark:border-white/[0.06]">
         <div className="flex-1 flex items-center gap-2.5 px-3 py-1.5 rounded-lg border bg-white/60 dark:bg-neutral-800/40 border-gray-200 dark:border-neutral-700 transition-all duration-150 focus-within:bg-white dark:focus-within:bg-neutral-800/70 focus-within:border-blue-500 dark:focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-blue-500/20 dark:focus-within:ring-[var(--accent)]/30">
           <Search size={15} className="text-gray-400 dark:text-neutral-500 shrink-0" />
@@ -395,7 +386,6 @@ export default function GroupView() {
         )}
       </div>
 
-      {/* Missing-key notice — this device joined elsewhere / cleared storage */}
       {keyMissing && (
         <div className="shrink-0 mx-6 mt-3 flex items-start gap-2.5 rounded-xl border border-amber-300/50 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 px-4 py-3">
           <KeyRound size={16} className="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
@@ -408,7 +398,6 @@ export default function GroupView() {
         </div>
       )}
 
-      {/* ── File area ───────────────────────────────────────────── */}
       <div className="relative flex-1 min-h-0 overflow-y-auto">
         {dragOver && (
           <div className="absolute inset-0 z-40 pointer-events-none flex flex-col items-center justify-center gap-3 bg-blue-500/10 dark:bg-[var(--accent)]/10 backdrop-blur-sm border-2 border-dashed border-blue-400/70 dark:border-[var(--accent)]/70 m-2 rounded-xl">
@@ -441,7 +430,6 @@ export default function GroupView() {
         <InviteModal groupId={id} groupName={group?.name} onClose={() => setShowInvite(false)} />
       )}
 
-      {/* Rename modal */}
       {renameOpen && (
         <Modal onClose={() => setRenameOpen(false)} label="Edit group" dismissable={!renaming}>
           <form onSubmit={doRename}>
@@ -493,7 +481,6 @@ export default function GroupView() {
         </Modal>
       )}
 
-      {/* Delete / Leave confirm */}
       {confirm && (
         <ConfirmDialog
           label={confirm === "delete" ? "Delete group" : "Leave group"}
@@ -510,7 +497,6 @@ export default function GroupView() {
         </ConfirmDialog>
       )}
 
-      {/* Transfer ownership confirm */}
       {transferTo && (
         <ConfirmDialog
           label="Transfer ownership" title={`Make ${transferTo.username} the owner?`}

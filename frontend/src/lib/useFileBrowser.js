@@ -9,10 +9,6 @@ import { getApiUrl } from "./api";
 
 const API = getApiUrl();
 
-// All the data + actions behind the file browser: list/poll, download (with
-// progress), preview/lightbox, delete, rename, multi-select + bulk zip/delete,
-// sort, and search/sort derivation. FileTable is the view that renders what this
-// returns. Keeping it here keeps the component focused on markup.
 export function useFileBrowser({ groupId, search = "", onStats }) {
   const notify = useNotify();
   const { authFetch } = useAuth();
@@ -47,9 +43,6 @@ export function useFileBrowser({ groupId, search = "", onStats }) {
   useEffect(() => {
     if (!groupId) return;
     fetchFiles();
-    // Poll while the app is on-screen; pause when hidden to avoid needless
-    // requests (and thumbnail decrypts) in the background, then refetch the
-    // moment the tab/window is visible again.
     const id = setInterval(() => {
       if (document.visibilityState === "visible") fetchFiles();
     }, 3000);
@@ -70,9 +63,6 @@ export function useFileBrowser({ groupId, search = "", onStats }) {
     }
   }
 
-  // Read a response body, reporting download progress (% of Content-Length) via
-  // onProgress. Falls back to a plain arrayBuffer read if streaming/length is
-  // unavailable.
   async function readWithProgress(res, onProgress) {
     const total = Number(res.headers.get("Content-Length")) || 0;
     if (!res.body?.getReader) return res.arrayBuffer();
@@ -216,19 +206,16 @@ export function useFileBrowser({ groupId, search = "", onStats }) {
     setRenaming(false);
   }
 
-  // ── Multi-select ──────────────────────────────────────────────────────────
   function toggleSelect(name) {
     setSelected((s) => { const n = new Set(s); n.has(name) ? n.delete(name) : n.add(name); return n; });
   }
   function toggleSelectAll() {
     setSelected((s) => (s.size === sorted.length ? new Set() : new Set(sorted.map((f) => f.filename))));
   }
-  // Download each selected file separately (like a normal one-by-one download).
   async function bulkDownloadIndividual() {
     for (const name of [...selected]) await handleDownload(name); // each gets its own transfer row
   }
 
-  // Decrypt the selected files on-device and hand back a single .zip.
   async function bulkDownload() {
     const names = [...selected];
     if (names.length === 0) return;
@@ -309,7 +296,6 @@ export function useFileBrowser({ groupId, search = "", onStats }) {
     onStats?.({ count: filtered.length, totalSize, total: files.length, allSize });
   }, [filtered.length, totalSize, files.length, allSize]);
 
-  // Lightbox navigation: the previewable files in display order + where we are.
   const previewList = sorted.filter((f) => getPreviewType(f.filename)).map((f) => f.filename);
   const previewIdx  = previewList.indexOf(previewFile);
   function navigatePreview(dir) {

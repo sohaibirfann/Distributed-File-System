@@ -30,7 +30,6 @@ export default function Login() {
     setConfirm("");
   }
 
-  // Logs in with the given credentials and routes into the app.
   async function authenticate(uname, pword) {
     const res  = await fetch(`${API}/api/auth/login`, {
       method:  "POST",
@@ -62,7 +61,6 @@ export default function Login() {
         });
         const data = await res.json();
         if (!res.ok) { setError(data.error || "Sign up failed"); setLoading(false); return; }
-        // Auto-login straight after a successful sign up.
         await authenticate(username, password);
       } else {
         await authenticate(username, password);

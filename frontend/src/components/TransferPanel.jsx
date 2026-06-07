@@ -4,10 +4,6 @@ import { Download, Upload, FileArchive, CheckCircle, AlertCircle, X, ChevronDown
 
 const KIND_ICON = { download: Download, zip: FileArchive, upload: Upload };
 
-// MEGA-style docked transfer manager (bottom-right). Expanded: Transfers /
-// Completed tabs with live progress bars. Minimized: a floating circle with a
-// ring that shows overall progress of the active transfers. Stays put after
-// downloads finish until cleared.
 export default function TransferPanel() {
   const { transfers, clearDone, remove } = useTransfers();
   const [tab, setTab] = useState("active");
@@ -18,7 +14,6 @@ export default function TransferPanel() {
 
   if (transfers.length === 0) return null;
 
-  // ── Minimized: floating circle with a progress ring ──────────────────────
   if (min) {
     const R = 24, C = 2 * Math.PI * R;
     const withPct = active.filter((t) => t.progress >= 0);
@@ -57,7 +52,6 @@ export default function TransferPanel() {
     );
   }
 
-  // ── Expanded: full panel ──────────────────────────────────────────────────
   const shown = tab === "active" ? active : completed;
 
   return (

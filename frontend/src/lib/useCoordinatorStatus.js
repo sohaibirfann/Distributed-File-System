@@ -1,17 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { pingCoordinator, getApiUrl, hasCoordinator } from "./api";
 
-// Polls the coordinator's /api/health so the UI can surface a plain-language
-// connection state (the word "coordinator" never reaches the user). States:
-//   checking     — first probe in flight
-//   connected    — health check passed
-//   reconnecting — an address is set but unreachable; we keep retrying
-//   offline      — the machine itself has no network
-//   none         — no address configured yet (the setup gate handles that)
-//
-// Cadence adapts: relaxed (15s) while healthy, brisk (5s) while trying to
-// recover. Also re-probes on browser online/offline events and window focus so
-// the pill reacts the moment connectivity changes.
 const OK_INTERVAL  = 15_000;
 const BAD_INTERVAL = 5_000;
 

@@ -4,13 +4,8 @@ const fs     = require("fs");
 const crypto = require("crypto");
 const { StorageNode } = require("./storageNode");
 
-// In dev we load the live Vite server so UI changes hot-reload inside the window.
-// In a packaged build this will point at the bundled frontend (added later).
 const APP_URL = process.env.DFS_APP_URL || "http://localhost:5173";
 
-// Dev convenience: pull BACKEND_URL / NODE_SECRET from the backend's .env so the
-// embedded storage node can register with no extra setup. In a packaged build
-// these come from the app's own config / the deployed coordinator instead.
 function loadBackendEnv() {
   try {
     const text = fs.readFileSync(path.join(__dirname, "..", "backend", ".env"), "utf8");
@@ -23,12 +18,9 @@ function loadBackendEnv() {
 loadBackendEnv();
 
 const NODE_PORT    = Number(process.env.DFS_NODE_PORT || 7330);
-// The coordinator the embedded node registers with. A URL set in the app
-// (Settings → Connection) wins; otherwise fall back to env / the dev default.
 const coordUrl     = () => readSettings().coordinatorUrl || process.env.DFS_API_URL || process.env.BACKEND_URL || "http://localhost:5000";
 const nodeSecret   = () => process.env.NODE_SECRET || process.env.DFS_NODE_SECRET || "";
 
-// ── Window bounds persistence ───────────────────────────────────────────────
 function stateFile() {
   return path.join(app.getPath("userData"), "window-state.json");
 }
@@ -68,17 +60,13 @@ function createWindow() {
   mainWindow = win;
   if (s.maximized) win.maximize();
 
-  // Packaged: load the bundled frontend (copied to resources/ui by electron-builder).
-  // Dev: load the live Vite server for hot-reload.
   if (app.isPackaged) win.loadFile(path.join(process.resourcesPath, "ui", "index.html"));
   else                win.loadURL(APP_URL);
 
-  // Tell the renderer when the maximize state flips (to swap the button icon).
   win.on("maximize",   () => win.webContents.send("win:maximized", true));
   win.on("unmaximize", () => win.webContents.send("win:maximized", false));
   win.on("close",      () => saveState(win));
 
-  // External links open in the user's real browser, not the app window.
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: "deny" };
@@ -87,7 +75,6 @@ function createWindow() {
   if (process.env.DFS_DEV) win.webContents.openDevTools({ mode: "detach" });
 }
 
-// ── Window-control IPC (from the custom title bar) ──────────────────────────
 ipcMain.on("win:minimize",        (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());
 ipcMain.on("win:toggle-maximize", (e) => {
   const w = BrowserWindow.fromWebContents(e.sender);
@@ -97,7 +84,6 @@ ipcMain.on("win:toggle-maximize", (e) => {
 ipcMain.on("win:close",   (e) => BrowserWindow.fromWebContents(e.sender)?.close());
 ipcMain.handle("win:is-maximized", (e) => BrowserWindow.fromWebContents(e.sender)?.isMaximized() ?? false);
 
-// ── Settings store (JSON in userData) ───────────────────────────────────────
 function settingsFile() {
   return path.join(app.getPath("userData"), "settings.json");
 }
@@ -119,7 +105,6 @@ function writeSettings(next) {
   return merged;
 }
 
-// Stable per-install node identity (persisted in settings.json).
 function getNodeId() {
   const s = readSettings();
   if (s.nodeId) return s.nodeId;
@@ -128,14 +113,11 @@ function getNodeId() {
   return id;
 }
 
-// ── Embedded storage node ────────────────────────────────────────────────────
 let storageNode  = null;
 let syncingNode  = false;
 let currentUserId = null; // the logged-in user (pushed from the renderer)
 let currentToken  = null; // their JWT — the node registers with this (no shared secret)
 
-// Reconcile the running node to the current settings: stop any existing node,
-// then (re)start it if the user is contributing — picking up dir/quota changes.
 async function syncStorageNode() {
   if (syncingNode) return;
   syncingNode = true;
@@ -143,9 +125,6 @@ async function syncStorageNode() {
     if (storageNode) { await storageNode.stop(); storageNode = null; }
 
     const s = readSettings();
-    // The node belongs to a user, so it only runs while contributing AND signed in.
-    // It authenticates to the coordinator with the member's JWT; `secret`/`userId`
-    // are a dev fallback for setups that still use a shared NODE_SECRET.
     if (!s.contribute || !currentToken) return;
 
     const node = new StorageNode({
@@ -178,9 +157,6 @@ ipcMain.handle("settings:set", (_e, partial) => {
 ipcMain.handle("node:status", () =>
   storageNode ? storageNode.status() : { running: false, registered: false, chunks: 0, bytes: 0 });
 
-// The renderer tells us who's signed in (id + JWT) so the node can register under
-// that user (and stop when they sign out). Accepts { id, token } (or a bare id /
-// null for back-compat).
 ipcMain.handle("node:set-user", (_e, payload) => {
   const id    = payload && typeof payload === "object" ? (payload.id ?? null)    : (payload ?? null);
   const token = payload && typeof payload === "object" ? (payload.token ?? null) : null;
@@ -197,14 +173,12 @@ ipcMain.handle("dialog:pick-folder", async (e) => {
   return res.canceled ? null : res.filePaths[0];
 });
 
-// Start-with-OS is managed by Electron's login-item settings, not our JSON.
 ipcMain.handle("startup:get", () => app.getLoginItemSettings().openAtLogin);
 ipcMain.handle("startup:set", (_e, enabled) => {
   app.setLoginItemSettings({ openAtLogin: !!enabled });
   return app.getLoginItemSettings().openAtLogin;
 });
 
-// Native notifications (file added, member joined). Clicking one focuses the app.
 ipcMain.handle("notify:show", (_e, { title, body } = {}) => {
   if (!Notification.isSupported()) return false;
   const n = new Notification({ title: title || "DFS", body: body || "", icon: path.join(__dirname, "icon.png") });
@@ -215,9 +189,7 @@ ipcMain.handle("notify:show", (_e, { title, body } = {}) => {
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null); // no default OS menu — chrome is fully custom
-  // Dark-only app — keep any native chrome (dialogs, etc.) dark too.
   nativeTheme.themeSource = "dark";
-  // Windows shows this as the toast's app identity (name + icon).
   if (process.platform === "win32") app.setAppUserModelId("com.dfs.app");
   createWindow();
   syncStorageNode(); // start contributing if the user enabled it last time

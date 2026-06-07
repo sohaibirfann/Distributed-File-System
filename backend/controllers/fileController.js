@@ -41,12 +41,6 @@ function evictCache(incomingBytes) {
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| Upload File (group-scoped)
-|--------------------------------------------------------------------------
-*/
-
 const uploadFile = (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded" });
@@ -58,11 +52,9 @@ const uploadFile = (req, res) => {
 
     distributeFile(filePath, originalName, groupId, req.user.id, io)
       .then(() => {
-        // Persist the optional encrypted preview thumbnail (images only).
         if (req.body?.thumb) {
           try { setFileThumb(groupId, originalName, req.body.thumb); } catch (e) { console.error("thumb save failed:", e.message); }
         }
-        // Notify other members (clients filter to their own groups, skip self).
         io.emit("file-added", { groupId, filename: originalName, byId: req.user.id, byName: req.user.username });
         res.json({ success: true, message: "File uploaded successfully" });
       })
@@ -75,12 +67,6 @@ const uploadFile = (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
-/*
-|--------------------------------------------------------------------------
-| List a group's files
-|--------------------------------------------------------------------------
-*/
 
 const getFiles = (req, res) => {
   try {
@@ -102,12 +88,6 @@ const getFiles = (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
-/*
-|--------------------------------------------------------------------------
-| Download File — parallel chunk assembly
-|--------------------------------------------------------------------------
-*/
 
 const downloadFile = async (req, res) => {
   try {
@@ -151,8 +131,6 @@ const downloadFile = async (req, res) => {
             const { data } = await response.json();
             const buf = Buffer.from(data, "base64");
 
-            // Integrity check on the (encrypted) chunk — detects a corrupted or
-            // tampered replica before we bother returning it.
             const actualHash = crypto.createHash("sha256").update(buf).digest("hex");
             if (actualHash !== chunk.hash) {
               io.emit("log", `[integrity] chunk ${chunk.chunkId} from ${user} failed hash check — trying next replica`);
@@ -192,14 +170,6 @@ const downloadFile = async (req, res) => {
   }
 };
 
-/*
-|--------------------------------------------------------------------------
-| Delete File
-|--------------------------------------------------------------------------
-*/
-
-// Tell every node holding this file's chunks to delete them, and drop any local
-// cache copy. Best-effort (offline nodes are skipped); does NOT touch the DB.
 async function purgeFileChunks(record, NODE_MAP = getNodeMap()) {
   await Promise.all(
     record.chunks.flatMap((chunk) =>
@@ -223,8 +193,6 @@ async function purgeFileChunks(record, NODE_MAP = getNodeMap()) {
   try { if (fs.existsSync(cachedPath)) fs.unlinkSync(cachedPath); } catch { /* ignore */ }
 }
 
-// GC every chunk for a group's files across member nodes — called *before* a
-// group is deleted, while the chunk→node map still exists. Best-effort.
 async function purgeGroupChunks(groupId) {
   const NODE_MAP = getNodeMap();
   for (const f of getGroupFiles(groupId)) {
@@ -233,15 +201,12 @@ async function purgeGroupChunks(groupId) {
   }
 }
 
-// Return a file's encrypted preview thumbnail (base64), or 404 if none.
 const getThumb = (req, res) => {
   const thumb = getFileThumb(req.params.groupId, req.params.filename);
   if (!thumb) return res.status(404).json({ message: "No thumbnail" });
   res.json({ thumb });
 };
 
-// Rename a file in place. Only the DB filename changes — chunks live under the
-// file's stable id, so nothing on the nodes moves.
 const renameFile = (req, res) => {
   try {
     const { groupId, filename } = req.params;

@@ -2,8 +2,6 @@ import { useState } from "react";
 import { Database, ArrowRight, Loader2 } from "lucide-react";
 import { setCoordinatorUrl, getStoredCoordinator, pingCoordinator } from "../lib/api";
 
-// First-run gate (desktop): the app can't do anything until it knows which
-// coordinator to talk to. Shown only when none is configured.
 export default function CoordinatorSetup() {
   const [value, setValue]     = useState(getStoredCoordinator());
   const [error, setError]     = useState("");
@@ -22,7 +20,6 @@ export default function CoordinatorSetup() {
         return;
       }
       await setCoordinatorUrl(value);
-      // Reload so every module re-reads the new coordinator URL.
       window.location.reload();
     } catch (err) {
       setError(err.message || "Couldn't save that address.");

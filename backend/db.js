@@ -88,20 +88,12 @@ db.exec(`
   );
 `);
 
-// Back-fill the user_id column on databases created before node↔user identity.
 try { db.exec(`ALTER TABLE nodes ADD COLUMN user_id INTEGER`); } catch { /* already present */ }
-// Optional per-group identity (custom avatar). Null = auto (deterministic color
-// + first letter of the name).
 try { db.exec(`ALTER TABLE groups ADD COLUMN emoji TEXT`); } catch { /* already present */ }
 try { db.exec(`ALTER TABLE groups ADD COLUMN color TEXT`); } catch { /* already present */ }
-// Optional usage cap on invites. max_uses NULL = unlimited; uses = times redeemed.
 try { db.exec(`ALTER TABLE invites ADD COLUMN max_uses INTEGER`); } catch { /* already present */ }
 try { db.exec(`ALTER TABLE invites ADD COLUMN uses INTEGER NOT NULL DEFAULT 0`); } catch { /* already present */ }
-// Optional encrypted preview thumbnail (base64 of group-key-encrypted WebP) so
-// members can preview images without downloading the full file.
 try { db.exec(`ALTER TABLE files ADD COLUMN thumb TEXT`); } catch { /* already present */ }
-
-// ── Nodes ─────────────────────────────────────────────────────────────────────
 
 const stmts = {
   upsertNode:   db.prepare(`INSERT INTO nodes (name, url, user_id, last_seen) VALUES (?, ?, ?, unixepoch())
@@ -111,7 +103,6 @@ const stmts = {
   deleteNode:   db.prepare(`DELETE FROM nodes WHERE name = ?`),
   staleNodes:   db.prepare(`SELECT name FROM nodes WHERE last_seen < unixepoch() - ?`),
 
-  // Files (group-scoped, unique id)
   insertFile:       db.prepare(`INSERT INTO files (id, group_id, filename, uploaded_at, total_size, uploaded_by) VALUES (?, ?, ?, ?, ?, ?)`),
   deleteFileByName: db.prepare(`DELETE FROM files WHERE group_id = ? AND filename = ?`),
   deleteFileById:   db.prepare(`DELETE FROM files WHERE id = ?`),
@@ -119,8 +110,6 @@ const stmts = {
   renameFileByName: db.prepare(`UPDATE files SET filename = ? WHERE group_id = ? AND filename = ?`),
   setThumb:         db.prepare(`UPDATE files SET thumb = ? WHERE group_id = ? AND filename = ?`),
   getThumb:         db.prepare(`SELECT thumb FROM files WHERE group_id = ? AND filename = ?`),
-  // Explicit columns (not f.*) so the heavy `thumb` blob never rides along in the
-  // polled list — just a has_thumb flag.
   groupFiles:       db.prepare(`SELECT f.id, f.filename, f.total_size, f.uploaded_at,
                                        u.username AS uploaded_by_name,
                                        (SELECT COUNT(*) FROM chunks c WHERE c.file_id = f.id) AS chunk_count,
@@ -128,20 +117,16 @@ const stmts = {
                                   FROM files f LEFT JOIN users u ON u.id = f.uploaded_by
                                  WHERE f.group_id = ? ORDER BY f.uploaded_at DESC`),
 
-  // Chunks
   insertChunk:  db.prepare(`INSERT OR REPLACE INTO chunks (file_id, chunk_id, hash, size) VALUES (?, ?, ?, ?)`),
   getChunks:    db.prepare(`SELECT id, chunk_id, hash, size FROM chunks WHERE file_id = ? ORDER BY chunk_id ASC`),
   getChunkPk:   db.prepare(`SELECT id FROM chunks WHERE file_id = ? AND chunk_id = ?`),
 
-  // Chunk nodes
   insertChunkNode: db.prepare(`INSERT OR IGNORE INTO chunk_nodes (chunk_pk, node_name) VALUES (?, ?)`),
   getChunkNodes:   db.prepare(`SELECT node_name FROM chunk_nodes WHERE chunk_pk = ?`),
 
-  // Users
   createUser:       db.prepare(`INSERT INTO users (username, password_hash) VALUES (?, ?)`),
   getUserByName:    db.prepare(`SELECT * FROM users WHERE username = ?`),
 
-  // Groups
   insertGroup:      db.prepare(`INSERT INTO groups (id, name, created_by, replication, emoji, color) VALUES (?, ?, ?, ?, ?, ?)`),
   getGroupById:     db.prepare(`SELECT * FROM groups WHERE id = ?`),
   deleteGroupById:  db.prepare(`DELETE FROM groups WHERE id = ?`),
@@ -152,7 +137,6 @@ const stmts = {
                                  WHERE m.user_id = ?
                                  ORDER BY g.created_at`),
 
-  // Group members
   addMember:        db.prepare(`INSERT OR IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)`),
   getMember:        db.prepare(`SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?`),
   getMemberRole:    db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`),
@@ -164,8 +148,6 @@ const stmts = {
                                               AND n.last_seen > unixepoch() - 30) AS online
                                   FROM group_members m JOIN users u ON u.id = m.user_id
                                  WHERE m.group_id = ? ORDER BY m.joined_at`),
-  // Per-member share of a group's encrypted data: how many chunks (and bytes)
-  // this group's files have stored on each member's node(s).
   groupStorageByUser: db.prepare(`SELECT n.user_id AS user_id,
                                           COUNT(*) AS chunks,
                                           COALESCE(SUM(c.size), 0) AS bytes
@@ -176,7 +158,6 @@ const stmts = {
                                     WHERE f.group_id = ? AND n.user_id IS NOT NULL
                                     GROUP BY n.user_id`),
 
-  // Invites
   insertInvite:     db.prepare(`INSERT INTO invites (code, group_id, created_by, expires_at, max_uses) VALUES (?, ?, ?, ?, ?)`),
   getInviteByCode:  db.prepare(`SELECT * FROM invites WHERE code = ?`),
   revokeInviteCode: db.prepare(`UPDATE invites SET revoked = 1 WHERE code = ?`),
@@ -189,13 +170,10 @@ const stmts = {
                                   WHERE group_id = ? AND revoked = 0 ORDER BY created_at DESC`),
 };
 
-// ── Node helpers ──────────────────────────────────────────────────────────────
-
 function registerNode(name, url, userId = null) {
   stmts.upsertNode.run(name, url, userId ?? null);
 }
 
-// name→url map of nodes owned by any of the given users (a group's members).
 function getMemberNodeMap(userIds) {
   if (!userIds || !userIds.length) return {};
   const ph   = userIds.map(() => "?").join(",");
@@ -222,8 +200,6 @@ function deregisterStaleNodes(timeoutSeconds) {
   return stale.map((r) => r.name);
 }
 
-// ── File helpers ──────────────────────────────────────────────────────────────
-
 function chunksOf(fileId) {
   return stmts.getChunks.all(fileId).map((c) => ({
     chunkId: c.chunk_id,
@@ -233,9 +209,6 @@ function chunksOf(fileId) {
   }));
 }
 
-// Persists a file under a group. Replaces any existing file with the same name
-// in that group (cascade clears its old chunk rows). chunks: [{ chunkId, hash,
-// size, users: [nodeName, ...] }]
 const saveFile = db.transaction((fileId, groupId, filename, uploadedBy, uploadedAt, chunks) => {
   const totalSize = chunks.reduce((s, c) => s + c.size, 0);
   stmts.deleteFileByName.run(groupId, filename);
@@ -248,19 +221,16 @@ const saveFile = db.transaction((fileId, groupId, filename, uploadedBy, uploaded
   }
 });
 
-// Files in a group, with chunk_count, for listing.
 function getGroupFiles(groupId) {
   return stmts.groupFiles.all(groupId);
 }
 
-// A single file in a group (by name) with its full chunk → node map.
 function getGroupFileByName(groupId, filename) {
   const file = stmts.getFileByName.get(groupId, filename);
   if (!file) return null;
   return { ...file, chunks: chunksOf(file.id) };
 }
 
-// Store / fetch the encrypted preview thumbnail (base64) for a file.
 function setFileThumb(groupId, filename, thumb) {
   stmts.setThumb.run(thumb, groupId, filename);
 }
@@ -268,8 +238,6 @@ function getFileThumb(groupId, filename) {
   return stmts.getThumb.get(groupId, filename)?.thumb ?? null;
 }
 
-// Rename a file within a group (chunks are keyed by fileId, so they're untouched).
-// Returns "ok", "notfound", or "taken" (target name already used in the group).
 function renameFile(groupId, oldName, newName) {
   try {
     const info = stmts.renameFileByName.run(newName, groupId, oldName);
@@ -284,8 +252,6 @@ function deleteFileRecord(fileId) {
   stmts.deleteFileById.run(fileId); // cascades to chunks + chunk_nodes
 }
 
-// ── User helpers ──────────────────────────────────────────────────────────────
-
 function createUser(username, passwordHash) {
   stmts.createUser.run(username, passwordHash);
 }
@@ -294,13 +260,8 @@ function getUserByUsername(username) {
   return stmts.getUserByName.get(username);
 }
 
-// ── Group helpers ─────────────────────────────────────────────────────────────
-
 const REPLICATION_PRESETS = ["minimal", "balanced", "max"];
 
-// Creates a group and adds its creator as the 'owner' member, atomically.
-// Normalize optional group-identity inputs. Emoji: trim + cap length (a couple
-// codepoints). Color: only accept #rrggbb, else null.
 function normEmoji(e) {
   if (e == null) return null;
   const s = String(e).trim();
@@ -327,8 +288,6 @@ function getGroup(id) {
   return stmts.getGroupById.get(id) || null;
 }
 
-// Update name (+ optionally emoji/color). `undefined` fields are left unchanged;
-// pass null or "" to clear emoji/color back to auto.
 function updateGroup(groupId, { name, emoji, color } = {}) {
   const cur = stmts.getGroupById.get(groupId);
   if (!cur) return null;
@@ -353,7 +312,6 @@ function isMember(groupId, userId) {
   return !!stmts.getMember.get(groupId, userId);
 }
 
-// Returns the user's role in the group ('owner' | 'member'), or null if not a member.
 function getMemberRole(groupId, userId) {
   const row = stmts.getMemberRole.get(groupId, userId);
   return row ? row.role : null;
@@ -367,8 +325,6 @@ function removeMember(groupId, userId) {
   stmts.removeMemberRow.run(groupId, userId);
 }
 
-// Hands ownership to another member: the current owner becomes a member and the
-// target becomes the owner, atomically.
 const transferOwnership = db.transaction((groupId, fromUserId, toUserId) => {
   stmts.setMemberRole.run("member", groupId, fromUserId);
   stmts.setMemberRole.run("owner", groupId, toUserId);
@@ -388,16 +344,12 @@ function deleteGroup(id) {
   stmts.deleteGroupById.run(id); // cascades to members, invites
 }
 
-// ── Invite helpers ────────────────────────────────────────────────────────────
-
 function createInvite(groupId, createdByUserId, expiresAt = null, maxUses = null) {
   const code = crypto.randomBytes(9).toString("base64url"); // ~12 url-safe chars
   stmts.insertInvite.run(code, groupId, createdByUserId, expiresAt, maxUses);
   return code;
 }
 
-// Returns the invite row only if it exists and is not revoked, expired, or
-// already used up (when a max_uses cap is set).
 function getValidInvite(code) {
   const row = stmts.getInviteByCode.get(code);
   if (!row || row.revoked) return null;
@@ -406,8 +358,6 @@ function getValidInvite(code) {
   return row;
 }
 
-// Record one redemption of an invite (called after a successful join): bump the
-// use counter and remember who joined through it.
 function consumeInvite(code, userId) {
   stmts.bumpInviteUse.run(code);
   if (userId != null) stmts.recordRedemption.run(code, userId);
@@ -417,8 +367,6 @@ function revokeInvite(code) {
   stmts.revokeInviteCode.run(code);
 }
 
-// Active (non-revoked) invites for a group, newest first. Expired-but-not-revoked
-// ones are included so the UI can show their state and let a member clear them.
 function listGroupInvites(groupId) {
   const invites = stmts.listGroupInvites.all(groupId);
   for (const inv of invites) {
@@ -444,7 +392,6 @@ module.exports = {
   deleteFileRecord,
   createUser,
   getUserByUsername,
-  // groups
   createGroup,
   getGroup,
   setGroupReplication,
@@ -457,7 +404,6 @@ module.exports = {
   transferOwnership,
   getGroupMembers,
   deleteGroup,
-  // invites
   createInvite,
   getValidInvite,
   consumeInvite,

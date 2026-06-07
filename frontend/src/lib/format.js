@@ -1,6 +1,4 @@
-// Shared display formatters for the file UI.
 
-// Human-readable byte size (B / KB / MB / GB).
 export function formatBytes(bytes) {
   const b = bytes || 0;
   if (b < 1024)       return `${b} B`;
@@ -9,7 +7,6 @@ export function formatBytes(bytes) {
   return `${(b / 1024 ** 3).toFixed(2)} GB`;
 }
 
-// Relative "x ago" timestamp, falling back to an absolute date past a week.
 export function formatRelativeTime(iso) {
   if (!iso) return "—";
   const diff  = Date.now() - new Date(iso).getTime();

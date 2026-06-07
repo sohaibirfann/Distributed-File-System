@@ -1,10 +1,6 @@
-// Client-side AES-256-GCM using the browser's Web Crypto API.
-// The group key never leaves the device; the coordinator only ever handles the
-// ciphertext produced here.
 
 const IV_BYTES = 12; // standard GCM nonce length
 
-// ── base64url <-> bytes ────────────────────────────────────────────────────────
 export function bytesToB64url(bytes) {
   let bin = "";
   for (const b of bytes) bin += String.fromCharCode(b);
@@ -19,7 +15,6 @@ export function b64urlToBytes(b64url) {
   return out;
 }
 
-// ── Keys ────────────────────────────────────────────────────────────────────
 export async function generateGroupKey() {
   return crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
 }
@@ -33,8 +28,6 @@ export async function importKeyB64(b64url) {
   return crypto.subtle.importKey("raw", b64urlToBytes(b64url), "AES-GCM", true, ["encrypt", "decrypt"]);
 }
 
-// ── Encrypt / decrypt whole blobs ──────────────────────────────────────────────
-// Output layout: [ iv (12 bytes) ][ ciphertext + GCM tag ]
 export async function encryptBytes(key, dataBuffer) {
   const iv  = crypto.getRandomValues(new Uint8Array(IV_BYTES));
   const ct  = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, dataBuffer);

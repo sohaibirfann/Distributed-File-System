@@ -19,7 +19,6 @@ export default function GroupsHome() {
     );
   }
 
-  // First run — the user has no groups yet.
   return (
     <div className="h-full flex flex-col items-center justify-center text-center px-6">
       <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-[var(--accent)]/15 flex items-center justify-center mb-5">

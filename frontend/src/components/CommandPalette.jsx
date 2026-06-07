@@ -5,8 +5,6 @@ import {
 import Kbd from "./Kbd";
 import { groupColor, groupLabel, isEmojiLabel } from "../lib/groupAvatar";
 
-// Cmd/Ctrl+K command palette. Actions are passed in from the shell so the
-// palette stays a dumb, themeable view.
 export default function CommandPalette({
   open, onOpenChange, groups,
   onOpenGroup, onNewGroup, onJoin, onSettings, onToggleSidebar, onSignOut,

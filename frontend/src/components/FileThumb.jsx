@@ -4,17 +4,9 @@ import { decryptBytes, b64urlToBytes } from "../lib/crypto";
 import { getPreviewType } from "../lib/fileTypes";
 import { makeThumbnailBlob } from "../lib/thumbnail";
 
-// ── Image thumbnails ──────────────────────────────────────────────────────────
-// Preferred path: the uploader stored a small encrypted thumbnail, so we fetch
-// just that (a few KB), decrypt it, and show it — no full-file download.
-// Fallback (older files with no stored thumbnail): download + decrypt the whole
-// image on-device and downscale it, but only under a size cap. Either way the
-// server never sees the picture. Results are cached in memory for the session.
 const THUMB_MAX_BYTES = 12 * 1024 * 1024; // fallback only: skip larger images
 const thumbCache = new Map();             // `${groupId}:${filename}` -> objectURL ("" = failed/skip)
 
-// Renders the file's type icon (children), swapping in a decrypted thumbnail once
-// it scrolls into view. Keeps the parent's sized/rounded container via `className`.
 export default function FileThumb({ filename, size, base, groupId, authFetch, hasThumb, className, children }) {
   const isImage  = getPreviewType(filename) === "image";
   const cacheKey = `${groupId}:${filename}`;

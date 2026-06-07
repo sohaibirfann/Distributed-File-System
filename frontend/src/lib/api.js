@@ -1,19 +1,6 @@
-// Coordinator (API) endpoint — resolved at runtime so the desktop app can point
-// at any coordinator instead of one baked in at build time.
-//
-//   • Renderer source of truth: localStorage["dfs_coordinator_url"].
-//   • Falls back to the build-time VITE_API_URL (used by the web build + dev).
-//   • On desktop we also mirror the value to the main process (settings.json) so
-//     the embedded storage node registers with the same coordinator.
-//
-// The API consts are read at module load, so callers reload the window after a
-// change (see Settings / the setup gate) to pick up the new value everywhere.
 
 const KEY = "dfs_coordinator_url";
 
-// Trim, add a scheme if missing, validate, and drop any trailing slash. Returns ""
-// for blank/invalid input. Schemeless LAN/localhost addresses default to http://
-// (self-hosted coordinators rarely have a cert); public hostnames default to https://.
 export function normalizeUrl(raw) {
   let s = String(raw || "").trim();
   if (!s) return "";
@@ -28,14 +15,12 @@ export function normalizeUrl(raw) {
   return s.replace(/\/+$/, "");
 }
 
-// The coordinator origin the app talks to. "" means none is configured.
 export function getApiUrl() {
   let stored = "";
   try { stored = localStorage.getItem(KEY) || ""; } catch { /* ignore */ }
   return normalizeUrl(stored) || normalizeUrl(import.meta.env.VITE_API_URL || "");
 }
 
-// The raw user-set value (for prefilling the Settings field). Empty if unset.
 export function getStoredCoordinator() {
   try { return localStorage.getItem(KEY) || ""; } catch { return ""; }
 }
@@ -44,9 +29,6 @@ export function hasCoordinator() {
   return !!getApiUrl();
 }
 
-// Probe whether `raw` points at a reachable DFS coordinator (hits /api/health).
-// Returns true only for a live coordinator; false on bad URL, timeout, network
-// error, or a server that isn't ours.
 export async function pingCoordinator(raw, timeoutMs = 5000) {
   const url = normalizeUrl(raw);
   if (!url) return false;
@@ -64,8 +46,6 @@ export async function pingCoordinator(raw, timeoutMs = 5000) {
   }
 }
 
-// Persist the coordinator URL for the renderer and, on desktop, for the main
-// process (so the storage node re-registers against it). Throws on invalid input.
 export async function setCoordinatorUrl(raw) {
   const url = normalizeUrl(raw);
   if (!url) throw new Error("Enter a valid address, e.g. https://coordinator.example.com");

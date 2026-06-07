@@ -15,8 +15,6 @@ import TitleBar   from "./components/TitleBar";
 import { isDesktop } from "./lib/platform";
 import { hasCoordinator } from "./lib/api";
 
-// DFS is a desktop app; the marketing landing lives in its own repo. In the
-// browser (dev) the same routes load straight into login → groups.
 function RequireAuth({ children }) {
   const { token } = useAuth();
   return token ? children : <Navigate to="/login" replace />;

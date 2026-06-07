@@ -1,7 +1,5 @@
 require("dotenv").config();
 
-// Note: files are encrypted client-side with per-group keys — the coordinator
-// never holds an encryption key. Only JWT and the node secret are needed here.
 if (!process.env.JWT_SECRET) {
   console.error("ERROR: JWT_SECRET missing in .env");
   process.exit(1);
@@ -37,7 +35,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Group-scoped file operations (nested so :groupId is available).
 app.use("/api/groups/:groupId/files", fileRoutes);
 
 app.use("/api/auth",   authRoutes);
@@ -46,8 +43,6 @@ app.use("/api/groups", groupRoutes);
 
 app.get("/", (req, res) => res.json({ message: "Distributed File System API" }));
 
-// Lightweight liveness probe — used by uptime checks and by the desktop app to
-// confirm a URL is actually a DFS coordinator before saving it. No DB, no auth.
 app.get("/api/health", (req, res) =>
   res.json({
     ok: true,

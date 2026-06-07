@@ -1,6 +1,5 @@
 import { createContext, useContext, useState } from "react";
 
-// Lets a page (e.g. the open group) set what the custom title bar shows.
 const TitleContext = createContext(null);
 
 export function TitleProvider({ children }) {

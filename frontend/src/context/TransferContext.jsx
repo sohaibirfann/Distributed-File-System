@@ -1,8 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef } from "react";
 
-// Tracks in-flight transfers (downloads, zip bundles, …) so a single panel can
-// show them app-wide, regardless of which group/page is open. Completed ones
-// linger briefly then auto-clear.
 const TransferContext = createContext(null);
 
 export function useTransfers() {
@@ -13,7 +10,6 @@ export function TransferProvider({ children }) {
   const [transfers, setTransfers] = useState([]); // { id, name, kind, progress, status }
   const nextId = useRef(0);
 
-  // Begin a transfer; returns its id. progress -1 = indeterminate.
   const start = useCallback((name, kind = "download") => {
     const id = ++nextId.current;
     setTransfers((t) => [...t, { id, name, kind, progress: -1, status: "active" }]);
@@ -24,8 +20,6 @@ export function TransferProvider({ children }) {
     setTransfers((t) => t.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   }, []);
 
-  // Mark done/error. Finished transfers persist (in the Completed tab) until the
-  // user clears or dismisses them.
   const finish = useCallback((id, status = "done") => {
     setTransfers((t) => t.map((x) => (x.id === id ? { ...x, status, progress: status === "done" ? 100 : x.progress } : x)));
   }, []);

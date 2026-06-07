@@ -6,7 +6,6 @@ const { createUser, getUserByUsername } = require("../db");
 
 const router = express.Router();
 
-// POST /api/auth/register — anyone can sign up; all users are equal peers.
 router.post("/register", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -26,7 +25,6 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// POST /api/auth/login
 router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;

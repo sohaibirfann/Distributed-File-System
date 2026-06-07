@@ -1,12 +1,5 @@
 import { useEffect, useRef } from "react";
 
-// Accessibility helper for modal dialogs. While `open`, it:
-//   • closes on Escape,
-//   • moves focus into the dialog (first focusable),
-//   • traps Tab focus within it,
-//   • restores focus to the previously-focused element on close.
-// Attach the returned ref to the dialog panel and pair it with
-// role="dialog" aria-modal="true" aria-label="…".
 export function useDialog(open, onClose) {
   const ref = useRef(null);
   const onCloseRef = useRef(onClose);
@@ -26,7 +19,6 @@ export function useDialog(open, onClose) {
           )
         : [];
 
-    // Focus the first control (or the panel itself) once it's painted.
     const id = requestAnimationFrame(() => (focusables()[0] || panel)?.focus?.());
 
     function onKey(e) {

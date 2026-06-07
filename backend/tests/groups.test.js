@@ -1,5 +1,3 @@
-// Test for the group/invite DB layer. Runs against a throwaway temp DB.
-//   npm test   (or: node tests/groups.test.js)
 const fs   = require("fs");
 const path = require("path");
 const os   = require("os");
@@ -16,7 +14,6 @@ function check(label, cond) {
 }
 
 try {
-  // Seed users
   db.createUser("alice", "hash");
   db.createUser("bob",   "hash");
   const alice = db.getUserByUsername("alice");

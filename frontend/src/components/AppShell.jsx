@@ -34,8 +34,6 @@ export default function AppShell() {
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("dfs_sidebar_collapsed") === "1",
   );
-  // Labels are revealed only once the panel has widened, so they never flash
-  // squished/wrapped inside the narrow rail mid-animation.
   const [showLabels, setShowLabels] = useState(
     () => localStorage.getItem("dfs_sidebar_collapsed") !== "1",
   );
@@ -54,11 +52,8 @@ export default function AppShell() {
 
   useEffect(() => { fetchGroups(); }, [fetchGroups]);
 
-  // Native OS notifications for activity in your groups (desktop only).
   useDesktopNotifications(groups, user);
 
-  // On launch, reopen the last group the user had open (once, only if we landed
-  // on the bare /groups index and that group still exists).
   const didAutoOpen = useRef(false);
   useEffect(() => {
     if (didAutoOpen.current || loadingGroups) return;
@@ -75,7 +70,6 @@ export default function AppShell() {
     });
   }
 
-  // Arrow-key roving between group buttons when one is focused.
   function onGroupsKeyDown(e) {
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
     const btns = Array.from(e.currentTarget.querySelectorAll("button[data-group]"));
@@ -86,15 +80,12 @@ export default function AppShell() {
     btns[next]?.focus();
   }
 
-  // Collapsing hides labels at once; expanding reveals them after the width
-  // transition (~200ms) so they fade in at full width instead of popping in.
   useEffect(() => {
     if (collapsed) { setShowLabels(false); return; }
     const t = setTimeout(() => setShowLabels(true), 190);
     return () => clearTimeout(t);
   }, [collapsed]);
 
-  // Ctrl/Cmd+B toggles the sidebar; Ctrl/Cmd+, opens Settings.
   useEffect(() => {
     function onKey(e) {
       if (!(e.ctrlKey || e.metaKey)) return;
@@ -108,13 +99,11 @@ export default function AppShell() {
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* ── Sidebar ─────────────────────────────────────────────── */}
       <aside
         className={`flex flex-col shrink-0 bg-[#f7f7f8] dark:bg-[var(--surface)] border-r border-gray-200/70 dark:border-white/[0.06] transition-[width] duration-200 ease-out ${
           collapsed ? "w-16" : "w-60"
         } ${showLabels ? "labels-in" : ""}`}
       >
-        {/* Brand + collapse toggle */}
         <div className={`flex items-center h-14 shrink-0 ${collapsed ? "justify-center" : "justify-between px-3"}`}>
           {showLabels && (
             <div className="flex items-center gap-2.5">
@@ -133,7 +122,6 @@ export default function AppShell() {
           </button>
         </div>
 
-        {/* Command palette trigger */}
         <div className="px-2 pb-2 shrink-0">
           <button
             onClick={() => setPaletteOpen(true)}
@@ -146,7 +134,6 @@ export default function AppShell() {
           </button>
         </div>
 
-        {/* Groups */}
         <div className="flex-1 overflow-y-auto px-2">
           {showLabels && (
             <p className="px-2 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-neutral-600">
@@ -192,7 +179,6 @@ export default function AppShell() {
             })}
           </div>
 
-          {/* New / Join */}
           <div className={`mt-2 ${collapsed ? "space-y-0.5" : "space-y-0.5"}`}>
             <button
               onClick={() => setModal("new")}
@@ -217,7 +203,6 @@ export default function AppShell() {
           </div>
         </div>
 
-        {/* Footer: user, theme, sign out */}
         <div className="shrink-0 border-t border-gray-100 dark:border-white/[0.06] p-2 space-y-0.5">
           {showLabels && user && (
             <div className="px-2.5 py-1.5 text-xs text-gray-400 dark:text-neutral-500 truncate">
@@ -251,17 +236,14 @@ export default function AppShell() {
         </div>
       </aside>
 
-      {/* ── Main panel ──────────────────────────────────────────── */}
       {/* Solid fill so it covers the window's Mica — only the sidebar +
           title bar stay translucent (transparent → Mica shows through). */}
       <main className="flex-1 overflow-y-auto bg-[#f3f3f3] dark:bg-[var(--bg)]">
-        {/* Keyed by path so switching group/page re-runs the enter animation. */}
         <div key={location.pathname} className="page-enter h-full">
           <Outlet context={{ refreshGroups: fetchGroups, groups, openNew: () => setModal("new"), openJoin: () => setModal("join") }} />
         </div>
       </main>
 
-      {/* Docked transfer manager (downloads, zip bundles) */}
       <TransferPanel />
 
       {modal && (
@@ -287,7 +269,6 @@ export default function AppShell() {
   );
 }
 
-// ── New / Join modal ────────────────────────────────────────────────────────
 function NewJoinModal({ mode, onClose, onDone }) {
   const { authFetch } = useAuth();
   const notify        = useNotify();

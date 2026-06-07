@@ -1,5 +1,3 @@
-// Shortcut hint: one pill per key, no "+" separator, e.g. [⌘][K] / [Ctrl][,].
-// "mod" renders ⌘ on macOS, Ctrl elsewhere.
 const isMac = typeof navigator !== "undefined" && /mac/i.test(navigator.platform || navigator.userAgent);
 
 function label(k) {
@@ -7,7 +5,6 @@ function label(k) {
   return k;
 }
 
-// Transparent fill + a hairline keycap border outlines each key.
 export default function Kbd({ keys = [], className = "" }) {
   return (
     <span className={`inline-flex items-center gap-1 ${className}`}>

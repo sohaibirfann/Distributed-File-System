@@ -8,9 +8,6 @@ import Modal from "./Modal";
 import { getApiUrl } from "../lib/api";
 const API = getApiUrl();
 
-// A lightweight file picker. The actual uploading runs in the background via the
-// UploadProvider and shows in the transfer panel, so this dialog just collects
-// files (and warns about overwrites) then closes.
 export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [] }) {
   const { authFetch }    = useAuth();
   const { startUploads } = useUploads();
@@ -19,7 +16,6 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
   const [confirm, setConfirm] = useState(null);
   const [busy, setBusy]   = useState(false);
 
-  // Resolves true (replace) / false (cancel) once the user answers.
   const askOverwrite = (names) => new Promise((resolve) => setConfirm({ names, resolve }));
 
   function addFiles(list) {
@@ -32,7 +28,6 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
     if (!files.length) return;
     setBusy(true);
     try {
-      // Warn before silently overwriting same-named files already in the group.
       try {
         const res = await authFetch(`${API}/api/groups/${groupId}/files`);
         if (res.ok) {
@@ -99,7 +94,6 @@ export default function UploadPanel({ groupId, onUploadSuccess, initialFiles = [
       </button>
     </div>
 
-    {/* Overwrite confirmation */}
     {confirm && (
       <Modal onClose={() => { confirm.resolve(false); setConfirm(null); }} label="Replace existing files?">
           <div className="w-11 h-11 bg-amber-50 dark:bg-amber-500/10 rounded-xl flex items-center justify-center mb-4">

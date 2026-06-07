@@ -2,8 +2,6 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 const ThemeContext = createContext(null);
 
-// Accent themes. "default" = Windows blue (no data-theme attribute); others map
-// to a [data-theme="…"] block in index.css that overrides the --accent vars.
 export const ACCENTS = [
   { id: "default", label: "Default", swatch: "#0067C0" },
   { id: "coral",   label: "Coral", swatch: "#e8533f" },
@@ -11,7 +9,6 @@ export const ACCENTS = [
 ];
 const ACCENT_IDS = ACCENTS.map((a) => a.id);
 
-// Apply before React paints to avoid an accent flash on load.
 function applyAccent(id) {
   const root = document.documentElement;
   if (id && id !== "default") root.setAttribute("data-theme", id);
@@ -22,8 +19,6 @@ try {
   if (saved) applyAccent(saved);
 } catch { /* ignore */ }
 
-// Dark-only for now — light mode has been removed. The accent, however, is
-// themeable via the vars in index.css.
 export function ThemeProvider({ children }) {
   const [accent, setAccentState] = useState(() => {
     const a = localStorage.getItem("dfs_accent");

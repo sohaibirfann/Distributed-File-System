@@ -8,8 +8,6 @@ import { X, Copy, Check, UserPlus, ShieldAlert, Clock, Trash2, Plus, Loader2, Ch
 import { getApiUrl } from "../lib/api";
 const API = getApiUrl();
 
-// Expiry presets for new invites. Default to 7 days — a short-lived link shrinks
-// the window if an invite leaks (the code also unlocks the group's files).
 const EXPIRY_OPTS = [
   { key: "1h",    label: "1 hour",  ms: 3_600_000 },
   { key: "24h",   label: "24 hours", ms: 86_400_000 },
@@ -31,7 +29,6 @@ ${invite}
 Heads up: this code also unlocks the group's encrypted files, so only share it with people you trust.`;
 }
 
-// Usage state for a capped (max_uses) invite. Null for unlimited invites.
 function usageLabel(inv) {
   if (inv.max_uses == null) return null;
   if (inv.uses >= inv.max_uses) return { text: "Used", spent: true };
@@ -39,7 +36,6 @@ function usageLabel(inv) {
   return { text: `${inv.max_uses - inv.uses} of ${inv.max_uses} left`, spent: false };
 }
 
-// Human-readable remaining lifetime of an invite.
 function expiryLabel(iso) {
   if (!iso) return { text: "No expiry", expired: false };
   const ms = new Date(iso).getTime() - Date.now();
@@ -138,7 +134,6 @@ export default function InviteModal({ groupId, groupName, onClose }) {
           <p className="text-sm text-red-500">{error}</p>
         ) : (
           <>
-            {/* Create a new invite */}
             <div className="flex items-end gap-2">
               <div className="flex-1 min-w-0">
                 <span className="block text-xs font-semibold text-gray-500 dark:text-neutral-400 mb-1.5">Expires after</span>
@@ -163,7 +158,6 @@ export default function InviteModal({ groupId, groupName, onClose }) {
               One-time use — the invite stops working after one person joins
             </label>
 
-            {/* Active invites */}
             <div className="mt-5">
               <p className="text-xs font-semibold text-gray-500 dark:text-neutral-400 uppercase tracking-wide mb-2">Active invites</p>
               {invites === null ? (
@@ -228,8 +222,6 @@ export default function InviteModal({ groupId, groupName, onClose }) {
   );
 }
 
-// Themed dropdown — the native <select> popup is OS-rendered and ignores the
-// app's dark/frosted styling, so we roll a small custom listbox instead.
 function Dropdown({ value, options, onChange }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);

@@ -1,14 +1,3 @@
-// In-process storage node for the desktop app.
-//
-// When the user enables "Contribute storage", the app runs this tiny HTTP node
-// so the coordinator can push/pull encrypted chunks to/from this machine — the
-// same role the standalone backend/nodeServer.js plays, but embedded in the
-// desktop client. It only ever sees ciphertext; the group key never leaves the
-// renderer.
-//
-// Transport is HTTP for now, so it only works on the same network as the
-// coordinator. The planned WebRTC transport will swap these endpoints for
-// peer-to-peer data channels and make it cross-network.
 
 const http = require("http");
 const fs   = require("fs");
@@ -68,8 +57,6 @@ class StorageNode {
     this.registered = false;
   }
 
-  // Coordinator auth: the member's JWT if we have one, plus the secret/userId in
-  // the body as a fallback (the coordinator tries the token first).
   _headers() {
     const h = { "Content-Type": "application/json" };
     if (this.token) h.Authorization = `Bearer ${this.token}`;
@@ -91,8 +78,6 @@ class StorageNode {
   async stop() {
     if (this.heartbeat) clearInterval(this.heartbeat);
     this.heartbeat = null;
-    // Tell the coordinator we're leaving so it drops us from the pool at once
-    // (otherwise we linger until the heartbeat-timeout sweep).
     try {
       await fetch(`${this.coordUrl}/api/nodes/deregister`, {
         method:  "POST",
@@ -138,7 +123,6 @@ class StorageNode {
         headers: this._headers(),
         body:    JSON.stringify({ name: this.name, secret: this.secret }),
       });
-      // If the coordinator forgot us (restarted), re-register.
       if (!res.ok) await this._register();
     } catch { /* coordinator unreachable; retry on next tick */ }
   }

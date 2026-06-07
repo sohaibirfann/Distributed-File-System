@@ -12,7 +12,6 @@ import {
   File, HardDrive, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, RotateCw,
 } from "lucide-react";
 
-// Deterministic per-username avatar color (for the "uploaded by" chip).
 const AVATAR_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#f43f5e", "#0ea5e9", "#8b5cf6", "#14b8a6", "#f97316", "#ec4899", "#84cc16"];
 
 function avatarColor(name = "") {
@@ -28,8 +27,6 @@ function Avatar({ name }) {
   );
 }
 
-// View layer for a group's files (grid + list, modals). All data/actions come
-// from the useFileBrowser hook so this component stays focused on rendering.
 export default function FileTable({ groupId, canManage = false, search = "", onStats, view = "list" }) {
   const { authFetch } = useAuth(); // FileThumb needs it to lazily fetch thumbnails
 
@@ -91,7 +88,6 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
               const previewable = !!getPreviewType(file.filename);
               return (
                 <div key={i} className="group relative glass bg-white/70 dark:bg-neutral-900/60 rounded-xl border border-gray-100 dark:border-neutral-800 overflow-hidden hover:border-gray-200 dark:hover:border-neutral-700 hover:shadow-lg transition-all">
-                  {/* Large preview (click to open for previewable files) */}
                   <div
                     className={`relative aspect-square ${previewable ? "cursor-pointer" : ""}`}
                     onClick={previewable ? () => handlePreview(file.filename) : undefined}
@@ -101,7 +97,6 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                       <Icon size={40} className={color} />
                     </FileThumb>
 
-                    {/* Floating actions (with a backdrop so they read over photos) */}
                     <div
                       onClick={(e) => e.stopPropagation()}
                       className={`absolute top-2 right-2 flex items-center gap-0.5 rounded-lg bg-white/85 dark:bg-black/55 backdrop-blur-md px-0.5 shadow-sm transition-opacity ${(dl || fail) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
@@ -120,7 +115,6 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
                     </div>
                   </div>
 
-                  {/* Meta */}
                   <div className="p-2.5">
                     <p className="text-sm font-medium text-gray-800 dark:text-neutral-100 truncate" title={file.filename}>{file.filename}</p>
                     <div className="flex items-center gap-1.5 mt-1 text-[11px] text-gray-400 dark:text-neutral-500">
@@ -361,7 +355,6 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
       </>
       )}
 
-      {/* Preview modal */}
       {previewFile && (
         <FilePreviewModal
           file={previewFile}
@@ -379,7 +372,6 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
         />
       )}
 
-      {/* Rename modal */}
       {fileToRename && (
         <Modal onClose={() => setFileToRename(null)} label="Rename file" dismissable={!renaming}>
           <form onSubmit={handleRename}>
@@ -405,7 +397,6 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
         </Modal>
       )}
 
-      {/* Bulk delete confirm */}
       {confirmBulk && (
         <ConfirmDialog
           label="Delete selected files"
@@ -417,7 +408,6 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
         </ConfirmDialog>
       )}
 
-      {/* Delete confirm */}
       {fileToDelete && (
         <ConfirmDialog
           label="Delete file" title="Delete this file?"

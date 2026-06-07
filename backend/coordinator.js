@@ -8,8 +8,6 @@ const { saveFile, getGroupFileByName, getGroup, getNodeMap, getMemberNodeMap, ge
 
 const CHUNK_SIZE = 512 * 1024; // 512 KB
 
-// Replication presets → how many copies of each chunk to store.
-// Capped to the number of nodes actually online ('max' = all of them).
 const PRESET_COPIES = { minimal: 2, balanced: 3, max: Infinity };
 
 function replicaCount(preset, nodeCount) {
@@ -36,20 +34,6 @@ function chunkFile(filePath) {
   return chunks;
 }
 
-/*
-|--------------------------------------------------------------------------
-| distributeFile — chunk, encrypt and spread a file across a group's nodes
-|--------------------------------------------------------------------------
-| Chunks are keyed on nodes by the file's unique id, so two groups can hold
-| files with the same name without colliding.
-*/
-
-// ── Per-target upload lock ───────────────────────────────────────────────────
-// Serialises uploads that target the same (group, filename) so two concurrent
-// uploads of the same file can't interleave their chunk-push / save / old-chunk
-// cleanup steps and orphan each other's chunks. Different files/groups still run
-// in parallel. (better-sqlite3 writes are synchronous; the races are around the
-// awaited chunk transfers.)
 const uploadChains = new Map();
 function withUploadLock(key, fn) {
   const run  = (uploadChains.get(key) || Promise.resolve()).then(fn, fn);
@@ -72,9 +56,6 @@ async function distributeFileInner(filePath, filename, groupId, uploadedBy, io) 
   const preset     = group?.replication || "balanced";
   const fileChunks = chunkFile(filePath);
 
-  // Prefer the group's own members' nodes ("files live on your group's machines").
-  // Fall back to the global pool while no member is contributing storage yet, so
-  // it keeps working (e.g. the dev node) — group-scoping kicks in once members do.
   const memberIds  = getGroupMembers(groupId).map((m) => m.user_id);
   const memberMap  = getMemberNodeMap(memberIds);
   const scoped     = Object.keys(memberMap).length > 0;
@@ -90,8 +71,6 @@ async function distributeFileInner(filePath, filename, groupId, uploadedBy, io) 
 
   io.emit("upload-progress", { filename, percent: 0, distributed: 0, total: fileChunks.length });
 
-  // Existing file with this name in the group — its chunks are cleaned up after
-  // the new version is confirmed stored.
   const oldFile   = getGroupFileByName(groupId, filename);
   const oldChunks = oldFile?.chunks ?? [];
   const oldFileId = oldFile?.id ?? null;
@@ -101,15 +80,12 @@ async function distributeFileInner(filePath, filename, groupId, uploadedBy, io) 
   const seenIds     = new Set();
 
   for (const chunk of fileChunks) {
-    // Pick `copies` distinct nodes round-robin, offset by chunkId for spread.
     const replicaUsers = [];
     for (let i = 0; i < copies; i++) {
       replicaUsers.push(USERS[(chunk.chunkId + i) % USERS.length]);
     }
 
     let storedCount = 0;
-    // The uploaded file is already ciphertext (encrypted client-side); the
-    // coordinator just chunks and relays it — it never holds a key.
     const payload = chunk.data.toString("base64");
 
     for (const user of replicaUsers) {
@@ -147,10 +123,8 @@ async function distributeFileInner(filePath, filename, groupId, uploadedBy, io) 
     io.emit("upload-progress", { filename, percent, distributed: seenIds.size, total: fileChunks.length });
   }
 
-  // Persist (replaces any same-name file in this group atomically).
   saveFile(fileId, groupId, filename, uploadedBy, new Date().toISOString(), newChunks);
 
-  // Remove the old version's chunks from nodes now that the new one is confirmed.
   if (oldFileId) {
     await Promise.allSettled(
       oldChunks.flatMap((chunk) =>

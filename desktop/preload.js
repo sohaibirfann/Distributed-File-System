@@ -1,7 +1,5 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
-// Safe bridge to the renderer. Lets the React app detect the desktop shell and
-// drive the custom (frameless) window's controls.
 contextBridge.exposeInMainWorld("dfsDesktop", {
   isDesktop: true,
   version: "0.0.0",
@@ -27,6 +25,5 @@ contextBridge.exposeInMainWorld("dfsDesktop", {
     getStatus: ()     => ipcRenderer.invoke("node:status"),
     setUser:   (payload) => ipcRenderer.invoke("node:set-user", payload), // { id, token } | null
   },
-  // Show a native OS notification (file added, member joined, …).
   notify: (payload) => ipcRenderer.invoke("notify:show", payload),
 });

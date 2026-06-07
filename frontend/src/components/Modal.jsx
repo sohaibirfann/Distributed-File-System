@@ -1,9 +1,5 @@
 import { useDialog } from "../lib/useDialog";
 
-// Shared modal primitive: frosted backdrop + glass panel with focus-trap, Esc /
-// click-outside to close, and the dialog a11y roles. Render it conditionally
-// (mount = open). `panelClassName` sets size/padding; `dismissable={false}`
-// blocks Esc / backdrop close while an action is in flight.
 export default function Modal({
   onClose,
   label,

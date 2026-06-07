@@ -10,9 +10,6 @@ import { getApiUrl } from "../lib/api";
 const API = getApiUrl();
 const MAX_SIZE = 500 * 1024 * 1024;
 
-// Runs uploads in the background (encrypt on-device → POST ciphertext) and reports
-// each one to the transfer panel, so the upload dialog can close immediately and
-// the user keeps browsing while files upload.
 const UploadContext = createContext(null);
 
 export function useUploads() {
@@ -24,7 +21,6 @@ export function UploadProvider({ children }) {
   const notify    = useNotify();
   const transfers = useTransfers();
 
-  // Encrypt + upload a single file, mirroring progress into the transfer panel.
   const uploadOne = useCallback(async (file, groupId, key) => {
     const tid = transfers.start(file.name, "upload");
     try {
@@ -34,7 +30,6 @@ export function UploadProvider({ children }) {
       const form = new FormData();
       form.append("file", new Blob([cipher], { type: "application/octet-stream" }), file.name);
 
-      // Encrypted preview thumbnail for images (peers preview without downloading).
       if (file.type.startsWith("image/")) {
         try {
           const tb = await makeThumbnailBlob(file);
@@ -65,8 +60,6 @@ export function UploadProvider({ children }) {
     }
   }, [token, transfers]);
 
-  // Kick off a batch of uploads for a group (fire-and-forget; progress lives in
-  // the transfer panel).
   const startUploads = useCallback(async (groupId, files) => {
     if (!files?.length) return;
     const key = await loadKey(groupId);

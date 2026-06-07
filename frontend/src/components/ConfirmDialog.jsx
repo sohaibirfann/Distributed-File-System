@@ -1,10 +1,6 @@
 import { AlertTriangle } from "lucide-react";
 import Modal from "./Modal";
 
-// Reusable confirm dialog built on Modal: an icon badge, title, body copy
-// (children), and Cancel / confirm buttons. `tone` picks the accent (danger =
-// red, warn = amber). `busy` disables both buttons and swaps the confirm label;
-// `busyNote` shows an optional spinner line while the action runs.
 export default function ConfirmDialog({
   title,
   label,
