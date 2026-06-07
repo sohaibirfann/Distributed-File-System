@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "DFS desktop app — Electron shell + embedded storage node",
+  "author": "Sohaib Irfan",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
