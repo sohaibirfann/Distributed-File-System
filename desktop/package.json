@@ -21,6 +21,7 @@
     "appId": "com.dfs.app",
     "productName": "DFS",
     "directories": { "output": "release" },
+    "artifactName": "${productName}-Setup.${ext}",
     "files": ["main.js", "preload.js", "storageNode.js", "icon.png"],
     "extraResources": [{ "from": "../frontend/dist", "to": "ui" }],
     "publish": [{ "provider": "github", "owner": "sohaibirfann", "repo": "Distributed-File-System" }],
