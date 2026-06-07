@@ -11,12 +11,19 @@
 
 const KEY = "dfs_coordinator_url";
 
-// Trim, default to https://, validate, and drop any trailing slash. Returns ""
-// for blank/invalid input.
+// Trim, add a scheme if missing, validate, and drop any trailing slash. Returns ""
+// for blank/invalid input. Schemeless LAN/localhost addresses default to http://
+// (self-hosted coordinators rarely have a cert); public hostnames default to https://.
 export function normalizeUrl(raw) {
   let s = String(raw || "").trim();
   if (!s) return "";
-  if (!/^https?:\/\//i.test(s)) s = "https://" + s;
+  if (!/^https?:\/\//i.test(s)) {
+    const host = s.split("/")[0].split(":")[0];
+    const isLan = host === "localhost"
+      || /^127\./.test(host)
+      || /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host);
+    s = (isLan ? "http://" : "https://") + s;
+  }
   try { new URL(s); } catch { return ""; }
   return s.replace(/\/+$/, "");
 }
