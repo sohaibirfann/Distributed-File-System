@@ -31,32 +31,32 @@ group members' own machines** instead of a company's cloud.
 ## Features
 
 **Privacy & storage**
-- 🔒 **End-to-end encrypted** — files are encrypted on your device (AES-256-GCM)
+- **End-to-end encrypted** — files are encrypted on your device (AES-256-GCM)
   before they ever leave it. The server only ever sees ciphertext.
-- 🧩 **Distributed** — each file is chunked and spread across the group's machines
+- **Distributed** — each file is chunked and spread across the group's machines
   with a per-group **replication preset** (minimal / balanced / max), so files
   survive members going offline.
-- 🕵️ **Zero-knowledge coordinator** — the server holds **no files and no keys**,
+- **Zero-knowledge coordinator** — the server holds **no files and no keys**,
   only metadata (groups, presence, which chunk lives where).
 
 **Groups & invites**
-- 👥 Invite-only **groups** with owner/member roles, rename + emoji/color identity,
+- Invite-only **groups** with owner/member roles, rename + emoji/color identity,
   transfer ownership, leave/remove members.
-- 🎟️ **Invites** with expiry presets, **one-time-use** codes, revocation, and a
+- **Invites** with expiry presets, **one-time-use** codes, revocation, and a
   per-invite "who redeemed it" list.
-- 🟢 **Member presence** (who's online) and **per-member storage contribution**.
+- **Member presence** (who's online) and **per-member storage contribution**.
 
 **Files**
-- ⬆️⬇️ Background **uploads/downloads** with live progress in a docked transfer
+- Background **uploads/downloads** with live progress in a docked transfer
   panel (Transfers / Completed tabs, minimizes to a progress ring).
-- 🖼️ **Gallery + list** views; **image/video/PDF/text previews** with a lightbox
+- **Gallery + list** views; **image/video/PDF/text previews** with a lightbox
   (←/→ navigation); **encrypted thumbnails** generated at upload so previews are
   cheap.
-- ✅ **Multi-select** → bulk **download (zip or individual)** and bulk delete;
+- **Multi-select** → bulk **download (zip or individual)** and bulk delete;
   rename; overwrite confirmation; drag-and-drop upload.
 
 **Desktop**
-- 🖥️ Native Electron app — frameless window, live connection indicator, **desktop
+- Native Electron app — frameless window, live connection indicator, **desktop
   notifications** (file added / member joined), themes, configurable coordinator
   address, embedded storage node, and **auto-update**.
 
