@@ -145,7 +145,7 @@ export default function Settings() {
             <input
               value={coordInput}
               onChange={(e) => setCoordInput(e.target.value)}
-              placeholder="https://server.example.com"
+              placeholder="http://192.168.1.50:5000"
               spellCheck={false}
               autoCapitalize="off"
               className="flex-1 min-w-0 px-3 py-2 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)]"

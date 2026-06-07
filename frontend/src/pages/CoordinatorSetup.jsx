@@ -35,15 +35,15 @@ export default function CoordinatorSetup() {
         </div>
         <h1 className="text-xl font-bold text-gray-900 dark:text-white">Connect to a server</h1>
         <p className="text-sm text-gray-500 dark:text-neutral-400 mt-1.5 max-w-sm">
-          DFS needs the address of a server — the lightweight relay that helps your
-          group find each other. It never sees your files or keys.
+          Enter the address of your group's server — someone in your group runs it
+          on your network. It holds no files or keys. e.g. http://192.168.1.50:5000
         </p>
 
         <input
           autoFocus
           value={value}
           onChange={(e) => { setValue(e.target.value); setForce(false); }}
-          placeholder="https://server.example.com"
+          placeholder="http://192.168.1.50:5000"
           spellCheck={false}
           autoCapitalize="off"
           className="w-full mt-6 px-4 py-3 bg-white/50 dark:bg-neutral-800/60 border border-gray-200 dark:border-neutral-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-[var(--accent)] focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-[var(--accent)]/20 transition-all"
