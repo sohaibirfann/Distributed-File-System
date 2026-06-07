@@ -82,10 +82,7 @@ export function NotificationProvider({ children }) {
   return (
     <NotificationContext.Provider value={notify}>
       {children}
-      <div
-        className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none"
-        style={{ width: "min(400px, calc(100vw - 32px))" }}
-      >
+      <div className="toast-stack fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none">
         {items.map((n) => (
           <div key={n.id} className="pointer-events-auto">
             <Banner notification={n} onDismiss={() => dismiss(n.id)} />

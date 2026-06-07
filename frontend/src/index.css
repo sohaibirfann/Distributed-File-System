@@ -228,6 +228,14 @@ img {
   .dialog-backdrop, .dialog-panel { animation: none; }
 }
 
+/* Toast stack width (transient notifications). */
+.toast-stack { width: min(400px, calc(100vw - 32px)); }
+
+/* Checkerboard behind transparent image previews. */
+.preview-checkerboard {
+  background: repeating-conic-gradient(rgba(0, 0, 0, 0.06) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px;
+}
+
 /* ── Page / group transition ────────────────────────────────── */
 /* The routed content (group view, groups home, settings) fades + rises a touch
    when the route changes. Deliberately NO animation-fill-mode: the transform

@@ -84,8 +84,7 @@ export default function FilePreviewModal({
 
         {/* Body */}
         {type === "image" ? (
-          <div className="p-4 rounded-b-2xl"
-            style={{ background: "repeating-conic-gradient(rgba(0,0,0,0.06) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px" }}>
+          <div className="preview-checkerboard p-4 rounded-b-2xl">
             <img
               src={url}
               alt={file}

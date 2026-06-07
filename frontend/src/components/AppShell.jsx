@@ -159,7 +159,7 @@ export default function AppShell() {
               Array.from({ length: 4 }).map((_, i) => (
                 <div key={`gsk-${i}`} className={`flex items-center gap-2.5 ${collapsed ? "justify-center p-2" : "px-2.5 py-2"}`}>
                   <Skeleton className="w-7 h-7 rounded-lg shrink-0" />
-                  {showLabels && <Skeleton className="h-3.5 flex-1" style={{ maxWidth: `${70 - i * 10}%` }} />}
+                  {showLabels && <Skeleton className={`h-3.5 flex-1 ${["max-w-[70%]", "max-w-[60%]", "max-w-[50%]", "max-w-[40%]"][i]}`} />}
                 </div>
               ))}
             {groups.map((g) => {
