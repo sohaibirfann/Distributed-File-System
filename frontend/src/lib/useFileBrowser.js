@@ -35,7 +35,10 @@ export function useFileBrowser({ groupId, search = "", onStats }) {
   const [previewUrl, setPreviewUrl]         = useState(null);
   const [downloading, setDownloading]       = useState([]);
   const [failedDl, setFailedDl]             = useState([]);   // downloads that errored — show a Retry
-  const [sort, setSort]                     = useState({ col: "uploadedAt", dir: "desc" });
+  const [sort, setSort] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("dfs_filesort")) || { col: "uploadedAt", dir: "desc" }; }
+    catch { return { col: "uploadedAt", dir: "desc" }; }
+  });
 
   const base = `${API}/api/groups/${groupId}/files`;
 
@@ -277,10 +280,11 @@ export function useFileBrowser({ groupId, search = "", onStats }) {
   }
 
   function handleSort(col) {
-    setSort((prev) => ({
-      col,
-      dir: prev.col === col && prev.dir === "asc" ? "desc" : "asc",
-    }));
+    setSort((prev) => {
+      const next = { col, dir: prev.col === col && prev.dir === "asc" ? "desc" : "asc" };
+      try { localStorage.setItem("dfs_filesort", JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
   }
 
   const filtered = files.filter((f) =>
