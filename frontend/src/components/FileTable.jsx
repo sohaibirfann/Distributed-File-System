@@ -142,7 +142,10 @@ export default function FileTable({ groupId, canManage = false, search = "", onS
       <>
       {selected.size > 0 && (
         <div className="flex items-center gap-3 px-6 py-2 bg-blue-50/90 dark:bg-[var(--accent)]/15 border-b border-blue-200/60 dark:border-[var(--accent)]/20 text-sm">
-          <span className="font-medium text-blue-700 dark:text-[var(--accent-bright)]">{selected.size} selected</span>
+          <span className="font-medium text-blue-700 dark:text-[var(--accent-bright)]">
+            {selected.size} selected
+            <span className="font-normal text-blue-600/70 dark:text-[var(--accent-bright)]/70"> · {formatBytes(files.filter((f) => selected.has(f.filename)).reduce((s, f) => s + (f.size || 0), 0))}</span>
+          </span>
           <div className="flex-1" />
           <button onClick={bulkDownloadIndividual} title="Download each file separately" className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-gray-700 dark:text-neutral-200 hover:bg-white/60 dark:hover:bg-white/10 transition-colors">
             <Download size={13} /> Download
