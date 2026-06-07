@@ -3,6 +3,7 @@ const path   = require("path");
 const fs     = require("fs");
 const crypto = require("crypto");
 const { StorageNode } = require("./storageNode");
+const { autoUpdater } = require("electron-updater");
 
 const APP_URL = process.env.DFS_APP_URL || "http://localhost:5173";
 
@@ -196,6 +197,9 @@ app.whenReady().then(() => {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+  // Check GitHub Releases for a newer version and install it on next quit.
+  // Packaged builds only; never blocks startup if offline / no release yet.
+  if (app.isPackaged) autoUpdater.checkForUpdatesAndNotify().catch(() => {});
 });
 
 app.on("before-quit", () => { if (storageNode) storageNode.stop(); });

@@ -10,6 +10,9 @@
     "pack": "npm --prefix ../frontend run build && electron-builder --dir",
     "dist": "npm --prefix ../frontend run build && electron-builder"
   },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
   "devDependencies": {
     "electron": "^42.3.0",
     "electron-builder": "^25.1.8"
@@ -20,6 +23,7 @@
     "directories": { "output": "release" },
     "files": ["main.js", "preload.js", "storageNode.js", "icon.png"],
     "extraResources": [{ "from": "../frontend/dist", "to": "ui" }],
+    "publish": [{ "provider": "github", "owner": "sohaibirfann", "repo": "Distributed-File-System" }],
     "win": { "target": "nsis", "icon": "icon.png" },
     "linux": { "target": "AppImage", "icon": "icon.png", "category": "Network" },
     "mac": { "target": "dmg", "icon": "icon.png" }
