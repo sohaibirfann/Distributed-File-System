@@ -68,7 +68,10 @@ function createWindow() {
   mainWindow = win;
   if (s.maximized) win.maximize();
 
-  win.loadURL(APP_URL);
+  // Packaged: load the bundled frontend (copied to resources/ui by electron-builder).
+  // Dev: load the live Vite server for hot-reload.
+  if (app.isPackaged) win.loadFile(path.join(process.resourcesPath, "ui", "index.html"));
+  else                win.loadURL(APP_URL);
 
   // Tell the renderer when the maximize state flips (to swap the button icon).
   win.on("maximize",   () => win.webContents.send("win:maximized", true));
