@@ -69,7 +69,6 @@ just installs the app.
 | `backend/`  | The coordinator (Express + SQLite + Socket.io) and a standalone storage-node server (`nodeServer.js`) for dev/headless use. |
 | `frontend/` | The React + Vite app (UI), bundled into the desktop client. |
 | `desktop/`  | The Electron shell — frameless window, settings, embedded storage node, packaging + auto-update. |
-| `spike/`    | WebRTC signaling/peer experiments (not used by the app). |
 
 ## Develop
 
