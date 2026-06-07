@@ -2,105 +2,98 @@
 
 **🌐 Landing page:** [https://sohaibirfann.github.io/dfs/](https://sohaibirfann.github.io/dfs/)
 
-A private, invite-only app for sharing files inside a small group, where every
-file is **end-to-end encrypted on your device** and stored **across the group
-members' own machines** instead of a company's cloud.
+A private, invite-only desktop app for sharing files inside a small group, where
+every file is **end-to-end encrypted on your device** and stored **across the
+group members' own machines** instead of a company's cloud.
 
-> Mental model: *"WhatsApp groups, but for file storage."* You make a group,
-> invite a few people, and your files live distributed across just those members.
+> Mental model: *"WhatsApp groups, but for file storage."* One person in the group
+> runs a small coordinator on the local network; everyone installs the app, joins
+> with an invite, and files live distributed across just those members.
 
 ## How it works
 
-1. **Encrypt** — A file is encrypted in the browser (AES-256-GCM, Web Crypto)
-   with the group's key, then split into chunks. Plaintext never leaves the device.
-2. **Distribute** — Encrypted chunks are spread across the group's machines with
+1. **Encrypt** — a file is encrypted on your device (AES-256-GCM) with the group's
+   key, then split into chunks. Plaintext never leaves the device.
+2. **Distribute** — encrypted chunks are spread across the group's machines with
    configurable replication, so a file survives members going offline.
-3. **Access** — Any member fetches the chunks and decrypts on-device with the
+3. **Access** — any member fetches the chunks and decrypts on-device with the
    shared group key.
 
-The **coordinator** is a lightweight cloud service that acts as a phonebook +
-traffic controller: it tracks which groups/members exist, who's online, and which
-encrypted chunk lives where. It holds **no files and no keys**. Group keys live
-only on members' devices, delivered through a group's invite.
+The **coordinator** is a lightweight server one group member runs — a phonebook +
+traffic controller that tracks groups/members, who's online, and which encrypted
+chunk lives where. It holds **no files and no keys**; group keys live only on
+members' devices, delivered through a group's invite. It only ever handles
+ciphertext.
 
-> Honest nuance: today the coordinator may briefly relay **encrypted** chunks;
-> moving transfers fully peer-to-peer (WebRTC) is on the roadmap. Either way it
-> never touches plaintext or keys.
+> Scope: this is **LAN / self-hosted** — the group runs on one local network (or a
+> coordinator the group exposes themselves). There's no central service to sign up
+> for and nothing the developer hosts.
+
+## For your group — getting started
+
+You need **one** machine to act as the host (runs the coordinator); everyone else
+just installs the app.
+
+**Host (one person):**
+1. Run the coordinator — easiest is Docker or Node from this repo
+   (see [backend/DEPLOY.md](backend/DEPLOY.md)). It prints its address, e.g.
+   `http://192.168.1.50:5000`.
+2. Allow it through the firewall — run `backend/open-firewall.ps1` as Administrator
+   (opens the coordinator + storage-node ports on your local network).
+
+**Everyone (including the host):**
+3. Install the app (`DFS Setup.exe`) and open it.
+4. On the first screen, enter the **host's address** (`http://192.168.1.50:5000`).
+   The dot in the title bar turns green when connected.
+5. Sign up. The host creates a group and shares an **invite**; others **Join with
+   code**.
+6. In **Settings → Storage**, turn on **Contribute** on the machines that should
+   store the group's files.
+7. Upload a file — it's encrypted on your device and distributed to the group.
+
+> Note: the installer is **unsigned**, so Windows SmartScreen shows a warning on
+> first install — click **More info → Run anyway**.
+
+## Security model
+
+- **AES-256-GCM**, client-side, before anything is uploaded.
+- **Keys live only on devices**, shared through a group's invite — never sent to or
+  stored on a server.
+- **Zero-knowledge coordinator** — metadata only (groups, presence, chunk map).
+- **Group isolation** — two groups can't see or decrypt each other's data.
 
 ## Repo layout
 
 | Path        | What it is |
 |-------------|-----------|
 | `backend/`  | The coordinator (Express + SQLite + Socket.io) and a standalone storage-node server (`nodeServer.js`) for dev/headless use. |
-| `frontend/` | The React + Vite app (UI). Bundled into the desktop client; also runs in the browser for dev. |
-| `desktop/`  | The Electron shell — frameless window, settings, and an **embedded storage node**. |
-| `spike/`    | WebRTC signaling/peer experiments (not part of the app yet). |
+| `frontend/` | The React + Vite app (UI), bundled into the desktop client. |
+| `desktop/`  | The Electron shell — frameless window, settings, embedded storage node, packaging + auto-update. |
+| `spike/`    | WebRTC signaling/peer experiments (not used by the app). |
 
-## Quick start (dev)
+## Develop
 
 **Prerequisites:** Node.js 18+.
 
 ```bash
-# 1. Install deps (root + each package)
 npm install
-npm --prefix backend install
-npm --prefix frontend install
-npm --prefix desktop install
+npm --prefix backend install && npm --prefix frontend install && npm --prefix desktop install
 
-# 2. Configure the coordinator's secrets
-cp backend/.env.example backend/.env
-# then fill JWT_SECRET and NODE_SECRET — generate each with:
-#   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# coordinator secrets
+cp backend/.env.example backend/.env   # fill JWT_SECRET, NODE_SECRET
+# generate each: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
-# 3a. Run everything (coordinator + a storage node + web UI + desktop app)
-npm run dev
-
-# 3b. …or just the web stack, no Electron window
-npm run dev:web
+npm run dev        # coordinator + storage node + web UI + desktop app
+npm run dev:web    # …without the Electron window
 ```
 
-Default ports: coordinator on **5000**, web UI on **5173**, the dev storage node
-on **7001**.
+Default ports: coordinator **5000**, web UI **5173**, dev storage node **7001**.
 
-### Useful scripts
+## Build & release
 
-| Command | Where | Does |
-|---|---|---|
-| `npm run dev` | root | coordinator + storage node + web + desktop |
-| `npm run dev:web` | root | coordinator + storage node + web (no desktop) |
-| `npm start` | `backend/` | run the coordinator (`node app.js`) |
-| `npm run node1` | `backend/` | run a standalone storage node on :7001 |
-| `npm test` | `backend/` | backend group tests |
-| `npm run dev` / `build` | `frontend/` | Vite dev server / production build |
-| `npm start` | `desktop/` | launch the Electron app |
-
-## Pointing the app at a coordinator
-
-The coordinator address is **runtime-configurable** on desktop — no rebuild needed:
-
-- **First run:** the app shows a "Connect to a coordinator" screen.
-- **Anytime:** Settings → **Connection**.
-
-The build-time default lives in `frontend/.env` (`VITE_API_URL`) and is only a
-fallback; the in-app value (stored per-device) overrides it.
-
-To test against a deployed-feeling coordinator without a server, expose your
-local coordinator with a free tunnel and paste the URL into the app:
-
-```bash
-cloudflared tunnel --url http://localhost:5000
-```
-
-## Security model
-
-- **AES-256-GCM**, client-side, before anything is uploaded.
-- **Keys live only on devices**, shared through a group's invite — never sent to
-  or stored on a server.
-- **Zero-knowledge coordinator** — metadata only (groups, presence, chunk map).
-- **Group isolation** — two groups can't see or decrypt each other's data.
-
-## Status
-
-Desktop client with end-to-end encrypted, replicated, group-based file sharing.
-Works today over HTTP on the same network as the coordinator; cross-network
-peer-to-peer transfer (WebRTC) and packaged installers are next.
+- **Package the desktop app:** `cd desktop && npm install && npm run dist` →
+  `desktop/release/DFS Setup <version>.exe`. (On Windows, enable Developer Mode so
+  the build's signing-tool extraction succeeds.)
+- **Ship updates:** the app auto-updates from GitHub Releases — see
+  [desktop/RELEASING.md](desktop/RELEASING.md).
+- **Host the coordinator:** [backend/DEPLOY.md](backend/DEPLOY.md).
